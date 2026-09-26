@@ -7,14 +7,13 @@ from pathlib import Path
 
 import psycopg
 
+from app.authorities import norm  # noqa: F401 (re-exported: evals import norm from here)
+
 GOLD_PATH = Path(__file__).resolve().parent / "gold.jsonl"
 TOPICS = ("limitations", "city-claims", "slip-and-fall", "dog-bites", "motor-vehicle", "procedure-and-other", "case-law",
           "out-of-scope")
 
 
-def norm(s: str) -> str:
-    s = s.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
-    return " ".join(s.casefold().split())
 
 
 def load_gold(path: Path = GOLD_PATH) -> list[dict]:

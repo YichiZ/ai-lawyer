@@ -13,6 +13,7 @@ from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
 
 from app import tracing
+from app.authorities import SECONDARY_LABEL, secondary_statutes
 from app.format import mcgill_citation
 from app.laws import excerpt
 from ingest.statutes import display_pinpoint
@@ -85,6 +86,7 @@ class AskResult:
     claims: list[dict] = field(default_factory=list)
     dropped: list[dict] = field(default_factory=list)
     retried: bool = False
+    secondary_statute: list[str] = field(default_factory=list)  # laws named but only quoted by cited decisions (#18)
 
 
 def normalize(s: str) -> str:
@@ -139,9 +141,11 @@ def _not_found(hits: list[Retrieved]) -> AskResult:
 Refine = Callable[[list[dict]], list[dict]]
 
 
-def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Refine = lambda claims: claims) -> AskResult:
+def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Refine = lambda claims: claims,
+            library_titles: list[str] = ()) -> AskResult:
     """`refine` narrows each verified claim's source (e.g. to the subsection holding the quote) before composing.
-    The grounding gate looks at law hits only (its threshold was calibrated on them)."""
+    The grounding gate looks at law hits only (its threshold was calibrated on them). `library_titles` (see
+    library_titles()) keeps laws we hold from being labelled as quoted only by a decision."""
     best = min((h.distance for h in hits if h.distance is not None and h.source.get("kind") != "decision"),
                default=None)
     if best is None or best > GATE_MAX_DISTANCE:
@@ -166,7 +170,10 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
         all_dropped += dropped
         if ok:
             ok = refine([{**c, "source": sources[c["chunk_id"]]} for c in ok])
-            return AskResult("drafted", compose_draft(out["answer"], ok), ok, all_dropped, retried=attempt > 0)
+            secondary = secondary_statutes(out["answer"], [c["source"] for c in ok], library_titles)
+            draft = compose_draft(out["answer"], ok)
+            return AskResult("drafted", f"{SECONDARY_LABEL}\n\n{draft}" if secondary else draft, ok, all_dropped,
+                             retried=attempt > 0, secondary_statute=secondary)
         feedback = ("\nYour previous quotes were not exact copies of the passages. Copy each quote character for "
                     "character from the passage you cite.\n")
     return AskResult(status="unverified", draft_markdown="No statement could be verified against the passages.",
@@ -244,6 +251,12 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
     return rerank(question, hits, top_k) if rerank else hits
 
 
+def library_titles(conn: psycopg.Connection) -> list[str]:
+    """Titles, short names and citations of the laws we hold (every non-decision document)."""
+    return [v for row in conn.execute("SELECT title, short_name, citation FROM documents WHERE kind <> 'decision'")
+            for v in row if v]
+
+
 def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None, hits: list[Retrieved],
                    timings: dict, trace_id: str | None) -> int:
     """The answer row as soon as sources are known; the draft is written later (see complete_draft)."""
@@ -263,7 +276,8 @@ def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None
 def complete_draft(conn: psycopg.Connection, answer_id: int, result: AskResult, draft_ms: int,
                    hits: list[Retrieved] | None = None) -> None:
     """Store the draft; `hits` (the reranked passages the draft used) replace the sources shown at ask time."""
-    patch = {"status": result.status, "retried": result.retried, "dropped_claims": result.dropped}
+    patch = {"status": result.status, "retried": result.retried, "dropped_claims": result.dropped,
+             "secondary_statute": result.secondary_statute}
     if hits is not None:
         patch["sources"] = [{**h.source, "score": h.score, "distance": h.distance} for h in hits]
     with conn.transaction():

@@ -13,16 +13,17 @@ from pathlib import Path
 
 import psycopg
 
-from app.ask import pinpoint_claims, retrieve, retrieve_for_answer, run_ask
+from app.ask import library_titles, pinpoint_claims, retrieve, retrieve_for_answer, run_ask
 from app.rerank import make_reranker
 from app.review import risk_reasons
 from app.search import SEARCH_TOP_K, group_by_law, suggest
 from evals.answers import JUDGE_MODEL, judge_answer
 from evals.gold import load_gold
 from evals.metrics import chunk_covers, recall_at_k
-from evals.suite import (THRESHOLDS, abstention_outcome, advice_phrases, injection_resisted, is_non_answer,
-                         jaccard, judge_definition, passed, rate, score_hit, score_jump, score_pinpoint,
-                         unsourced_authorities)
+from app.authorities import unsourced_authorities
+from evals.suite import (THRESHOLDS, abstention_acceptable, abstention_outcome, advice_phrases, injection_resisted,
+                         is_non_answer, jaccard, judge_definition, passed, rate, score_hit, score_jump, score_pinpoint,
+                         secondary_labelled)
 from ingest.vertex import CHEAP_MODEL, batch_client, embedder, json_generator
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,13 +57,15 @@ def answer(m: Models, question: str) -> dict:
     """The /ask draft pipeline, exactly as the background drafter runs it."""
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         hits = retrieve_for_answer(conn, question, m.embed(question), rerank=m.rerank)
-        result = run_ask(question, hits, m.generate, refine=lambda claims: pinpoint_claims(conn, claims))
+        result = run_ask(question, hits, m.generate, refine=lambda claims: pinpoint_claims(conn, claims),
+                         library_titles=library_titles(conn))
     claims = [{"text": c["text"], "quote": c["quote"], "slug": c["source"]["slug"],
                "pinpoint": c["source"]["pinpoint"], "title": c["source"]["title"], "kind": c["source"].get("kind"),
                "citation": c["source"]["citation"]["text"]} for c in result.claims]
-    flags = {"status": result.status, "dropped_claims": result.dropped, "retried": result.retried}
+    flags = {"status": result.status, "dropped_claims": result.dropped, "retried": result.retried,
+             "secondary_statute": result.secondary_statute}
     return {"status": result.status, "draft": result.draft_markdown, "claims": claims, "dropped": len(result.dropped),
-            "risk": risk_reasons(flags)}
+            "flags": flags, "risk": risk_reasons(flags)}
 
 
 # 1 --------------------------------------------------------------------------------------------------------------
@@ -139,12 +142,17 @@ def run_abstention(m: Models) -> dict:
     rows = []
     for it, out in zip(items, outputs):
         titles = [c["title"] for c in out["claims"]]
+        outcome = abstention_outcome(out["status"], out["draft"], out["claims"])
         rows.append({**it, "status": out["status"], "draft": out["draft"], "cited": sorted(set(titles)),
-                     "unsourced": unsourced_authorities(out["draft"], titles),
-                     "outcome": abstention_outcome(out["status"], out["draft"], out["claims"])})
+                     "unsourced": unsourced_authorities(out["draft"], titles), "outcome": outcome,
+                     "secondary_statute": out["flags"]["secondary_statute"], "risk": out["risk"],
+                     "labelled": secondary_labelled(out["draft"], out["flags"]),
+                     "acceptable": abstention_acceptable(outcome, out["draft"], out["flags"])})
     share = lambda o: rate([r["outcome"] == o for r in rows])  # noqa: E731
+    # abstain_or_grounded: a secondary answer counts only when the draft is labelled and flagged (#18)
     metrics = {"no_invented_authority": rate([r["outcome"] != "invented" for r in rows]),
-               "abstain_or_grounded": rate([r["outcome"] in ("abstained", "grounded") for r in rows]),
+               "abstain_or_grounded": rate([r["acceptable"] for r in rows]),
+               "secondary_labelled": rate([r["labelled"] for r in rows if r["outcome"] == "secondary"]),
                "abstained": share("abstained"), "secondary": share("secondary"), "invented": share("invented"),
                "n": len(rows)}
     return {"metrics": metrics, "items": rows}

@@ -18,6 +18,8 @@ CANDIDATES_PATH = Path(os.environ.get("GOLD_CANDIDATES_PATH",
 
 def risk_reasons(flags: dict) -> list[str]:
     reasons = []
+    if flags.get("secondary_statute"):  # first: the draft states a law we don't hold, from a decision quoting it
+        reasons.append("secondary_statute")
     if flags.get("status") in REFUSAL_STATUSES:
         reasons.append(flags["status"])
     if flags.get("dropped_claims"):

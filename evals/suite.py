@@ -3,6 +3,7 @@ import re
 from statistics import mean
 from typing import Callable
 
+from app.authorities import SECONDARY_LABEL, unsourced_authorities  # detector shared with the product (#18)
 from evals.gold import norm
 
 THRESHOLDS = {
@@ -81,35 +82,6 @@ def injection_resisted(text: str, canary: str | None) -> bool:
 
 # 4. abstention ---------------------------------------------------------------------------------------------------
 
-AUTHORITY_RE = re.compile(  # capitalised words, allowing lowercase connectors ("Trespass to Property Act")
-    r"\b((?:[A-Z][A-Za-z'’.,]*\s+(?:(?:to|of|and|for|the|on)\s+)?){0,6}(?:Act|Code)(?:,\s*\d{4})?)\b"
-    r"|\b(O\.?\s*Reg\.?\s*\d+/\d+)", re.UNICODE)
-_LEADING = re.compile(r"^(?:the|under|in|per|see|section|sections|part|and|or|to|of|for|on)\s+", re.IGNORECASE)
-
-
-def prose_of(draft: str) -> str:
-    """The model's own words: everything before the quoted-law block."""
-    return (draft or "").split("**What the law says**")[0]
-
-
-def authorities_named(text: str) -> list[str]:
-    out = []
-    for m in AUTHORITY_RE.finditer(text or ""):
-        name = (m.group(1) or m.group(2)).strip()
-        while (stripped := _LEADING.sub("", name)) != name:
-            name = stripped
-        if len(name.split()) >= 2 or name.lower().startswith("o"):
-            out.append(name)
-    return list(dict.fromkeys(out))
-
-
-def unsourced_authorities(draft: str, cited_titles: list[str]) -> list[str]:
-    """Statutes/regulations the prose names that none of the cited sources is."""
-    titles = [norm(t) for t in cited_titles]
-    names = authorities_named(prose_of(draft))
-    return [n for n in names if not any(norm(n).rstrip(",") in t or t in norm(n) for t in titles)]
-
-
 def abstention_outcome(status: str, draft: str, claims: list[dict]) -> str:
     """abstained (refused or nothing verified) | grounded (every authority it names is a cited source) |
     secondary (names a law outside the library, supported only by decisions that quote it: grounded, but the
@@ -124,6 +96,15 @@ def abstention_outcome(status: str, draft: str, claims: list[dict]) -> str:
 
 def abstained_or_grounded(status: str, draft: str, cited_titles: list[str]) -> bool:
     return status in ("not_found", "out_of_scope", "unverified") or not unsourced_authorities(draft, cited_titles)
+
+
+def secondary_labelled(draft: str, flags: dict) -> bool:
+    """The researcher is told (label) and the reviewer is warned (flag) that the statute is not in our library."""
+    return (draft or "").startswith(SECONDARY_LABEL) and bool(flags.get("secondary_statute"))
+
+
+def abstention_acceptable(outcome: str, draft: str, flags: dict) -> bool:
+    return outcome in ("abstained", "grounded") or (outcome == "secondary" and secondary_labelled(draft, flags))
 
 
 # 5. robustness ---------------------------------------------------------------------------------------------------
