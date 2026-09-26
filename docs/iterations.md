@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 3 · 3.3 Fusion tuning — kept
+
+- **What:** weighted RRF (`rrf(..., weights)`), keyword mode `and_or` (tried, not kept), `scripts/sweep_fusion.py` (offline: each gold question embedded once, every variant scored with the same metric). Chosen: **k 10, keyword weight 0.3** (`RRF_K`, `KEYWORD_WEIGHT`).
+- **Sweep (offline, recall@8 / MRR):** Phase 2 (k 60, 1:1) 0.887 / 0.624 · and_or 0.887 / 0.643 · depth 100 0.806 / 0.607 · weights 0.5:1 0.919 / 0.700 · 0.3:1 0.952 / 0.762 · k 10 0.968 / 0.677 · k 10 + 0.5:1 1.000 / 0.805 · **k 10 + 0.3:1 1.000 / 0.847** · k 5 + 0.5:1 1.000 / 0.857 · k 20 + 0.5:1 1.000 / 0.760 · vector only 1.000 / 0.919. Kept hybrid (not vector-only) because the gold set has few exact-term / citation queries; picked a middle point rather than the grid extreme.
+- **Validated:** tests red first (weighted RRF) → pass; `make eval` → no regression, improved: **recall@8 0.887 → 1.000, MRR 0.626 → 0.847, has verified claim 0.919 → 1.000, facts covered 0.847 → 0.968, in-scope answered 0.919 → 1.000**; citation supported 0.956, faithful 0.903 (within judge tolerance). All 5 previously unverified in-scope items now answer with verified quotes. Baseline re-recorded ([run](https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/c3fd0620-74f1-47e0-9830-04e05e68bae3)).
+- **Next:** 3.2 synonyms delta; 3.4 rerank.
+
 ## 2026-09-26 · Phase 3 · 3.7 Search and typeahead
 
 - **What:** `app/search.py` + `GET /suggest?q=` (citations jump to a section: "s. 4(1)", "OLA s 6.1", "r. 2.02", "§ 743-9", law named by abbreviation or title; otherwise pg_trgm word similarity on law titles and section headings) and `GET /search?q=` (hybrid retrieval top 20 grouped by law; `meta.ask_this` for question-shaped queries). Web: header search box (combobox + listbox ARIA, `/` to focus, arrows/Enter, debounced server action), `/search` results page with "Ask this" → `/ask?q=` prefilled.
