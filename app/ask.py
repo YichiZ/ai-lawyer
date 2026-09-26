@@ -186,20 +186,15 @@ def retrieve_for_answer(conn: psycopg.Connection, question: str, query_vector: l
     return laws + cases
 
 
-def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES, mode: str = "or",
+def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES,
                     kinds: list[str] = LAW_KINDS) -> list[int]:
-    """Chunk ids by ts_rank_cd. mode "or": any term; "and_or": all terms first, then any term to fill up."""
-    sql = ("WITH t AS (SELECT {q} AS q) SELECT c.id FROM chunks c JOIN documents d ON d.id = c.document_id, t"
-           " WHERE d.kind = ANY(%s) AND t.q::text <> '' AND c.tsv @@ t.q"
-           " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s")
-    any_term = "replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery"
-    ids = [r[0] for r in conn.execute(sql.format(q=any_term if mode == "or" else "plainto_tsquery('english', %s)"),
-                                      (question, kinds, limit))]
-    if mode == "and_or" and len(ids) < limit:
-        seen = set(ids)
-        ids += [r[0] for r in conn.execute(sql.format(q=any_term), (question, kinds, limit))
-                if r[0] not in seen][:limit - len(ids)]
-    return ids
+    """Chunk ids by ts_rank_cd over any of the question's terms (all-terms-first was tried in 3.3, not kept)."""
+    return [r[0] for r in conn.execute(
+        "WITH t AS (SELECT replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery AS q)"
+        " SELECT c.id FROM chunks c JOIN documents d ON d.id = c.document_id, t"
+        " WHERE d.kind = ANY(%s) AND t.q::text <> '' AND c.tsv @@ t.q"
+        " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s",
+        (question, kinds, limit))]
 
 
 def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: int = CANDIDATES,

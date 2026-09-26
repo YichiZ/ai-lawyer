@@ -13,7 +13,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from statistics import mean, quantiles
+from statistics import quantiles
 
 import psycopg
 from langfuse import Evaluation, Langfuse
@@ -39,7 +39,7 @@ from evals.answers import (
 from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash
 from evals.gold import GOLD_PATH, load_gold
 from evals.langfuse_io import CASELAW_DATASET, DATASET, upsert_dataset
-from evals.metrics import chunk_covers, mrr, recall_at_k, summarize
+from evals.metrics import chunk_covers, mean_of, mrr, recall_at_k, summarize
 from evals.readability import fk_grade
 from evals.summaries import judge_summary, summarize_scores
 from ingest.statutes import display_pinpoint
@@ -164,11 +164,6 @@ def answer_evaluator(judge):
     return evaluate
 
 
-def _mean(rows: list[dict], key: str) -> float | None:
-    vals = [r[key] for r in rows if r.get(key) is not None]
-    return round(mean(vals), 3) if vals else None
-
-
 def run_answers(lf: Langfuse) -> dict:
     gold = {g["id"]: g for g in load_gold()}
     upsert_dataset(lf, list(gold.values()))
@@ -189,14 +184,14 @@ def run_answers(lf: Langfuse) -> dict:
     ins, oos = [r for r in rows if not r["must_refuse"]], [r for r in rows if r["must_refuse"]]
     metrics = ["has_verified_claim", "verified_claim_rate", "facts_covered", "citation_supported", "faithful",
                "no_advice", "refusal_correct"]
-    summary = {"in_scope": {"n": len(ins), **{m: _mean(ins, m) for m in metrics}},
-               "out_of_scope": {"n": len(oos), "refusal_correct": _mean(oos, "refusal_correct")},
+    summary = {"in_scope": {"n": len(ins), **{m: mean_of(ins, m) for m in metrics}},
+               "out_of_scope": {"n": len(oos), "refusal_correct": mean_of(oos, "refusal_correct")},
                "judge_errors": sum(1 for r in ins if r.get("judge_error")),
                "latency_ms": {k: {"p50": quantiles([r[k] for r in rows], n=100)[49],
                                   "p95": quantiles([r[k] for r in rows], n=100)[94]} for k in ("sources_ms", "total_ms")}}
     for topic in sorted({r["topic"] for r in ins}):
         t = [r for r in ins if r["topic"] == topic]
-        summary[topic] = {"n": len(t), **{m: _mean(t, m) for m in ("has_verified_claim", "facts_covered", "citation_supported")}}
+        summary[topic] = {"n": len(t), **{m: mean_of(t, m) for m in ("has_verified_claim", "facts_covered", "citation_supported")}}
     gate = gate_tradeoff([r["best_distance"] for r in ins], [r["best_distance"] for r in oos],
                          [0.22, 0.24, 0.26, 0.28, 0.30, 0.35])
     judged = [(r["id"], c, v) for r in ins if r.get("judge") and not r["judge"]["error"]

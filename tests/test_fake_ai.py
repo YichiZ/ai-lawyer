@@ -1,3 +1,5 @@
+from contextlib import nullcontext
+
 from app.ask import PROMPT, verify_claims
 from app.fake_ai import FakeAI
 from ingest.chunks import embed_pending, plan_chunks, sync_chunks
@@ -12,7 +14,7 @@ def test_fake_ai_is_deterministic_and_verifiable(conn):
     sync_chunks(conn, doc_id, plan_chunks("Test Act", [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in secs]))
     embed_pending(conn, lambda t: [float(len(t) % 7 + 1)] + [0.0] * 1535, model="fake", workers=1)
 
-    ai = FakeAI(lambda: conn)
+    ai = FakeAI(lambda: nullcontext(conn))
     v = ai.embed_query("second anniversary proceeding")
     assert len(v) == 1536 and v == ai.embed_query("second anniversary proceeding")
 

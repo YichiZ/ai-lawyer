@@ -54,7 +54,7 @@ def get_ai() -> VertexAI:
         from app.fake_ai import FakeAI
 
         log.warning("AI_FAKE=1: using the deterministic fake model (tests only)")
-        return FakeAI(lambda: psycopg.connect(DATABASE_URL, autocommit=True), close_after=True)
+        return FakeAI(lambda: psycopg.connect(DATABASE_URL, autocommit=True))
     return VertexAI()
 
 
@@ -259,9 +259,10 @@ def review_queue(conn: Conn, _: Reviewer):
 def review_answer(answer_id: int, body: ReviewRequest, conn: Conn, reviewer: Reviewer):
     status = review.decide(conn, answer_id, reviewer["id"], body.decision, body.final_markdown, body.note, body.reason)
     if status is None:
-        if not review.exists(conn, answer_id):
+        drafting = review.drafting(conn, answer_id)
+        if drafting is None:
             raise NotFound(f"No answer {answer_id}")
-        if review.is_drafting(conn, answer_id):
+        if drafting:
             raise HTTPException(status_code=409, detail=f"Answer {answer_id} is still drafting; try again shortly")
         raise HTTPException(status_code=409, detail=f"Answer {answer_id} was already reviewed")
     try:
