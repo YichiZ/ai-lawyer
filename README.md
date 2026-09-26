@@ -122,7 +122,11 @@ library):
 >
 > Missing the notice is not a bar if a judge finds a reasonable excuse and the City is not prejudiced (s 42(8)).
 
-The answer states the rules; it never works out a date or says whether someone has a case.
+The answer states the rules; it never works out a date or says whether someone has a case. When an answer can quote a
+statute only through a court decision (e.g. *Municipal Act, 2001* s. 44 as quoted in *Crinson v. Toronto (City)*,
+2010 ONCA 44), it carries the label "**Statute quoted in a court decision — not in our law library.** The wording below
+comes from the decision; check the current version of the statute before relying on it." and the reviewer sees the
+draft flagged.
 
 *Guarantee:* each quote must appear word for word in its source, or the claim is dropped in code. If the library has
 no close match, the grounding gate answers "not found" without calling the model. No draft reaches a researcher
@@ -133,9 +137,8 @@ without a reviewer's approval.
 The researcher can choose to search the web; nothing is searched automatically. The reviewer can then add official
 pages to the library so the next question is answered from it.
 
-1. **Ask** something outside the library, e.g. a question about s. 44 of the *Municipal Act, 2001* (the library has the
-   *City of Toronto Act, 2006*, not the Municipal Act). The page says *Our law library has no close match for this
-   question* and offers **Search the web instead**.
+1. **Ask** something outside the library, e.g. the rules for flying a drone near Pearson airport. The page says *Our law
+   library has no close match for this question* and offers **Search the web instead**.
 2. That makes a Google Search–grounded draft labelled *Web search answer — not from our law library*, with each source
    and its domain. It goes to the review queue flagged as a web answer and is reviewed like any other.
 3. In the queue, sources on ontario.ca, canada.ca, ontariocourts.ca, scc-csc.ca and toronto.ca get **Add to library**;
