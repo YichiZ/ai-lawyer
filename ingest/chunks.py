@@ -11,7 +11,8 @@ from ingest.statutes import display_pinpoint
 
 # ponytail: ~800 tokens at ~4 chars/token; switch to count_tokens if a model limit gets tight.
 CHUNK_CHAR_LIMIT = 3200
-SKIP_TEXTS = {"[blank]"}  # A2AJ placeholders for sections covered by a range entry ("25-49 Omitted ...")
+SKIP_TEXTS = {"[blank]"}
+DECISION_CHUNK_CHARS = 2000  # ~500 tokens of whole paragraphs (design: decision windows)  # A2AJ placeholders for sections covered by a range entry ("25-49 Omitted ...")
 FLUSH_EVERY = 25
 
 
@@ -62,6 +63,26 @@ def plan_chunks(doc_title: str, sections: list[dict]) -> list[dict]:
                 "context": context,
                 "text_sha256": hashlib.sha256(embed_input(context, text).encode()).hexdigest(),
             })
+    return chunks
+
+
+def plan_decision_chunks(name: str, citation: str, sections: list[dict]) -> list[dict]:
+    """Windows of whole numbered paragraphs (~500 tokens); the intro/headnote is not chunked."""
+    paras = [s for s in sections if s["kind"] == "section"]
+    windows: list[list[dict]] = []
+    for p in paras:
+        if windows and sum(len(x["text"]) + 1 for x in windows[-1]) + len(p["text"]) <= DECISION_CHUNK_CHARS:
+            windows[-1].append(p)
+        else:
+            windows.append([p])
+    chunks = []
+    for w in windows:
+        first, last = w[0]["pinpoint"][5:], w[-1]["pinpoint"][5:]
+        context = f"{name}, {citation} — " + (f"para {first}" if first == last else f"paras {first}–{last}")
+        text = "\n".join(p["text"] for p in w)
+        chunks.append({"pinpoint": w[0]["pinpoint"], "section_ids": [p["id"] for p in w], "text": text,
+                       "context": context,
+                       "text_sha256": hashlib.sha256(embed_input(context, text).encode()).hexdigest()})
     return chunks
 
 

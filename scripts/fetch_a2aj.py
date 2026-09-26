@@ -1,6 +1,6 @@
 """Download the Ontario A2AJ law files into input/a2aj/ and record them in input/manifest.jsonl.
 
-Run: uv run scripts/fetch_a2aj.py
+Run: uv run scripts/fetch_a2aj.py [--caselaw]   (--caselaw: ONCA + SCC decisions, approved 2026-09-26)
 Idempotent: a HEAD request reads the file's sha256 (Hugging Face x-linked-etag); unchanged files are skipped.
 """
 import sys
@@ -14,11 +14,14 @@ from ingest.manifest import append_entry, needs_download, read_manifest, sha256_
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "input" / "manifest.jsonl"
 OUT_DIR = ROOT / "input" / "a2aj"
-BASE = "https://huggingface.co/datasets/a2aj/canadian-laws/resolve/main"
-FILES = {  # approved 2026-09-25: 64.1 MB + 63.6 MB
-    "LEGISLATION-ON": "legislation-dataset",
-    "REGULATIONS-ON": "regulations-dataset",
-}
+LAWS = ("https://huggingface.co/datasets/a2aj/canadian-laws/resolve/main", "a2aj-laws", {  # approved 2026-09-25
+    "LEGISLATION-ON": "legislation-dataset",   # 64.1 MB
+    "REGULATIONS-ON": "regulations-dataset",   # 63.6 MB
+})
+CASELAW = ("https://huggingface.co/datasets/a2aj/canadian-case-law/resolve/main", "a2aj-caselaw", {  # approved 2026-09-26
+    "ONCA": "decisions-dataset",   # 183.5 MB
+    "SCC": "decisions-dataset",    # 365.3 MB
+})
 TIMEOUT_S = 60
 HEADERS = {"User-Agent": "ai-lawyer/0.1 (portfolio research demo)"}
 
@@ -55,8 +58,9 @@ def download(url: str, dest: Path) -> int:
 def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     total_bytes, added = 0, 0
-    for name, doc_type in FILES.items():
-        url = f"{BASE}/{name}/train.parquet"
+    base, source, files = CASELAW if "--caselaw" in sys.argv else LAWS
+    for name, doc_type in files.items():
+        url = f"{base}/{name}/train.parquet"
         dest = OUT_DIR / f"{name}.parquet"
         sha = remote_sha256(url)
         if not needs_download(sha, read_manifest(MANIFEST), dest):
@@ -71,11 +75,11 @@ def main() -> int:
         total_bytes += n
         added += append_entry(MANIFEST, {
             "url": url,
-            "source": "a2aj-laws",
-            "title": f"A2AJ Canadian Laws: {name}",
-            "jurisdiction": "ON",
+            "source": source,
+            "title": f"A2AJ {'Canadian Case Law' if source == 'a2aj-caselaw' else 'Canadian Laws'}: {name}",
+            "jurisdiction": "CA" if name == "SCC" else "ON",
             "doc_type": doc_type,
-            "upstream_license": "MIT (A2AJ dataset); each row carries its own upstream_license",
+            "upstream_license": "A2AJ dataset licence; each row carries its own upstream_license",
             "sha256": sha,
             "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "path": str(dest.relative_to(ROOT)),

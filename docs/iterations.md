@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 4 · 4.4 Topic guides — drafted, awaiting human review
+
+- **What:** `guides` + `guide_sections` tables; each section is an ordinary answer drafted by the /ask pipeline (fused → rerank → gemini-3.7-flash → verified quotes) and placed in the review queue; `GET /guides`, `GET /guides/{slug}` (only approved/edited sections are shown, with "Reviewed by"); `/guides/[slug]` page (deadlines first, as rules; scoped Ask box) and home topic cards with "N of M sections reviewed". `scripts/build_guides.py` (patient batch client; `--retry-failed` re-drafts failed sections and removes the unreviewed placeholder).
+- **Run:** 5 guides, 16 sections: 12 drafted first time, 4 failed on Vertex 504/429 → retried → 3 drafted, 1 failed again (429) → retried after a 2-minute pause → drafted. **16/16 drafted, 0 approved**: approval is the human reviewer's job (Demo Reviewer = the user), so the guides show "awaiting review" until then.
+- **Validated:** tests red first → guides API tests (3); `tsc` clean; home and guide pages render; `make e2e-ci` green.
+- **Next:** Phase 5 (case law) — started: 5.1 fetched, 5.2 filtered, 5.3 loaded.
+
 ## 2026-09-26 · Phase 4 · 4.5 Design and accessibility pass
 
 - **What:** `@axe-core/playwright` scan of 9 page types × light/dark (WCAG 2.0/2.1/2.2 A+AA) in the e2e suite; `@lhci/cli` Lighthouse CI (`web/lighthouserc.json`, `make lighthouse`, CI job `lighthouse` on a production build against the fake-model API); `make e2e-ci` rebuilds the CI-like DB before running e2e. Radix installed for later tooltip work.

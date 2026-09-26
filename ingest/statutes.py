@@ -44,6 +44,8 @@ def display_pinpoint(pinpoint: str) -> str:
     """s-4-1 -> s. 4(1); r-1.06-2 -> r. 1.06(2); ss-25-49 -> ss. 25-49; part-iii.1 -> Part III.1."""
     if re.fullmatch(r"\d+-\d+(?:\.\d+)*", pinpoint):  # Toronto Municipal Code: 743-9 -> § 743-9
         return f"§ {pinpoint}"
+    if pinpoint.startswith("para-"):  # decisions: para-45 -> para 45
+        return f"para {pinpoint[5:]}"
     head, _, rest = pinpoint.partition("-")
     if head in ("s", "r"):
         num, _, sub = rest.partition("-")
@@ -175,7 +177,7 @@ def parse_law(row: dict, law: V0Law) -> ParsedLaw:
 
 
 DOC_COLUMNS = ("sha256", "kind", "slug", "title", "short_name", "citation", "jurisdiction", "in_force_from", "url",
-               "source", "upstream_license", "reproduction")
+               "source", "upstream_license", "reproduction", "neutral_citation", "court", "date")
 
 
 def load_document(conn: psycopg.Connection, parsed: ParsedLaw) -> str:
@@ -185,7 +187,7 @@ def load_document(conn: psycopg.Connection, parsed: ParsedLaw) -> str:
         existing = conn.execute("SELECT id, sha256 FROM documents WHERE slug = %s", (doc["slug"],)).fetchone()
         if existing and existing[1] == doc["sha256"]:
             return "unchanged"
-        values = [doc[c] for c in DOC_COLUMNS]
+        values = [doc.get(c) for c in DOC_COLUMNS]
         if existing:
             doc_id = existing[0]
             sets = ", ".join(f"{c} = %s" for c in DOC_COLUMNS)

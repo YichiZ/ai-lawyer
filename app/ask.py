@@ -173,26 +173,34 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
 # --- database side ---
 
-def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES, mode: str = "or") -> list[int]:
+LAW_KINDS = ["statute", "regulation", "bylaw"]  # decisions join retrieval only once measured on the gold set (5.5)
+
+
+def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES, mode: str = "or",
+                    kinds: list[str] = LAW_KINDS) -> list[int]:
     """Chunk ids by ts_rank_cd. mode "or": any term; "and_or": all terms first, then any term to fill up."""
-    sql = ("WITH t AS (SELECT {q} AS q) SELECT c.id FROM chunks c, t WHERE t.q::text <> '' AND c.tsv @@ t.q"
+    sql = ("WITH t AS (SELECT {q} AS q) SELECT c.id FROM chunks c JOIN documents d ON d.id = c.document_id, t"
+           " WHERE d.kind = ANY(%s) AND t.q::text <> '' AND c.tsv @@ t.q"
            " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s")
     any_term = "replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery"
     ids = [r[0] for r in conn.execute(sql.format(q=any_term if mode == "or" else "plainto_tsquery('english', %s)"),
-                                      (question, limit))]
+                                      (question, kinds, limit))]
     if mode == "and_or" and len(ids) < limit:
         seen = set(ids)
-        ids += [r[0] for r in conn.execute(sql.format(q=any_term), (question, limit)) if r[0] not in seen][:limit - len(ids)]
+        ids += [r[0] for r in conn.execute(sql.format(q=any_term), (question, kinds, limit))
+                if r[0] not in seen][:limit - len(ids)]
     return ids
 
 
-def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: int = CANDIDATES) -> list[tuple[int, float]]:
+def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: int = CANDIDATES,
+                   kinds: list[str] = LAW_KINDS) -> list[tuple[int, float]]:
     """(chunk id, cosine distance), nearest first."""
     register_vector(conn)
     vec = HalfVector(query_vector)
     return [(r[0], float(r[1])) for r in conn.execute(
-        "SELECT id, embedding <=> %s FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> %s LIMIT %s",
-        (vec, vec, limit),
+        "SELECT c.id, c.embedding <=> %s FROM chunks c JOIN documents d ON d.id = c.document_id"
+        " WHERE c.embedding IS NOT NULL AND d.kind = ANY(%s) ORDER BY c.embedding <=> %s LIMIT %s",
+        (vec, kinds, vec, limit),
     )]
 
 
