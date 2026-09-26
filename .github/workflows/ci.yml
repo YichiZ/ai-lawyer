@@ -102,7 +102,7 @@ jobs:
       - name: Build and serve (fake model API on :8001, production web on :3002)
         run: |
           (cd web && NEXT_DIST_DIR=.next-lh API_URL=http://localhost:8001 npx next build)
-          AI_FAKE=1 uv run uvicorn app.main:app --port 8001 &
+          AI_FAKE=1 .venv/bin/uvicorn app.main:app --port 8001 &  # not `uv run`: it would hold the uv cache lock past the job
           (cd web && NEXT_DIST_DIR=.next-lh API_URL=http://localhost:8001 npx next start --port 3002) &
           sleep 8
       - run: npx lhci autorun
