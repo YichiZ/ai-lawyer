@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Fix · Typeahead linked decisions to /laws/ (#12)
+
+- **What:** the title branch of `suggest()` matched all documents, so a case name ("Galota v. Festival Hall", "municipal act") came back as `{"type": "law", "url": "/laws/<decision>"}` and `/laws/<decision>` rendered the decision as a law. Title matches on decisions are now `type: "case"` → `/cases/<slug>`; `laws.get_document` (used only by `GET /laws/{slug}` and its sections) excludes `kind = 'decision'`, so those URLs 404. `sourceLabel` no longer calls every non-A2AJ document "City of Toronto": web pages show their site (`ontario.ca`).
+- **Validated:** pytest red first → green, full suite 407 passed; `tsc` clean; e2e 31 passed incl. a new check (case name → `/cases/2016-onca-585`, `/laws/2016-onca-585` → 404).
+- **Numbers:** search eval jump_accuracy 0.857 → 0.929 (jump-27, jump-28 fixed; jump-05 #20 and jump-21 #14 remain); hit@3 0.917 unchanged.
+
 ## 2026-09-26 · Fix · Web fallback stored a vertexaisearch redirect
 
 - **What:** answer 393's `web_sources` kept a `grounding-api-redirect` URL (title "dronemap.com", domain `vertexaisearch.cloud.google.com`). Cause: `_head` let urllib follow the redirect to the target site, dronemap.com answered HEAD with 405, and `resolve_url` fell back to the redirect URL. Now `_head` reads the redirector's `Location` header without contacting the target, and `resolve_url` returns `None` on any failure (or a result that is still a redirect), so `search_web` drops that source instead of storing it.

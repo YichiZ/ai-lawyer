@@ -31,7 +31,7 @@ def list_laws(conn: psycopg.Connection) -> list[dict]:
 
 def get_document(conn: psycopg.Connection, slug: str) -> dict | None:
     return conn.cursor(row_factory=dict_row).execute(
-        f"SELECT id, {DOC_FIELDS} FROM documents WHERE slug = %s", (slug,)
+        f"SELECT id, {DOC_FIELDS} FROM documents WHERE slug = %s AND kind <> 'decision'", (slug,)
     ).fetchone()
 
 
