@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 3 · 3.4 Listwise rerank — kept
+
+- **What:** `app/rerank.py`: gemini-3.5-flash-lite orders the fused top candidates (ids + citation + first 120 words) in one JSON call; unknown/duplicate ids ignored, missing ids keep fused order, errors or malformed output fall back to fused order (flagged); traced as a `rerank` span. Wired into `/ask` and both eval experiments (not `/search`, kept fast). `scripts/sweep_rerank.py [candidates]`. Also: `tracing.update_current_generation` no longer logs "No active span" outside a trace (checks the OpenTelemetry span context).
+- **Sweep (offline):** fused 3.3 MRR 0.847 → rerank of top 30: **0.904**, rerank p95 1.52 s; top 20: **0.917**, p95 1.27 s → `RERANK_CANDIDATES = 20` (design said 30; 20 was better and faster). 0 fallbacks.
+- **Validated:** tests red first → 254 passed; `make eval` → no regression, **MRR 0.847 → 0.908**; sources latency with rerank p50 1.42 s / **p95 1.87 s** (target < 2 s) under eval concurrency. Baseline re-recorded ([answers run](https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/21ebe570-2751-4268-937f-cdbbf356b00c)): has verified claim 0.984, facts 0.952, citation supported 0.967, faithful 0.902.
+- **Next:** 3.5 chunk context.
+
 ## 2026-09-26 · Phase 3 · 3.2 Synonym expansion — reverted
 
 - **What:** 55 curated everyday → legal phrases (`app/synonyms.tsv`, word-boundary matching, no chaining; 5 tests), applied to the keyword query only.

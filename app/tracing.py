@@ -45,9 +45,17 @@ def observe(name: str, as_type: str = "span", **kwargs: Any) -> Iterator[Any]:
 
 
 def update_current_generation(**kwargs: Any) -> None:
+    """No-op outside an observation (e.g. offline scripts), instead of Langfuse's 'No active span' error."""
     c = client()
-    if c is not None:
+    if c is not None and _in_span():
         c.update_current_generation(**kwargs)
+
+
+def _in_span() -> bool:
+    """Is an OpenTelemetry span active? (Langfuse's own getters log an error when none is.)"""
+    from opentelemetry import trace
+
+    return trace.get_current_span().get_span_context().is_valid
 
 
 def current_trace_id() -> str | None:

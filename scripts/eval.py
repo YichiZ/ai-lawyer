@@ -25,7 +25,8 @@ from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_ha
 from evals.gold import GOLD_PATH, load_gold  # noqa: E402
 from evals.langfuse_io import DATASET, upsert_dataset  # noqa: E402
 from evals.metrics import chunk_covers, mrr, recall_at_k, summarize  # noqa: E402
-from ingest.vertex import ANSWER_MODEL, embedder, json_generator, make_client  # noqa: E402
+from app.rerank import RERANK_CANDIDATES, make_reranker  # noqa: E402
+from ingest.vertex import ANSWER_MODEL, CHEAP_MODEL, embedder, json_generator, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 RUNS = ROOT / "evals" / "runs"
@@ -45,12 +46,17 @@ def require_complete(result, items, kind: str) -> None:
         raise SystemExit(f"{kind}: {len(missing)} item(s) failed after retries: {missing} — rerun")
 
 
-def retrieval_task(embed):
+def _retrievers(client):
+    """Same retrieval as /ask: query embedding + Flash-Lite rerank."""
+    return embedder(client, "RETRIEVAL_QUERY"), make_reranker(json_generator(client, model=CHEAP_MODEL))
+
+
+def retrieval_task(embed, rerank=None):
     def task(*, item, **_):
         question = item.input["question"]
         t0 = time.perf_counter()
         with psycopg.connect(DATABASE_URL) as conn:
-            hits = retrieve(conn, question, embed(question))
+            hits = retrieve(conn, question, embed(question), rerank=rerank)
             covers = chunk_covers(conn, [int(h.chunk_id[1:]) for h in hits])
         return {
             "ranked": [[h.source["slug"], h.source["pinpoint"], covers[int(h.chunk_id[1:])]] for h in hits],
@@ -76,9 +82,9 @@ def run_retrieval(lf: Langfuse) -> dict:
     items = [i for i in dataset.items if i.id in gold]  # only items still in gold.jsonl
     result = lf.run_experiment(
         name="retrieval", description=f"Hybrid retrieval (keyword + vector, RRF) top {K} vs gold pinpoints",
-        data=items, task=retrieval_task(embedder(eval_client(), "RETRIEVAL_QUERY")),
+        data=items, task=retrieval_task(*_retrievers(eval_client())),
         evaluators=[retrieval_evaluator], max_concurrency=CONCURRENCY,
-        metadata={"k": K, "gold_items": len(items)},
+        metadata={"k": K, "gold_items": len(items), "rerank_candidates": RERANK_CANDIDATES},
     )
     require_complete(result, items, "retrieval")
     rows, oos = [], []
@@ -92,12 +98,12 @@ def run_retrieval(lf: Langfuse) -> dict:
             "summary": summary, "items": rows, "out_of_scope": oos}
 
 
-def answer_task(embed, generate):
+def answer_task(embed, rerank, generate):
     def task(*, item, **_):
         question = item.input["question"]
         t0 = time.perf_counter()
         with psycopg.connect(DATABASE_URL) as conn:
-            hits = retrieve(conn, question, embed(question))
+            hits = retrieve(conn, question, embed(question), rerank=rerank)
             t_sources = time.perf_counter()
             result = run_ask(question, hits, generate, refine=lambda claims: pinpoint_claims(conn, claims))
         return {
@@ -144,7 +150,7 @@ def run_answers(lf: Langfuse) -> dict:
     client = eval_client()
     result = lf.run_experiment(
         name="answers", description="Full /ask pipeline (no DB writes) + code metrics + LLM judge",
-        data=items, task=answer_task(embedder(client, "RETRIEVAL_QUERY"), json_generator(client)),
+        data=items, task=answer_task(*_retrievers(client), json_generator(client)),
         evaluators=[answer_evaluator(json_generator(client, model=JUDGE_MODEL))], max_concurrency=CONCURRENCY,
         metadata={"answer_model": ANSWER_MODEL, "judge_model": JUDGE_MODEL, "gate_max_distance": GATE_MAX_DISTANCE},
     )

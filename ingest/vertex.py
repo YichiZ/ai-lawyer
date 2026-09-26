@@ -62,3 +62,14 @@ def json_generator(client: genai.Client, model: str = ANSWER_MODEL):
         return json.loads(r.text)
 
     return generate
+
+
+def text_generator(client: genai.Client, model: str = CHEAP_MODEL):
+    """prompt -> plain text, low thinking."""
+
+    def generate(prompt: str) -> str:
+        r = client.models.generate_content(
+            model=model, contents=prompt, config=types.GenerateContentConfig(thinking_config=LOW_THINKING))
+        return r.text or ""
+
+    return generate

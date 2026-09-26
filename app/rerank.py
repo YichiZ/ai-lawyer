@@ -7,7 +7,7 @@ import logging
 from typing import Callable
 
 log = logging.getLogger("app.rerank")
-RERANK_CANDIDATES = 30
+RERANK_CANDIDATES = 20  # 30 → MRR 0.904, rerank p95 1.5 s; 20 → MRR 0.917, p95 1.3 s (3.4 sweep)
 PASSAGE_WORDS = 120
 SCHEMA = {"type": "object", "properties": {"ranking": {"type": "array", "items": {"type": "string"}}},
           "required": ["ranking"]}
@@ -52,3 +52,19 @@ def rerank(question: str, hits: list, generate: Callable[[str, dict], dict], top
         return hits[:top_k], "rerank_malformed"
     by_id = {h.chunk_id: h for h in hits}
     return [by_id[cid] for cid in order[:top_k]], None
+
+
+Reranker = Callable[[str, list, int], list]
+
+
+def make_reranker(generate: Callable[[str, dict], dict]) -> Reranker:
+    """(question, fused candidates, top_k) -> top_k hits, traced as a `rerank` span."""
+    from app import tracing
+
+    def run(question: str, hits: list, top_k: int) -> list:
+        with tracing.observe("rerank", input={"candidates": [h.chunk_id for h in hits]}) as obs:
+            out, flag = rerank(question, hits, generate, top_k)
+            obs.update(output=[h.chunk_id for h in out], metadata={"flag": flag})
+        return out
+
+    return run

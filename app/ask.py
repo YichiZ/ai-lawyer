@@ -196,14 +196,18 @@ def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: i
     )]
 
 
-def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float], top_k: int = TOP_K) -> list[Retrieved]:
-    """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with RRF; returns the TOP_K best."""
+def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float], top_k: int = TOP_K,
+             rerank: Callable[[str, list, int], list] | None = None) -> list[Retrieved]:
+    """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with weighted RRF; the top_k best.
+    With `rerank`, the fused top RERANK_CANDIDATES are reordered by the reranker before cutting to top_k."""
+    from app.rerank import RERANK_CANDIDATES
+
     register_vector(conn)
     cur = conn.cursor(row_factory=dict_row)
     keyword = keyword_ranking(conn, question)
     vector = vector_ranking(conn, query_vector)
     distance = {f"c{cid}": d for cid, d in vector}
-    fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]], weights=[KEYWORD_WEIGHT, 1.0])[:top_k]
+    fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]], weights=[KEYWORD_WEIGHT, 1.0])[:RERANK_CANDIDATES if rerank else top_k]
     ids = [int(cid[1:]) for cid, _ in fused]
     rows = {r["id"]: r for r in cur.execute(
         "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction"
@@ -219,7 +223,7 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
             "snippet": excerpt(r["text"]), "url": f"/laws/{r['slug']}/{pin}",
         }
         hits.append(Retrieved(cid, r["text"], distance.get(cid), source, score))
-    return hits
+    return rerank(question, hits, top_k) if rerank else hits
 
 
 def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, result: AskResult,

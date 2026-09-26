@@ -15,8 +15,9 @@ SKIP_TEXTS = {"[blank]"}  # A2AJ placeholders for sections covered by a range en
 FLUSH_EVERY = 25
 
 
-def embed_input(context: str, text: str) -> str:
-    return f"{context}\n\n{text}"
+def embed_input(context: str, text: str, situating: str | None = None) -> str:
+    """What gets embedded: the deterministic header, the LLM situating sentences (3.5) if any, then the chunk text."""
+    return f"{context}\n{situating}\n\n{text}" if situating else f"{context}\n\n{text}"
 
 
 def _pack(pieces: list[tuple[list[int], str, str]]) -> list[tuple[list[int], str, str]]:
@@ -72,21 +73,23 @@ def sync_chunks(conn: psycopg.Connection, document_id: int, planned: list[dict])
     register_vector(conn)
     with conn.transaction():
         existing = conn.execute(
-            "SELECT pinpoint, text_sha256, embedding, embedding_model FROM chunks WHERE document_id = %s ORDER BY id",
-            (document_id,),
+            "SELECT pinpoint, text_sha256, embedding, embedding_model, situating FROM chunks WHERE document_id = %s"
+            " ORDER BY id", (document_id,),
         ).fetchall()
-        if [(p, h) for p, h, _, _ in existing] == [(c["pinpoint"], c["text_sha256"]) for c in planned]:
+        if [(p, h) for p, h, _, _, _ in existing] == [(c["pinpoint"], c["text_sha256"]) for c in planned]:
             return "unchanged", 0
-        cached = {h: (e, m) for _, h, e, m in existing if e is not None}
+        cached = {h: (e, m) for _, h, e, m, _ in existing if e is not None}
+        situated = {h: sit for _, h, _, _, sit in existing if sit}
         conn.execute("DELETE FROM chunks WHERE document_id = %s", (document_id,))
         reused = 0
         for c in planned:
             emb, model = cached.get(c["text_sha256"], (None, None))
             reused += emb is not None
             conn.execute(
-                "INSERT INTO chunks (document_id, section_ids, pinpoint, text, context, text_sha256, embedding, embedding_model)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (document_id, c["section_ids"], c["pinpoint"], c["text"], c["context"], c["text_sha256"], emb, model),
+                "INSERT INTO chunks (document_id, section_ids, pinpoint, text, context, text_sha256, embedding,"
+                " embedding_model, situating) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (document_id, c["section_ids"], c["pinpoint"], c["text"], c["context"], c["text_sha256"], emb, model,
+                 situated.get(c["text_sha256"])),
             )
     return "replaced", reused
 
@@ -98,7 +101,8 @@ def embed_pending(conn: psycopg.Connection, embed: Callable[[str], list[float]],
     """
     register_vector(conn)
     pending = conn.execute(
-        "SELECT id, context, text FROM chunks WHERE embedding IS NULL OR embedding_model IS DISTINCT FROM %s ORDER BY id",
+        "SELECT id, context, text, situating FROM chunks WHERE embedding IS NULL OR embedding_model IS DISTINCT FROM %s"
+        " ORDER BY id",
         (model,),
     ).fetchall()
     done: list[tuple[int, list[float]]] = []
@@ -115,7 +119,7 @@ def embed_pending(conn: psycopg.Connection, embed: Callable[[str], list[float]],
 
     calls = 0
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(embed, embed_input(ctx or "", text)): cid for cid, ctx, text in pending}
+        futures = {pool.submit(embed, embed_input(ctx or "", text, sit)): cid for cid, ctx, text, sit in pending}
         try:
             for fut in as_completed(futures):
                 done.append((futures[fut], fut.result()))

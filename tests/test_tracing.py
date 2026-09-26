@@ -29,6 +29,9 @@ class FakeLangfuse:
     def get_current_trace_id(self):
         return "trace-123" if self.stack else None
 
+    def get_current_observation_id(self):
+        return f"obs-{len(self.stack)}" if self.stack else None
+
     def update_current_generation(self, **kw):
         self.log.append(("update_current_generation", self.stack[-1], sorted(kw)))
 
@@ -65,3 +68,8 @@ def test_observe_nests_and_reports_trace_id(fake_langfuse):
         assert tracing.current_trace_id() == "trace-123"
     names = [e[1] for e in fake_langfuse.log if e[0] == "start"]
     assert names == ["ask", "generate"]
+
+
+def test_update_current_generation_outside_a_span_is_skipped(fake_langfuse):
+    tracing.update_current_generation(model="m")
+    assert not any(e[0] == "update_current_generation" for e in fake_langfuse.log)

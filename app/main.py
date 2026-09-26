@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
 from app import ask, laws, review, search, tracing
+from app.rerank import make_reranker
 from ingest import vertex
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
@@ -39,6 +40,7 @@ class VertexAI:
         client = vertex.make_client()
         self.embed_query = vertex.embedder(client, task_type="RETRIEVAL_QUERY")
         self.generate = vertex.json_generator(client)
+        self.rerank = make_reranker(vertex.json_generator(client, model=vertex.CHEAP_MODEL))
 
 
 @lru_cache(maxsize=1)
@@ -143,7 +145,7 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User):
         with tracing.observe("embed_query"):
             query_vector = ai.embed_query(question)
         with tracing.observe("retrieve", input={"question": question}) as span:
-            hits = ask.retrieve(conn, question, query_vector)
+            hits = ask.retrieve(conn, question, query_vector, rerank=getattr(ai, "rerank", None))
             span.update(output=[{"chunk_id": h.chunk_id, "citation": h.source["citation"]["text"], "rrf": h.score,
                                  "distance": h.distance} for h in hits])
         t_sources = time.perf_counter()

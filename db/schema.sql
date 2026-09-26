@@ -98,3 +98,6 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS reproduction text NOT NULL DEFAUL
 CREATE UNIQUE INDEX IF NOT EXISTS users_name_key ON users (name);
 INSERT INTO users (name, role) VALUES ('Demo Researcher', 'researcher'), ('Demo Reviewer', 'reviewer')
     ON CONFLICT (name) DO NOTHING;
+
+-- 3.5: LLM "situating" sentences per chunk (embedding input only; keyword tsv unchanged).
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS situating text;
