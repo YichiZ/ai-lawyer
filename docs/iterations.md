@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Fix · Typeahead linked decisions to /laws/ (#12)
+
+- **What:** the title branch of `suggest()` matched all documents, so a case name ("Galota v. Festival Hall", "municipal act") came back as `{"type": "law", "url": "/laws/<decision>"}` and `/laws/<decision>` rendered the decision as a law. Title matches on decisions are now `type: "case"` → `/cases/<slug>`; `laws.get_document` (used only by `GET /laws/{slug}` and its sections) excludes `kind = 'decision'`, so those URLs 404. `sourceLabel` no longer calls every non-A2AJ document "City of Toronto": web pages show their site (`ontario.ca`).
+- **Validated:** pytest red first → green, full suite 407 passed; `tsc` clean; e2e 31 passed incl. a new check (case name → `/cases/2016-onca-585`, `/laws/2016-onca-585` → 404).
+- **Numbers:** search eval jump_accuracy 0.857 → 0.929 (jump-27, jump-28 fixed; jump-05 #20 and jump-21 #14 remain); hit@3 0.917 unchanged.
+
 ## 2026-09-26 · Repo presentation · Public release: clean-up, simplification, repo made public
 
 - **What (#17):** a whole-repo audit before going public. The sanitizer and security review found no secrets in the current files or the history. What they did find: the CI fixture held the **full text** of Toronto Municipal Code ch. 743 (City copyright, excerpt-only; `export_fixture` now cuts `reproduction='excerpt'` sections to 300 chars, guarded by a test); the real GCP project ID was the code default (now `GOOGLE_CLOUD_PROJECT` or the ADC project); `.claude/settings.json` was tracked. Simplification from ponytail-audit and a dead-code scan: scripts run as `uv run -m scripts.<name>` (no `sys.path` workaround, about 90 `noqa` comments gone); `run_batched` replaces 4 copies of the thread-pool/flush loop; `load_sections`, `batch_client()`, `mean_of` and `display_pinpoint(mcgill=True)` replace duplicates; the unused `and_or` mode, constants, a one-off script and 2 npm dependencies are gone.
