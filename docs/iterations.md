@@ -2,6 +2,21 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 4 · 4.5 Design and accessibility pass
+
+- **What:** `@axe-core/playwright` scan of 9 page types × light/dark (WCAG 2.0/2.1/2.2 A+AA) in the e2e suite; `@lhci/cli` Lighthouse CI (`web/lighthouserc.json`, `make lighthouse`, CI job `lighthouse` on a production build against the fake-model API); `make e2e-ci` rebuilds the CI-like DB before running e2e. Radix installed for later tooltip work.
+- **Found and fixed:** axe `link-in-text-block` (serious) on law/section pages → in-text links underlined; WCAG 2.2 `target-size` on header links → ≥ 24 px targets; `/` shortcut test raced hydration on a cold server → retries the keypress; the Lighthouse Makefile target leaked the `next start` server, so later runs measured unstyled pages (CSS 500 from a stale server) → the target kills servers by pattern before and after.
+- **Validated:** `make e2e-ci` 25/25 (axe 0 violations on 18 page×theme combinations). Lighthouse (desktop preset, simulated 1.6 Mbps / 150 ms): **accessibility 100 and CLS 0.000 on all 4 pages** (hard assertions); LCP 2.43–2.57 s; JS 139–140 KB. CI run green (test + e2e + lighthouse).
+- **Budget gap (user decision):** the design's LCP < 1.5 s on 4G and < 100 KB JS are not reachable on this stack as built: ~105 KB of the JS is the Next.js/React framework, and the render delay is bandwidth for that JS + ~100 KB of brand fonts (font-display `optional` was tried: no gain). Assertions set to warn at LCP 2.5 s (Core Web Vitals "good") and JS 150 KB pending a decision (drop web fonts / static export / accept).
+
+## 2026-09-26 · Phase 4 · 4.1–4.3 Summaries, summary evals, glossary
+
+- **4.1 Summaries:** `ingest/summaries.py` + `scripts/summarize_sections.py` (gemini-3.7-flash; eligible = sections ≥ 60 chars, not `[blank]`/Repealed/Omitted/Revoked; keyed on sha256(prompt version + text)); section page shows "In plain language" with "AI-written, checked against the official text. Not legal advice." v1 (2,767 sections, 88 min) measured faithful 0.72 / grade 16.8; v2 (no definitions or outside facts, short sentences) 0.98 / 11.2 on the sample; **v3 (sentences < 14 words, short words) 0.98 / 9.6** → full re-run (2,767 in 133 min, est. $2.40).
+- **4.2 Summary evals:** `evals/readability.py` (stdlib Flesch–Kincaid), `evals/summaries.py` (Flash-Lite judge given the same law + pinpoint as the writer), `scripts/eval.py summaries`; `summaries.faithful` (5-pt judge tolerance), `no_advice`, `grade_le_10` added to the baseline and gate. Full v3 set: **faithful 0.98, no advice 1.00, mean grade 9.6** (grade ≤ 10 for 58%). The one miss (Rules r. 35.02) dropped a deadline trigger ("after service of the list of questions") — a known weakness for deadline summaries.
+- **4.3 Glossary:** 81 curated terms (`app/glossary_terms.tsv`: 52 with the section where the concept operates, 29 statutory definitions found automatically; every source resolves), definitions by gemini-3.7-flash from the source text only (`scripts/build_glossary.py`), `glossary_terms` table, `GET /glossary`, `/glossary` page, "Terms used here" on section pages (whole-word, longest-first matcher). Judge: **81/81 faithful**; mean grade 13.5 (no target set for definitions).
+- **Found:** batch scripts held one transaction for the whole run (flushes were savepoints; locks blocked `make db`) → scripts use autocommit connections.
+- **Spend so far (batch):** chunk context $1.73, summaries 2 × $2.40, glossary < $0.10, evals ≈ $3–4 → ≈ $10 of the $25 approved.
+
 ## 2026-09-26 · Phase 3 · 3.6 Answer latency — Phase 3 complete
 
 - **Profile first** (`scripts/profile_ask.py`, 25 questions sequentially): sources p50 1.5 s / p95 3.1 s; **generate p50 4.2 s / p95 68.6 s** (max 73 s). The tail was not prompt size (73 s and 57 s calls had 16k/11k chars; other 11–14k-char prompts took ~12 s) but Vertex 504/429s multiplied by 30 s timeouts × retries; even sequential calls hit 429 (gemini-3.7-flash quota looks low for this project).
