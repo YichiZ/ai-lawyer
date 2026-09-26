@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-09-26T13:09:56+00:00",
-  "corpus_hash": "df01aa5d737574da856c9309c17b7f43eef2e15bfd8f2752e6a9e8c4e3e20e4f",
+  "recorded_at": "2026-09-26T13:42:22+00:00",
+  "corpus_hash": "d248af1908ce950a0fe104a5f85880c77f0191c42d92f5853bc352448d9c9746",
   "gold_hash": "02255a090cd706c6fb77269e2d952383802e879d95802427dbcd27af95663d50",
   "models": {
     "answer": "gemini-3.7-flash",
@@ -9,29 +9,29 @@
   },
   "gate_max_distance": 0.3,
   "runs": {
-    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/cdd8aed5-eac4-4d83-a358-e70d84334e05",
-    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/d84d62a5-f7c5-4cf8-9ae9-ac6be9b529aa",
+    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/b5e404cd-46fd-4384-b4c0-d5c57f5e4aa8",
+    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/57bc819b-8c63-4b29-840c-471230319554",
     "summaries": "summaries - 2026-09-26T13:08:22.001859Z"
   },
   "latency_ms": {
     "sources_ms": {
-      "p50": 2923.0,
-      "p95": 9800.9
+      "p50": 2706.0,
+      "p95": 3990.5
     },
     "total_ms": {
-      "p50": 6719.0,
-      "p95": 28480.2
+      "p50": 6417.0,
+      "p95": 31133.7
     }
   },
   "metrics": {
     "retrieval.recall@8": 1.0,
-    "retrieval.mrr": 0.9153,
+    "retrieval.mrr": 0.9086,
     "answers.out_of_scope.refusal_correct": 0.933,
     "answers.in_scope.has_verified_claim": 1.0,
-    "answers.in_scope.verified_claim_rate": 0.995,
-    "answers.in_scope.facts_covered": 0.968,
-    "answers.in_scope.citation_supported": 0.949,
-    "answers.in_scope.faithful": 0.887,
+    "answers.in_scope.verified_claim_rate": 1.0,
+    "answers.in_scope.facts_covered": 0.976,
+    "answers.in_scope.citation_supported": 0.946,
+    "answers.in_scope.faithful": 0.855,
     "answers.in_scope.no_advice": 1.0,
     "answers.in_scope.refusal_correct": 1.0,
     "summaries.faithful": 0.98,

@@ -2,6 +2,28 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 6 · 6.2 Add to corpus, 6.3 Load test; Phase 5 decision summaries done
+
+- **6.2 What:** Redis 8 in Compose (AOF everysec, `noeviction`, 256 MB) + `redis-py`; `app/jobs.py` queue: `ingest_jobs` row in Postgres first, then `XADD` (id = hash of kind + url, so re-adding is a no-op), `XREADGROUP`/`XACK` in one group, `XAUTOCLAIM` sweeper, reconciler re-dispatching due retries, stale running rows and rows Redis lost; failures back off 1/4/16 min then `dead` + `ingest:dead`; refusals are permanent (dead at once). `ingest/web.py`: https on the 5 official domains only (redirects refused before they are followed), robots.txt, ≤ 1 req/s per host, file in `input/web/` + manifest line, HTML split on h2/h3 (menus and link-only blocks dropped) or PDF by page, kind `web` (toronto.ca excerpt-only), chunk + embed. `POST /ingest` (reviewer), `GET /ingest/{id}`; review queue lists web sources with "Add to library" for official ones; `make worker`; Redis service in CI. Added pages join law retrieval (`LAW_KINDS` + `web`) and the law list ("Official web pages").
+- **6.2 Validated:** tests red first → 385 passed (queue state machine against real Redis, reconciler, sweeper, no double-run, allow-list, robots, throttle, redirect refusal, e2e ingest of a fixture page, idempotency by sha256); `make e2e-ci` 30/30 incl. reviewer → Add to library → Queued. Real runs: ontariocourts.ca Small Claims page → done in 2 s; `/decisions/…` → dead at fetch ("robots.txt disallows"), 1 attempt; CanLII → 422 with the allowed-domain message; ontario.ca "Suing someone in Small Claims Court" → 25 sections, 25 chunks embedded — enqueued while the worker was down and the stream deleted (Redis loss), then recovered by the reconciler on worker start.
+- **6.2 Found:** redis-py 8 `socket_timeout` default 5 s = the XREADGROUP block → worker crashed with TimeoutError (fixed: 30 s + worker survives RedisError); a guessed 404 URL was retried (4xx now permanent); the real page's menus sat inside `<main>` (link-only blocks dropped); the first redirect check ran after urllib had followed the redirect (now in the redirect handler).
+- **Eval with web pages in the library:** retrieval recall@8 1.000 (=), MRR 0.909 (−0.6); answers faithful 0.855 (−3.2, judge tolerance 5), facts 0.976, citation supported 0.946, out-of-scope refusal 0.933 — within tolerance; gate failed only on the intended corpus-hash change → baseline re-recorded (`record --from-latest`), gate: no regression.
+- **Phase 5 done:** decision summaries 1,660/1,660 (Flash-Lite, 17.5 min, within the $3.49 estimate). Judge on a fixed sample of 30 vs the excerpt: **faithful 0.967** (1 added a general principle about settlement offers), no advice 1.0, **reading grade 13.4** (only 1/30 ≤ 10) — above the prompt's 8–10 target; a v2 prompt like the section summaries' (short sentences) would cost ~$3.50 to re-run → left for the user.
+- **6.3 Load test** (`loadtest/locustfile.py`, locust):
+
+  | Run | Load | Endpoint | p50 | p95 | Failures | Target |
+  |---|---|---|---|---|---|---|
+  | Fake model, 4 workers | 50 users, 25.6 req/s, 3 min | section page | 21 ms | 30 ms | 0 | — |
+  | | | suggest | 15 ms | 19 ms | 0 | — |
+  | | | search | 72 ms | 180 ms | 0 | — |
+  | | | /ask sources | 310 ms | 360 ms | 0 | < 2 s ✅ |
+  | Real model, `make api` (1 process) | 3 users, 0.19 asks/s, 4 min, 46 asks | /ask sources (client) | 400 ms | 1.1 s (max 7.6 s) | 0 | < 2 s ✅ |
+  | | | /ask sources (server) | 377 ms | 758 ms | 0 | < 2 s ✅ |
+  | | | draft (background) | 6.1 s | **11.4 s** (max 12.8 s) | 0 failed drafts | < 8 s ❌ |
+
+  **Vertex ceiling observed:** no 429s at 0.19 asks/s; earlier the eval's sequential gemini-3.7-flash calls did hit 429, so the per-minute quota on 3.7 Flash is the first ceiling, not the API. **Recommendations:** (1) ask for a gemini-3.7-flash quota increase or provisioned throughput — the draft tail is Vertex time (generate), not our code; (2) stream the draft to the reviewer so a slow draft still shows progress; (3) add `psycopg_pool` before scaling out (one connection per request today; fine at 25 req/s); (4) run `uvicorn --workers N` in deploy (dev `make api` is one reloading process).
+- **Next:** Phase 6 exit check (CI green), final docs.
+
 ## 2026-09-26 · Phase 6 · 6.1 Web fallback (opt-in, reviewed)
 
 - **What:** `app/web_fallback.py` (gemini-3.7-flash + Google Search grounding, low thinking; Vertex redirect URIs resolved to real URLs by a HEAD request, original kept on failure; no grounding sources → `not_found`); `POST /ask/web` creates an answer flagged `web_fallback`, drafted in the background, labelled "From the web, not our law library" with a source list, reviewed like any answer (`web_fallback` risk sorts it first). `/ask` returns `meta.library_match` (best law distance ≤ gate) and the answer view carries it; the answer page offers "Search the web instead" only when the library has no close match. Fake model gets a canned web result for e2e.
