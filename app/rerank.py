@@ -7,6 +7,7 @@ import logging
 from typing import Callable
 
 log = logging.getLogger("app.rerank")
+KEEP_FUSED = 3  # the reranker reorders but cannot drop the fused top 3 (it once dropped a fused #1: 3.5 sweep)
 RERANK_CANDIDATES = 20  # 30 → MRR 0.904, rerank p95 1.5 s; 20 → MRR 0.917, p95 1.3 s (3.4 sweep)
 PASSAGE_WORDS = 120
 SCHEMA = {"type": "object", "properties": {"ranking": {"type": "array", "items": {"type": "string"}}},
@@ -51,7 +52,13 @@ def rerank(question: str, hits: list, generate: Callable[[str, dict], dict], top
     if order is None:
         return hits[:top_k], "rerank_malformed"
     by_id = {h.chunk_id: h for h in hits}
-    return [by_id[cid] for cid in order[:top_k]], None
+    chosen = order[:top_k]
+    for cid in ids[:KEEP_FUSED]:
+        if cid not in chosen and len(chosen) == top_k:
+            # replace the lowest reranked hit that is not itself a protected fused top hit
+            victim = next(c for c in reversed(chosen) if c not in ids[:KEEP_FUSED])
+            chosen[chosen.index(victim)] = cid
+    return [by_id[cid] for cid in chosen], None
 
 
 Reranker = Callable[[str, list, int], list]

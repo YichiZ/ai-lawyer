@@ -40,6 +40,7 @@ export interface Section extends SectionRef {
   text: string;
   lines: { text: string; level: number }[];
   full_text: boolean;
+  plain_summary: string | null;
   citation: { title: string; reference: string; text: string };
   breadcrumb: SectionRef[];
   children: (SectionRef & { text: string })[];

@@ -2,6 +2,15 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 3 · 3.5 Chunk context — kept (+ rerank safety net)
+
+- **What:** `ingest/contextualize.py` + `scripts/contextualize_chunks.py`: gemini-3.5-flash-lite writes 1–2 situating sentences per chunk from the law title, the outline of the chunk's Part (≤ 60 headings) and the chunk text; stored in `chunks.situating`, used in the embedding input only (keyword `tsv` unchanged); writing it clears the embedding so only those chunks re-embed; `sync_chunks` carries situating sentences over for unchanged chunks; `--clear` reverts. Rerank safety net: the reranker may reorder but not drop the fused top 3 (`KEEP_FUSED`) — one sweep showed it dropping a fused #1 (city-08).
+- **Run:** estimate $1.73 (3.5M input tokens at $0.30/M, output $2.50/M); 3,447 situating calls in 452 s, 3,447 re-embeds in 103 s, 0 missing. Samples read well (e.g. LA s. 4: "establishes the standard two-year basic limitation period… unless a specific exception dictates otherwise").
+- **Offline:** fused-only MRR **0.847 → 0.895** (this is what `/search` and the rerank fallback use); fused + rerank 0.901 / 0.924 / 0.923 across three runs (reranker noise), recall 1.000 with the safety net.
+- **Validated:** tests red first → 289 passed; `make eval` → no regression; MRR 0.908 → 0.913, has verified claim 0.984 → 1.000, facts 0.952 → 0.968, faithful 0.902 → 0.919, in-scope answered 0.984 → 1.000. Baseline re-recorded ([answers run](https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/fb056871-61f8-4600-9c5d-c28b7d8c9251)).
+- **Concern for 3.6:** sources p95 4.99 s under eval load (rerank calls occasionally slow; one sweep showed rerank p95 4.8 s).
+- **Next:** 3.6 latency.
+
 ## 2026-09-26 · Phase 3 · 3.4 Listwise rerank — kept
 
 - **What:** `app/rerank.py`: gemini-3.5-flash-lite orders the fused top candidates (ids + citation + first 120 words) in one JSON call; unknown/duplicate ids ignored, missing ids keep fused order, errors or malformed output fall back to fused order (flagged); traced as a `rerank` span. Wired into `/ask` and both eval experiments (not `/search`, kept fast). `scripts/sweep_rerank.py [candidates]`. Also: `tracing.update_current_generation` no longer logs "No active span" outside a trace (checks the OpenTelemetry span context).

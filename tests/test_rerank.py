@@ -26,8 +26,8 @@ def test_parse_malformed_returns_none():
 
 
 def test_rerank_reorders_and_truncates():
-    out, flag = rerank("q", HITS, lambda p, s: {"ranking": ["c5", "c4"]}, top_k=3)
-    assert [h.chunk_id for h in out] == ["c5", "c4", "c1"] and flag is None
+    out, flag = rerank("q", HITS, lambda p, s: {"ranking": ["c5", "c4"]}, top_k=5)
+    assert [h.chunk_id for h in out] == ["c5", "c4", "c1", "c2", "c3"] and flag is None
 
 
 def test_rerank_falls_back_on_error_or_bad_output():
@@ -65,3 +65,11 @@ def test_retrieve_uses_reranker_on_fused_candidates(conn):
     reranked = retrieve(conn, "second anniversary", [0.01] * 1536, top_k=2, rerank=reverse)
     assert seen["n"] >= len(plain) and len(reranked) == 2
     assert [h.chunk_id for h in reranked] != [h.chunk_id for h in plain]
+
+
+def test_rerank_cannot_drop_the_fused_top_hits():
+    hits = [hit(i) for i in range(1, 11)]
+    # the model ranks the fused #1 last: it must still be in the final top 4, in place of the lowest reranked hit
+    out, _ = rerank("q", hits, lambda p, s: {"ranking": [f"c{i}" for i in range(10, 0, -1)]}, top_k=4)
+    ids = [h.chunk_id for h in out]
+    assert len(ids) == 4 and {"c1", "c2", "c3"} <= set(ids) and ids[0] == "c10"

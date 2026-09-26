@@ -49,6 +49,14 @@ export default async function SectionPage({ params }: Props) {
         )}
       </p>
 
+      {s.plain_summary && (
+        <aside aria-labelledby="summary-heading" className="mt-6 max-w-[68ch] border-l-2 border-primary pl-4">
+          <h2 id="summary-heading" className="text-sm font-semibold">In plain language</h2>
+          <p className="mt-1">{s.plain_summary}</p>
+          <p className="mt-1 text-xs text-muted">AI-written, checked against the official text. Not legal advice.</p>
+        </aside>
+      )}
+
       {s.kind === "part" ? (
         <ul className="mt-6">
           {s.children.map((c) => (

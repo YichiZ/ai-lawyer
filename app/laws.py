@@ -46,7 +46,8 @@ def law_tree(conn: psycopg.Connection, document_id: int) -> list[dict]:
 def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | None:
     cur = conn.cursor(row_factory=dict_row)
     s = cur.execute(
-        "SELECT id, pinpoint, kind, heading, text, sort_order FROM sections WHERE document_id = %s AND pinpoint = %s",
+        "SELECT id, pinpoint, kind, heading, text, sort_order, plain_summary FROM sections"
+        " WHERE document_id = %s AND pinpoint = %s",
         (doc["id"], pinpoint),
     ).fetchone()
     if not s:
@@ -76,6 +77,7 @@ def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | No
         "text": shown(s["text"]),
         "lines": indent_lines(shown(s["text"])),
         "full_text": full,
+        "plain_summary": s["plain_summary"],  # our own words, so shown even for excerpt-only by-laws
         "citation": mcgill_citation(doc, s["pinpoint"]),
         "breadcrumb": [{**b, "display": display_pinpoint(b["pinpoint"])} for b in breadcrumb],
         "children": [{**c, "display": display_pinpoint(c["pinpoint"]), "text": shown(c["text"])} for c in children],

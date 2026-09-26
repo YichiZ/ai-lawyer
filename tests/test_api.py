@@ -169,3 +169,10 @@ def test_ask_is_traced_and_trace_id_stored(ask_client, conn, monkeypatch):
     started = [e[1] for e in fake.log if e[0] == "start"]
     assert started == ["ask", "embed_query", "retrieve", "generate", "verify", "store"]
     assert conn.execute("SELECT trace_id FROM answers WHERE id = %s", (data["answer_id"],)).fetchone()[0] == "trace-123"
+
+
+def test_section_returns_plain_summary_when_present(client, conn):
+    conn.execute("UPDATE sections SET plain_summary = 'You generally have two years.' WHERE pinpoint = 's-4'")
+    data = client.get("/laws/test-act/s-4").json()["data"]
+    assert data["plain_summary"] == "You generally have two years."
+    assert client.get("/laws/test-act/s-15").json()["data"]["plain_summary"] is None
