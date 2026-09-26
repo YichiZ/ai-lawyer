@@ -2,6 +2,10 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Repo presentation · README: three user flows with examples
+
+- **What:** the README's 6 user flows became 3 major ones (find the law; ask → review → read; web fallback and adding official pages), each with a concrete example and the guarantee behind it; links to docs/user-flows.md for all 10. Validated: every example (`LA s. 4`, `2024 SCC 32 at para 3`, "slip and fall on ice", LA s. 4 and COTA s. 42 quotes, 103 citing decisions, Municipal Act not in the library) checked against the running API with read-only GETs.
+
 ## 2026-09-26 · Fix · Claims pinned to the wrong subsection in split sections (#1)
 
 - **What:** `pinpoint_claims` looked for subsections whose parent is the chunk's pinpoint. A long section is split into chunks pinpointed at their first subsection (Insurance Act chunks `s-267.5-1`, `s-267.5-7`, …), which has no children, so every claim kept the chunk's first subsection. It now searches the chunk's own `section_ids` plus their subsections and picks the narrowest provision holding the whole quote: the one subsection, else the section (a quote spanning subsections), else the claim is left as is. Statutes and decisions share the one path.

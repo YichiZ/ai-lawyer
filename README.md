@@ -64,52 +64,91 @@
 
 ## User flows
 
-There is no login: switch between the two demo roles, **Researcher** and **Reviewer**, in the page header. Each flow
-below was run by hand against the local app on 2026-09-26, with real Vertex AI calls.
+There is no login: switch between the two demo roles, **Researcher** and **Reviewer**, in the page header. The three
+flows below cover most of what the app does. The examples come from the local app on the full corpus (2026-09-26); all
+ten flows, with their acceptance criteria, are in [docs/user-flows.md](docs/user-flows.md).
 
-**1. Browse the law (researcher).** *Law library* → an Act → a section, e.g. *Limitations Act, 2002* s. 4. The page
-shows the official text, a plain-language summary, the glossary terms it uses ("proceeding", "claim", "discovered"),
-the decisions that cite it (103 for s. 4), a copyable citation and previous/next links. Click a citing decision, e.g.
-*Scott v. Golden Oaks*, 2024 SCC 32, to read it paragraph by paragraph with its own summary and the laws it cites.
+### 1. Find the law
 
-**2. Search or jump (researcher).** Press `/` anywhere to focus the search box.
-- Type a citation to jump straight there: `LA s. 4` opens Limitations Act s. 4; `2024 SCC 32 at para 3` opens the
-  decision at paragraph 3.
-- Type everyday words, e.g. `slipped on ice outside a store`. The results include the Occupiers' Liability Act's 60-day
-  snow-and-ice notice rule (s. 6.1) and Toronto's snow-clearing by-law (ch. 719), even though the query uses none of
-  their words. A question-shaped query offers a link to *Ask* it instead.
+Search with a citation or with everyday words (press `/` anywhere to focus the box), then read the section.
 
-**3. Ask a research question (researcher → reviewer → researcher).**
-1. *Ask* → type a question, e.g. "How soon must someone who slipped on an icy Toronto sidewalk notify the City?" →
-   **Ask**.
-2. The answer page opens at once with the sources found (City of Toronto Act s. 42, OLA s. 6.1, the ch. 719 by-law,
-   related Court of Appeal decisions). The answer itself shows **Awaiting review**, and the researcher cannot see the
-   draft.
-3. The draft is written in the background (6.7 s in this run). Switch to **Reviewer** → *Review*. The draft appears in
-   the queue with a table of each claim, its verified quote and the pinpoint it comes from (here s. 42(6) and s. 42(8):
-   written notice to the city clerk within 10 days, and the reasonable-excuse exception).
-4. Choose **Approve**, **Edit** (rewrite the text) or **Reject** (with a reason). After approval, the researcher who
-   refreshes sees the answer with its quotes.
+| You type | You get |
+|---|---|
+| `LA s. 4` | A jump straight to *Limitations Act, 2002* s. 4, "Basic limitation period" |
+| `2024 SCC 32 at para 3` | *Scott v. Golden Oaks Enterprises Inc.*, opened at paragraph 3 |
+| `slip and fall on ice` | *Occupiers' Liability Act* s. 6.1 (written notice within 60 days for snow and ice injuries) and Toronto Municipal Code ch. 719, *Snow and Ice Removal* (§ 719-2: clear the sidewalk within 12 hours), even though the query uses none of their words |
 
-If none of the model's quotes can be found word for word in the sources, every claim is dropped and the draft is
-flagged "No statement could be verified". It goes to the top of the reviewer's queue instead of reaching the researcher.
+The section page for *Limitations Act, 2002* s. 4 shows:
 
-**4. When the library has no answer: web fallback (researcher → reviewer).** Ask something outside the library, e.g.
-drone rules near Pearson airport. The page says *Our law library has no close match* and offers **Search the web
-instead**. That makes a Google Search–grounded draft labelled *Web search answer — not from our law library*, which is
-reviewed like any other. In the queue, the reviewer sees each web source. Official pages (ontario.ca, canada.ca,
-ontariocourts.ca, scc-csc.ca, toronto.ca) get an **Add to library** button, and every other source is marked "not an
-official source; cannot be added".
+- the official text;
+- an **In plain language** summary, labelled as AI-written and not legal advice;
+- the glossary terms it uses ("proceeding", "claim", "discovered"), each linked to the section that defines it;
+- **Cited by 103 decisions**, each opening the decision paragraph by paragraph;
+- **Copy citation**, which copies *Limitations Act, 2002*, SO 2002, c 24, Sched B, s 4.
 
-**5. Grow the library (reviewer).** **Add to library** queues a job and shows *Queued* with a **Check status** button;
-`make worker` must be running. The worker checks robots.txt, fetches the page, splits it into sections and embeds
-them, and the page appears under *Law library → Official web pages*. In this run, a Transport Canada page became
-7 sections in the library within seconds, so later questions can be answered from it with verified quotes.
+*Guarantee:* Toronto by-laws are City copyright. The page and the API show only a short excerpt (at most 300
+characters) with a link to the official PDF.
 
-**6. Topic guides and glossary (researcher).** The home page lists 5 practice-area guides (motor vehicle accidents,
-slip and fall, claims against the City, dog bites, limitation periods). Each guide section is a standard question put
-through the same answer pipeline, and it shows *awaiting review* until a reviewer approves it. The *Glossary* lists
-every defined legal term in plain language, each with a link to the section that defines it.
+### 2. Ask a question, the reviewer approves it, the researcher reads it
+
+The researcher asks in plain words and sees the sources in under a second. The draft is written in the background
+and goes to the review queue. The reviewer approves, edits or rejects it, and only then does the researcher see it.
+
+1. **Ask:** "How long do I have to sue after a slip and fall on a Toronto sidewalk?"
+2. **Answer page, at once:** the sources found (*City of Toronto Act, 2006* s. 42, *Occupiers' Liability Act* s. 6.1,
+   ch. 719, related Court of Appeal decisions) and **Awaiting review**. The researcher cannot see the draft.
+3. **Reviewer → Review:** the draft appears with a table of claims, each with its verified quote and pinpoint. Flagged
+   drafts (dropped claims, not found, web answers) come first. **Approve**, **Edit** (with a note) or **Reject** (with
+   a reason).
+4. **Researcher refreshes:** the approved answer, with citation chips that show each quote, and "Reviewed by … on …".
+
+**Illustrative example** of the shape of an approved answer (abridged, not legal advice; the quotes are copied from the
+library):
+
+> In general, a proceeding cannot be started more than two years after the claim was discovered:
+>
+> > Unless this Act provides otherwise, a proceeding shall not be commenced in respect of a claim after the second
+> > anniversary of the day on which the claim was discovered.
+>
+> — *Limitations Act, 2002*, SO 2002, c 24, Sched B, s 4
+>
+> For a claim against the City about the repair of a highway, written notice must reach the city clerk much sooner:
+>
+> > No action shall be brought for the recovery of damages under subsection (2) unless, within 10 days after the
+> > occurrence of the injury, written notice of the claim and of the injury complained of, including the date, time
+> > and location of the occurrence, has been served upon or sent by registered mail to, (a) the city clerk; …
+>
+> — *City of Toronto Act, 2006*, SO 2006, c 11, Sched A, s 42(6)
+>
+> Missing the notice is not a bar if a judge finds a reasonable excuse and the City is not prejudiced (s 42(8)).
+
+The answer states the rules; it never works out a date or says whether someone has a case.
+
+*Guarantee:* each quote must appear word for word in its source, or the claim is dropped in code. If the library has
+no close match, the grounding gate answers "not found" without calling the model. No draft reaches a researcher
+without a reviewer's approval.
+
+### 3. When the library has no answer
+
+The researcher can choose to search the web; nothing is searched automatically. The reviewer can then add official
+pages to the library so the next question is answered from it.
+
+1. **Ask** something outside the library, e.g. a question about s. 44 of the *Municipal Act, 2001* (the library has the
+   *City of Toronto Act, 2006*, not the Municipal Act). The page says *Our law library has no close match for this
+   question* and offers **Search the web instead**.
+2. That makes a Google Search–grounded draft labelled *Web search answer — not from our law library*, with each source
+   and its domain. It goes to the review queue flagged as a web answer and is reviewed like any other.
+3. In the queue, sources on ontario.ca, canada.ca, ontariocourts.ca, scc-csc.ca and toronto.ca get **Add to library**;
+   every other source is marked "not an official source; cannot be added".
+4. **Add to library** queues a job (`make worker` must be running). The worker checks robots.txt, fetches the page at
+   no more than 1 request/s, splits it into sections and embeds them. The page then appears under *Law library →
+   Official web pages* and in search. In one run a Transport Canada page became 7 sections within seconds.
+
+*Guarantee:* web answers are always labelled and always reviewed, and only official government and court pages can
+enter the library.
+
+Also in the app: 5 topic guides (motor vehicle accidents, slip and fall, claims against the City, dog bites,
+limitation periods), each shown only after review, and a plain-language glossary.
 
 ## What keeps an answer honest
 
