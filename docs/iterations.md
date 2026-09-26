@@ -5,7 +5,7 @@ One entry per iteration, newest first. Format: date · milestone · what changed
 ## 2026-09-26 · Repo presentation · README header, screenshots, guarantees table
 
 - **What:** README gets a light/dark logo (`docs/logo*.svg`), badges (live CI, stack, eval numbers, licence), section nav, three real screenshots (`docs/img/`, Playwright at 2x against the dev DB), a "What keeps an answer honest" table linking each guarantee to the code and test that enforce it, and a Mermaid pipeline diagram. MIT `LICENSE` for the code (data keeps upstream licences). Modelled on YichiZ/toronto-3djs.
-- **Validated:** README rendered on GitHub (logo swaps with theme, Mermaid renders, all relative links resolve).
+- **Validated:** README rendered through the GitHub Markdown API with the relative images: logo, badges, screenshots and the guarantees table display correctly. The CI badge and Mermaid diagram only render on github.com, and the repo is private, so neither was seen rendered.
 - **Next:** GitHub description, topics and social preview image are repo settings, not files → set by the owner.
 
 ## 2026-09-26 · Phase 6 · 6.2 Add to corpus, 6.3 Load test; Phase 5 decision summaries done
