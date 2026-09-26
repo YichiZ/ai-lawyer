@@ -1,0 +1,89 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { formatDate, getSection, sourceLabel } from "@/lib/api";
+import CopyCitation from "./CopyCitation";
+
+type Props = { params: Promise<{ slug: string; pinpoint: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug, pinpoint } = await params;
+  const s = await getSection(slug, pinpoint);
+  return { title: s ? `${s.document.short_name ?? s.document.title} ${s.display}` : "Not found" };
+}
+
+export default async function SectionPage({ params }: Props) {
+  const { slug, pinpoint } = await params;
+  const s = await getSection(slug, pinpoint);
+  if (!s) notFound();
+  const doc = s.document;
+
+  return (
+    <article>
+      <nav aria-label="Breadcrumb" className="text-sm">
+        <ol className="flex flex-wrap gap-x-2">
+          <li><Link href="/laws">Law library</Link> /</li>
+          <li><Link href={`/laws/${slug}`}>{doc.short_name ?? doc.title}</Link>{s.breadcrumb.length > 0 && " /"}</li>
+          {s.breadcrumb.map((b, i) => (
+            <li key={b.pinpoint}>
+              <Link href={`/laws/${slug}/${b.pinpoint}`}>{b.kind === "part" ? b.heading : b.display}</Link>
+              {i < s.breadcrumb.length - 1 && " /"}
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      <header className="mt-4">
+        <p className="pinpoint text-lg text-primary">{s.display}</p>
+        <h1 className="font-serif text-3xl font-semibold">{s.heading ?? doc.title}</h1>
+      </header>
+
+      <p className="mt-3 text-sm text-muted">
+        {s.full_text ? "Unofficial copy of the official text" : "Excerpt only"} as of {formatDate(doc.in_force_from)} ·
+        Source: {sourceLabel(doc)}
+        {doc.url && (
+          <>
+            {" · "}
+            <a href={doc.url}>Official version</a>
+          </>
+        )}
+      </p>
+
+      {s.kind === "part" ? (
+        <ul className="mt-6">
+          {s.children.map((c) => (
+            <li key={c.pinpoint} className="py-1">
+              <Link href={`/laws/${slug}/${c.pinpoint}`} className="grid grid-cols-[7rem_1fr] gap-3">
+                <span className="pinpoint text-sm">{c.display}</span>
+                <span>{c.heading ?? <span className="text-muted">(no heading)</span>}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="mt-6 rounded-sm border border-rule bg-panel px-5 py-5">
+          <div className="law-text">
+            {s.lines.map((line, i) => (
+              <p key={i} data-level={line.level}>
+                {line.text}
+              </p>
+            ))}
+          </div>
+          {!s.full_text && (
+            <p className="mt-4 border-t border-rule pt-3 text-sm">
+              The City of Toronto does not permit reproducing the Municipal Code, so only an excerpt is shown.{" "}
+              {doc.url && <a href={doc.url}>Read the full chapter on toronto.ca</a>}
+            </p>
+          )}
+        </div>
+      )}
+
+      <CopyCitation title={s.citation.title} reference={s.citation.reference} text={s.citation.text} />
+
+      <nav aria-label="Previous and next" className="mt-10 flex justify-between border-t border-rule pt-4 text-sm">
+        {s.prev ? <Link href={`/laws/${slug}/${s.prev}`} rel="prev">← Previous</Link> : <span />}
+        {s.next ? <Link href={`/laws/${slug}/${s.next}`} rel="next">Next →</Link> : <span />}
+      </nav>
+    </article>
+  );
+}

@@ -12,11 +12,14 @@ from pathlib import Path
 
 from ingest.statutes import ParsedLaw
 
-PARSER_VERSION = 1
+PARSER_VERSION = 2  # 2: rejoin PDF-wrapped lines into paragraphs
 MONTH_DATE = re.compile(
     r"^(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}$")
 ARTICLE = re.compile(r"^ARTICLE ([IVXLC]+)$")
 LABEL = re.compile(r"^(?:[A-Z]{1,2}\.|\(\w{1,4}\))$")  # "A." or "(1)" alone on a line
+# A line starts a new paragraph at a label ("A. ", "(1) "), a defined term ("SIDEWALK - ") or a "[history]" note;
+# any other line is a PDF wrap of the previous one.
+PARAGRAPH_START = re.compile(r"^(?:(?:[A-Z]{1,2}\.|\(\w{1,4}\))\s|[A-Z][A-Z0-9 ,.'’/()&-]*[A-Z)] - |\[)")
 
 
 def pdf_text(path: Path) -> str:
@@ -86,7 +89,10 @@ def parse_chapter(raw: str, chapter: str, title: str, pdf_sha256: str, url: str,
         if current is not None:
             if LABEL.match(line) and i + 1 < len(lines):
                 line, i = f"{line} {lines[i + 1]}", i + 1
-            current["text"].append(line)
+            if current["text"] and not PARAGRAPH_START.match(line):
+                current["text"][-1] = f"{current['text'][-1]} {line}"
+            else:
+                current["text"].append(line)
         i += 1
 
     for s in sections:

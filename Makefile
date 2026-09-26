@@ -1,4 +1,4 @@
-.PHONY: up db test psql api
+.PHONY: up db test psql api web
 
 up:  ## start Postgres and wait until healthy
 	docker compose up -d --wait db
@@ -14,3 +14,6 @@ psql:
 
 api: up  ## run the API with reload on http://localhost:8000
 	uv run uvicorn app.main:app --reload --port 8000
+
+web:  ## run the Next.js app on http://localhost:3000 (needs `make api`)
+	npm --prefix web run dev

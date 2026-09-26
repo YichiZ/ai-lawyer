@@ -2,6 +2,7 @@
 import psycopg
 from psycopg.rows import dict_row
 
+from app.format import indent_lines, mcgill_citation
 from ingest.statutes import display_pinpoint
 
 EXCERPT_CHARS = 300  # documents with reproduction='excerpt' (City copyright) never return more than this
@@ -73,7 +74,9 @@ def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | No
         "kind": s["kind"],
         "heading": s["heading"],
         "text": shown(s["text"]),
+        "lines": indent_lines(shown(s["text"])),
         "full_text": full,
+        "citation": mcgill_citation(doc, s["pinpoint"]),
         "breadcrumb": [{**b, "display": display_pinpoint(b["pinpoint"])} for b in breadcrumb],
         "children": [{**c, "display": display_pinpoint(c["pinpoint"]), "text": shown(c["text"])} for c in children],
         "prev": prev["pinpoint"] if prev else None,

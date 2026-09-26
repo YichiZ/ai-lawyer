@@ -88,3 +88,9 @@ def test_invalid_characters_422(client, path):
     r = client.get(path)
     assert r.status_code == 422
     assert r.json()["error"]["code"] == "invalid_request" and r.json()["data"] is None
+
+
+def test_section_has_indented_lines_and_citation(client):
+    body = client.get("/laws/test-act/s-15-2").json()["data"]
+    assert [l["level"] for l in body["lines"]] == [1, 2, 3]
+    assert body["citation"]["text"] == "Test Act, SO 2002, c 24, Sched B, s 15(2)"

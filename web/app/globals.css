@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* Palette from docs/design.md (Frontend → Visual design). */
+:root {
+  --ink: #1a2233;
+  --muted: #4a5263;
+  --paper: #faf8f4;
+  --panel: #f3efe6;
+  --primary: #1f3a5f;
+  --accent: #7a1f2b;
+  --rule: #d9d4ca;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e6e1;
+    --muted: #a9aeb7;
+    --paper: #14171c;
+    --panel: #1f2229;
+    --primary: #9db4d6;
+    --accent: #e0a2a9;
+    --rule: #2e333b;
+  }
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --color-rule: var(--rule);
+  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-source-serif);
+  --font-mono: var(--font-source-code);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-source-sans), system-ui, sans-serif;
+  font-size: 16px;
+}
+
+a {
+  color: var(--primary);
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.pinpoint {
+  font-family: var(--font-source-code), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Official text: serif 19px / 1.6, 68ch measure, hanging indents per level. */
+.law-text {
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 19px;
+  line-height: 1.6;
+  max-width: 68ch;
+}
+.law-text p { margin: 0 0 0.6em; }
+.law-text p[data-level="1"] { padding-left: 2.2em; text-indent: -2.2em; }
+.law-text p[data-level="2"] { padding-left: 4.4em; text-indent: -2.2em; }
+.law-text p[data-level="3"] { padding-left: 6.6em; text-indent: -2.2em; }
+.law-text p[data-level="4"] { padding-left: 8.8em; text-indent: -2.2em; }
+
+@media (prefers-reduced-motion: no-preference) {
+  a, button { transition: color 150ms, background-color 150ms; }
+}
+
+@media print {
+  header, footer, nav, .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+}

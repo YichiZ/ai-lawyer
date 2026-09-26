@@ -24,7 +24,9 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report. `uv run scripts/load_statutes.py` — load the 12 laws (idempotent). `uv run scripts/fetch_toronto.py` / `load_toronto.py` — Toronto Municipal Code ch. 719, 743, 629 (needs `pdftotext`: `brew install poppler`). `uv run scripts/embed_chunks.py` — chunk + embed changed sections (idempotent, resumable).
 - `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
 - `make api` — FastAPI on :8000 (`/docs`). `uv run scripts/crawl_api.py` — request every section, report status + p50/p95.
-- Add commands here as they are created (`make dev`, `make eval`).
+- `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run scripts/crawl_api.py --web http://localhost:3000` — crawl every rendered section page.
+- Frontend logic that needs tests (indent levels, citations) lives in the API (`app/format.py`, pytest), so the web app has no test runner yet.
+- Add commands here as they are created (`make eval`).
 
 ## Stack (decided — see design doc for why)
 
@@ -62,4 +64,6 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — A content hash of the source alone hid a parser fix (loader said `unchanged`) → include `PARSER_VERSION` in the document hash and bump it with parser changes.
 - 2026-09-25 — `gemini-embedding-2` merges a list of contents into ONE vector (and rejects multiple `Content`s) → one request per text; parallelize with a thread pool.
 - 2026-09-25 — toronto.ca's copyright notice forbids copying the Municipal Code without permission → user chose local index only with excerpts + link; check a source's terms before planning to display it.
+- 2026-09-25 — The preview API server ran without `--reload`, so the web app hit a stale API (500 on a new field) → launch config uses `--reload`; restart servers after API changes when in doubt.
+- 2026-09-25 — pdftotext keeps PDF line wraps as newlines → rejoin lines into paragraphs (new paragraph only at labels, defined terms, `[history]`) before display or chunking.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

@@ -115,3 +115,26 @@ def test_display_pinpoint_for_bylaw_sections():
 def test_no_sections_raises():
     with pytest.raises(ValueError, match="no sections"):
         parse_chapter("TORONTO MUNICIPAL CODE\nnothing here", chapter="1", title="x", pdf_sha256="a" * 64, url="u", license="l")
+
+
+def test_wrapped_lines_are_rejoined_into_paragraphs():
+    raw = """§ 719-2. Time limit.
+A.
+
+Every owner or occupant of any building must, within 12 hours after any fall of snow,
+rain or hail has ceased, clear away snow.
+B.
+
+After the removal, the owner must apply sand.
+[Added 1999-11-25 by By-law
+No. 776-1999]
+BUILDING - Includes the land
+appurtenant to the building.
+"""
+    [s] = parse_chapter(raw, chapter="719", title="Snow", pdf_sha256="c" * 64, url="u", license="l").sections
+    assert s["text"].split("\n") == [
+        "A. Every owner or occupant of any building must, within 12 hours after any fall of snow, rain or hail has ceased, clear away snow.",
+        "B. After the removal, the owner must apply sand.",
+        "[Added 1999-11-25 by By-law No. 776-1999]",
+        "BUILDING - Includes the land appurtenant to the building.",
+    ]

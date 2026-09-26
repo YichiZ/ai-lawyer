@@ -2,6 +2,14 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.7 Law library frontend
+
+- **What:** Next.js 16.3.6 (App Router, TS, Tailwind 4) in `web/`: `/laws` (grouped library with citations, section counts, as-of dates), `/laws/[slug]` (Part → section tree), `/laws/[slug]/[pinpoint]` (official text with legislative hanging indents, breadcrumb, source line "Unofficial copy … as of … · Source … · Official version", McGill copy-citation button, prev/next; excerpt-only notice + toronto.ca link for City chapters), not-found and error pages, skip link, print styles. Design-doc palette as light/dark tokens; Source Serif 4 / Sans 3 / Code Pro via `next/font` (self-hosted). API gained `lines` (indent levels) and `citation` (McGill) from `app/format.py`. Bylaw parser v2 rejoins PDF-wrapped lines into paragraphs (found in the browser: excerpt showed broken lines).
+- **Validated:** tests red first where logic lives (format helpers written with their tests; API field test red → green; paragraph test red → green) → 123 passed; `tsc --noEmit` clean. Crawl through Next.js: **3,282/3,282 section pages 200**, p50 28 ms, p95 42 ms (dev server); `/`, `/laws`, a law page 200; unknown law/section 404. Browser: s. 15 hanging indents correct in dark and light; § 719-2 shows paragraphs, excerpt notice and link. Contrast: 16/16 text-on-background pairs ≥ 4.5:1 (min 6.83) in both themes. Keyboard: Tab → visible "Skip to content" with focus ring; one h1, header/main/footer, labelled navs, `lang=en`. Copy button: in a background tab the clipboard is blocked and the fallback message shows; a successful copy was not verified.
+- **Numbers:** Toronto re-parse re-embedded 186 chunks in 8.7 s (3,447 chunks total).
+- **Not done:** Lighthouse/axe run (would need a new tool download) — Lighthouse CI is on the Phase 4 engineering bar.
+- **Next:** 1.8 — `POST /ask` drafts (hybrid retrieval, RRF, grounding gate, verified quotes).
+
 ## 2026-09-25 · Phase 1 · 1.6 Law library API
 
 - **What:** FastAPI app (`app/main.py`, queries in `app/laws.py`): `GET /laws` (grouped by kind, section counts), `GET /laws/{slug}` (document + part/section tree, no text), `GET /laws/{slug}/{pinpoint}` (text, children, breadcrumb, prev/next, document provenance). One envelope `{data, error, meta}` for every response, including 404, 422 (slug/pinpoint must match `^[a-z0-9][a-z0-9.\-]*$`) and 500 (logged, generic message). `reproduction='excerpt'` documents return at most 300 chars + "…" and `full_text: false`. Deps: fastapi, uvicorn, httpx (dev). `make api`, `.claude/launch.json` (api), `scripts/crawl_api.py`.
