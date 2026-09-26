@@ -71,7 +71,7 @@ export class ApiError extends Error {
 
 export type Role = "researcher" | "reviewer";
 
-async function request<T>(path: string, init: RequestInit = {}, role?: Role): Promise<T | null> {
+async function requestEnvelope<T>(path: string, init: RequestInit = {}, role?: Role): Promise<Envelope<T> | null> {
   let res: Response;
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (role) headers["X-Demo-User"] = role;
@@ -87,7 +87,11 @@ async function request<T>(path: string, init: RequestInit = {}, role?: Role): Pr
     console.error(`API error ${res.status} on ${path}`, body.error);
     throw new ApiError(res.status, body.error?.message ?? "Unexpected error.");
   }
-  return body.data;
+  return body;
+}
+
+async function request<T>(path: string, init: RequestInit = {}, role?: Role): Promise<T | null> {
+  return (await requestEnvelope<T>(path, init, role))?.data ?? null;
 }
 
 const get = <T,>(path: string, role?: Role) => request<T>(path, {}, role);
@@ -234,14 +238,8 @@ export const getGlossary = () => get<GlossaryEntry[]>("/glossary");
 export const suggest = (q: string) => get<Suggestion[]>(`/suggest?q=${encodeURIComponent(q)}`);
 
 export async function search(q: string): Promise<{ groups: SearchGroup[]; askThis: boolean }> {
-  const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`, { cache: "no-store" }).catch((err) => {
-    console.error("API unreachable for search", err);
-    throw new ApiError(503, "Search is unavailable right now.");
-  });
-  if (res.status === 422) return { groups: [], askThis: false };
-  const body = (await res.json()) as Envelope<SearchGroup[]>;
-  if (!res.ok || body.error) throw new ApiError(res.status, body.error?.message ?? "Search failed.");
-  return { groups: body.data ?? [], askThis: Boolean(body.meta?.ask_this) };
+  const body = await requestEnvelope<SearchGroup[]>(`/search?q=${encodeURIComponent(q)}`);  // 422 (bad query) -> null
+  return { groups: body?.data ?? [], askThis: Boolean(body?.meta?.ask_this) };
 }
 
 export const REJECT_REASONS: Record<string, string> = {
