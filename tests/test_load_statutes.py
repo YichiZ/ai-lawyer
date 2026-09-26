@@ -46,20 +46,56 @@ def test_failure_mid_document_leaves_no_rows(conn):
     assert counts(conn) == (0, 0)
 
 
+def _chunks(conn, slug):
+    """Chunk the loaded document as ingest does; returns {chunk pinpoint: "c<id>"}."""
+    from ingest.chunks import load_sections, plan_chunks, sync_chunks
+
+    doc = conn.execute("SELECT id FROM documents WHERE slug = %s", (slug,)).fetchone()[0]
+    sync_chunks(conn, doc, plan_chunks("Test Act", load_sections(conn, doc)))
+    return {pin: f"c{cid}" for cid, pin in conn.execute("SELECT id, pinpoint FROM chunks WHERE document_id = %s", (doc,))}
+
+
+def claim_at(chunks, chunk_pin, quote):
+    """A verified claim as run_ask hands it to refine: the source is the retrieved chunk's."""
+    source = {"slug": "test-act", "pinpoint": chunk_pin, "display": "x", "url": f"/laws/test-act/{chunk_pin}",
+              "citation": {"title": "Test Act", "reference": "x", "text": "x"}}
+    return {"text": "x", "chunk_id": chunks[chunk_pin], "quote": quote, "source": source}
+
+
 def test_claims_get_the_subsection_pinpoint_that_holds_the_quote(conn):
     from app.ask import pinpoint_claims
 
     load_document(conn, parse_law(row(), LAW))
-    source = {"slug": "test-act", "pinpoint": "s-15", "display": "s. 15", "url": "/laws/test-act/s-15",
-              "citation": {"title": "Test Act", "reference": "SO 2002, c 24, Sched B, s 15", "text": "x"}}
-    claims = [
-        {"text": "a", "chunk_id": "c1", "quote": "No proceeding after the 15th anniversary", "source": source},
-        {"text": "b", "chunk_id": "c1", "quote": "Despite subsection (2), none.", "source": source},
-        {"text": "c", "chunk_id": "c1", "quote": "no proceeding.\n(2) No proceeding after", "source": source},  # spans two
-    ]
+    chunks = _chunks(conn, "test-act")
+    claims = [claim_at(chunks, "s-15", q) for q in (
+        "No proceeding after the 15th anniversary", "Despite subsection (2), none.",
+        "no proceeding.\n(2) No proceeding after",  # spans two subsections
+    )]
     out = pinpoint_claims(conn, claims)
     assert [c["source"]["pinpoint"] for c in out] == ["s-15-2", "s-15-2.1", "s-15"]
     assert out[0]["source"]["display"] == "s. 15(2)"
     assert out[0]["source"]["citation"]["reference"] == "SO 2002, c 24, Sched B, s 15(2)"
     assert out[0]["source"]["url"] == "/laws/test-act/s-15-2"
     assert claims[0]["source"]["pinpoint"] == "s-15"  # input not mutated
+
+
+def test_claims_in_a_split_section_get_the_subsection_that_holds_the_quote(conn):
+    """Issue #1: a long section's chunks are pinpointed at their first subsection (s-42-1, s-42-5, ...), and the claim
+    kept that pinpoint instead of the subsection holding its quote."""
+    from app.ask import pinpoint_claims
+
+    filler = " ".join(["words"] * 120)  # ~730 chars per subsection: eight of them force a split
+    text = "\n".join(f"({n}) Rule number {n} says {filler}." for n in range(1, 9))
+    load_document(conn, parse_law(row(unofficial_sections_en=json.dumps({**SECTIONS, "42": text})), LAW))
+    chunks = _chunks(conn, "test-act")
+    later = [p for p in chunks if p.startswith("s-42-") and p != "s-42-1"]
+    assert "s-42-1" in chunks and later  # the section really is split
+
+    last = later[-1]
+    out = pinpoint_claims(conn, [
+        claim_at(chunks, "s-42-1", "Rule number 2 says words"),
+        claim_at(chunks, "s-42-1", "words.\n(2) Rule number 2"),  # spans (1)-(2): the section
+        claim_at(chunks, last, "Rule number 8 says words"),
+    ])
+    assert [c["source"]["pinpoint"] for c in out] == ["s-42-2", "s-42", "s-42-8"]
+    assert out[1]["source"]["url"] == "/laws/test-act/s-42" and out[1]["source"]["display"] == "s. 42"

@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Fix · Claims pinned to the wrong subsection in split sections (#1)
+
+- **What:** `pinpoint_claims` looked for subsections whose parent is the chunk's pinpoint. A long section is split into chunks pinpointed at their first subsection (Insurance Act chunks `s-267.5-1`, `s-267.5-7`, …), which has no children, so every claim kept the chunk's first subsection. It now searches the chunk's own `section_ids` plus their subsections and picks the narrowest provision holding the whole quote: the one subsection, else the section (a quote spanning subsections), else the claim is left as is. Statutes and decisions share the one path.
+- **Validated:** a split-section test (8 subsections, quote in (2) from chunk `s-42-1`, quote spanning (1)–(2), quote in (8) from a later chunk) failed first (`s-42-1, s-42-1, s-42-5`) → green; the existing statute test now uses real chunks. Full suite 407 passed. Pinpoint eval on the dev corpus + Vertex: `evals/runs/20260926T163527Z-suite-pinpoint.json`.
+- **Numbers:** pinpoint precision 0.929 (144/155) → **1.000 (158/158)**, precise rate 1.000; 62/62 answers with claims. ~62 drafts, 236 s.
+
 ## 2026-09-26 · Fix · Web fallback stored a vertexaisearch redirect
 
 - **What:** answer 393's `web_sources` kept a `grounding-api-redirect` URL (title "dronemap.com", domain `vertexaisearch.cloud.google.com`). Cause: `_head` let urllib follow the redirect to the target site, dronemap.com answered HEAD with 405, and `resolve_url` fell back to the redirect URL. Now `_head` reads the redirector's `Location` header without contacting the target, and `resolve_url` returns `None` on any failure (or a result that is still a redirect), so `search_web` drops that source instead of storing it.
