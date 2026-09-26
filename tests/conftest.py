@@ -9,7 +9,7 @@ for _key in ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):  # tests never send 
 
 SCHEMA = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
 ADMIN_URL = os.environ.get("DATABASE_ADMIN_URL", "postgresql://postgres:dev@localhost:5432/postgres")
-TEST_DB = "ai_lawyer_test"
+TEST_DB = os.environ.get("TEST_DB_NAME", "ai_lawyer_test")  # parallel worktrees each set their own name
 TEST_URL = os.environ.get("TEST_DATABASE_URL", f"postgresql://postgres:dev@localhost:5432/{TEST_DB}")
 
 

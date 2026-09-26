@@ -25,7 +25,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432) and Redis 8 (localhost:6379), dev only / apply `db/schema.sql` (idempotent).
 - `make worker` — ingest worker for add-to-corpus jobs (Redis stream `ingest`; job state in `ingest_jobs`). Reviewer enqueues with `POST /ingest {url}`; `GET /ingest/{id}` shows status and stage.
 - `uv run -m scripts.fetch_a2aj` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run -m scripts.match_v0` — v0 match report. `uv run -m scripts.load_statutes` — load the 12 laws (idempotent). `uv run -m scripts.fetch_toronto` / `load_toronto.py` — Toronto Municipal Code ch. 719, 743, 629 (needs `pdftotext`: `brew install poppler`). `uv run -m scripts.embed_chunks` — chunk + embed changed sections (idempotent, resumable).
-- `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
+- `make test` — pytest against a fresh `ai_lawyer_test` database (set `TEST_DB_NAME` to use another name, e.g. one per worktree so parallel runs don't collide). `make psql` — shell into the dev DB.
 - `make api` — FastAPI on :8000 (`/docs`), loads `.env` (Langfuse tracing on when keys are present). `uv run -m scripts.crawl_api` — request every section, report status + p50/p95.
 - `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run -m scripts.crawl_api --web http://localhost:3000` — crawl every rendered section page.
 - `uv run -m scripts.check_gold [file]` — validate the gold set against the corpus.
