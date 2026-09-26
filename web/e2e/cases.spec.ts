@@ -23,3 +23,13 @@ test("typing a neutral citation jumps to the case", async ({ page }) => {
   await box.press("Enter");
   await expect(page).toHaveURL(/\/cases\/2016-onca-585$/);
 });
+
+test("typing a case name opens the case page, not a law page (#12)", async ({ page }) => {
+  await page.goto("/laws");
+  const box = page.getByRole("combobox", { name: /Search laws/ });
+  await box.fill("Galota v. Festival Hall");
+  await expect(page.getByRole("option").first()).toContainText("2016 ONCA 585");
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\/cases\/2016-onca-585$/);
+  expect((await page.goto("/laws/2016-onca-585"))?.status()).toBe(404);
+});

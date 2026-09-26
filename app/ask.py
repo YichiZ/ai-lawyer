@@ -299,38 +299,31 @@ def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, 
 
 
 def pinpoint_claims(conn: psycopg.Connection, claims: list[dict]) -> list[dict]:
-    """Point each claim at the one subsection whose text contains its quote (s 42 -> s 42(6)); else keep the section."""
+    """Point each claim at the narrowest provision of its chunk whose text holds the quote: the one subsection
+    (s 42 -> s 42(6)) or decision paragraph, else the section (a quote spanning subsections), else leave it.
+
+    Driven by the chunk's own sections, not the chunk pinpoint: a split section's chunks are pinpointed at their first
+    subsection (s-42-1), which has no children to search (issue #1).
+    """
     cur = conn.cursor(row_factory=dict_row)
     out = []
     for c in claims:
         src = c["source"]
-        if src["url"].startswith("/cases/"):  # decisions: the paragraph of the chunk that holds the quote
-            paras = cur.execute(
-                "SELECT s.pinpoint, s.text, d.title, d.citation, d.kind FROM chunks ch JOIN sections s ON s.id = ANY(ch.section_ids)"
-                " JOIN documents d ON d.id = s.document_id WHERE ch.id = %s", (int(c["chunk_id"][1:]),),
-            ).fetchall()
-            holding = [r for r in paras if normalize(c["quote"]) in normalize(r["text"])]
-            if len(holding) == 1:
-                r = holding[0]
-                out.append({**c, "source": {**src, "pinpoint": r["pinpoint"], "display": display_pinpoint(r["pinpoint"]),
-                                            "citation": mcgill_citation(r, r["pinpoint"]),
-                                            "url": f"/cases/{src['slug']}#{r['pinpoint']}"}})
-            else:
-                out.append(c)
-            continue
-        subs = cur.execute(
-            "SELECT s.pinpoint, s.text, d.title, d.citation, d.kind FROM sections s"
-            " JOIN sections p ON p.id = s.parent_id JOIN documents d ON d.id = s.document_id"
-            " WHERE d.slug = %s AND p.pinpoint = %s AND s.kind = 'subsection'",
-            (src["slug"], src["pinpoint"]),
+        rows = cur.execute(  # the chunk's sections plus their subsections (a whole section's chunk lists only its id)
+            "SELECT s.pinpoint, s.kind, s.text, d.title, d.citation, d.kind AS doc_kind FROM chunks ch"
+            " JOIN sections s ON s.id = ANY(ch.section_ids) OR s.parent_id = ANY(ch.section_ids)"
+            " JOIN documents d ON d.id = s.document_id WHERE ch.id = %s", (int(c["chunk_id"][1:]),),
         ).fetchall()
         quote = normalize(c["quote"])
-        holding = [r for r in subs if quote in normalize(r["text"])]
-        if len(holding) != 1:
+        holding = [r for r in rows if quote in normalize(r["text"])]
+        subs = [r for r in holding if r["kind"] == "subsection"]
+        secs = [r for r in holding if r["kind"] == "section"]
+        r = subs[0] if len(subs) == 1 else secs[0] if len(secs) == 1 else None
+        if r is None:
             out.append(c)
             continue
-        r = holding[0]
         pin = r["pinpoint"]
+        url = f"/cases/{src['slug']}#{pin}" if r["doc_kind"] == "decision" else f"/laws/{src['slug']}/{pin}"
         out.append({**c, "source": {**src, "pinpoint": pin, "display": display_pinpoint(pin),
-                                    "citation": mcgill_citation(r, pin), "url": f"/laws/{src['slug']}/{pin}"}})
+                                    "citation": mcgill_citation({**r, "kind": r["doc_kind"]}, pin), "url": url}})
     return out
