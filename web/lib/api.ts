@@ -270,5 +270,7 @@ export function formatTimestamp(iso: string | null | undefined): string {
 }
 
 export function sourceLabel(doc: DocumentMeta): string {
-  return doc.source === "a2aj-laws" ? "Ontario e-Laws via A2AJ" : "City of Toronto";
+  if (doc.source === "a2aj-laws") return "Ontario e-Laws via A2AJ";
+  if (doc.source === "toronto-municipal-code") return "City of Toronto";
+  return doc.source.startsWith("web:") ? doc.source.slice(4) : doc.source;  // web:ontario.ca -> ontario.ca
 }

@@ -66,6 +66,13 @@ def _section(r: dict) -> dict:
             "heading": r["heading"], "url": f"/laws/{r['slug']}/{r['pinpoint']}"}
 
 
+def _document(r: dict) -> dict:
+    """A title match: decisions open their case page, everything else its law page (issue #12)."""
+    kind = "case" if r["kind"] == "decision" else "law"
+    return {"type": kind, "slug": r["slug"], "title": r["title"], "display": r["citation"], "heading": None,
+            "url": f"/{kind}s/{r['slug']}"}
+
+
 def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> list[dict]:
     cur = conn.cursor(row_factory=dict_row)
     if m := NEUTRAL.match(q):  # "2024 ONCA 123 [at para 45]" jumps to the decision (or paragraph)
@@ -87,7 +94,7 @@ def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> lis
         ).fetchall()
         return [_section(r) for r in rows]
     laws = cur.execute(
-        "SELECT slug, title, citation FROM documents WHERE %s <%% lower(title)"
+        "SELECT slug, title, citation, kind FROM documents WHERE %s <%% lower(title)"
         " ORDER BY word_similarity(%s, lower(title)) DESC, title LIMIT 3", (q.lower(), q.lower()),
     ).fetchall()
     sections = cur.execute(
@@ -96,9 +103,7 @@ def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> lis
         " ORDER BY word_similarity(%s, s.heading) DESC, d.title, s.sort_order LIMIT %s",
         (q, q, limit),
     ).fetchall()
-    out = [{"type": "law", "slug": r["slug"], "title": r["title"], "display": r["citation"], "heading": None,
-            "url": f"/laws/{r['slug']}"} for r in laws]
-    return (out + [_section(r) for r in sections])[:limit]
+    return ([_document(r) for r in laws] + [_section(r) for r in sections])[:limit]
 
 
 def group_by_law(hits: list) -> list[dict]:

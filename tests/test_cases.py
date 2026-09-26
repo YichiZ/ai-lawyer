@@ -69,3 +69,22 @@ def test_claims_in_decisions_are_pinned_to_the_quoted_paragraph(conn):
     [c] = pinpoint_claims(conn, [{"text": "Dismissed.", "chunk_id": f"c{cid}", "quote": "The appeal is dismissed", "source": source}])
     assert c["source"]["pinpoint"] == "para-2" and c["source"]["citation"]["reference"] == "2023 ONCA 9 at para 2"
     assert c["source"]["url"] == "/cases/2023-onca-9#para-2"
+
+
+def test_decisions_are_cases_not_laws(conn):
+    """Issue #12: a case name in the typeahead links to /cases/, and /laws/ never serves a decision."""
+    load_document(conn, parse_law(row(), LAW))
+    load_document(conn, decision("2016 ONCA 585", "Galota v. Festival Hall Developments Ltd."))
+    app.dependency_overrides[get_conn] = lambda: conn
+    try:
+        client = TestClient(app)
+        items = client.get("/suggest", params={"q": "galota v festival hall"}).json()["data"]
+        law = client.get("/laws/2016-onca-585")
+        section = client.get("/laws/2016-onca-585/para-1")
+        assert client.get("/laws/test-act").status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+    assert items[0] == {"type": "case", "slug": "2016-onca-585", "title": "Galota v. Festival Hall Developments Ltd.",
+                        "display": "2016 ONCA 585", "heading": None, "url": "/cases/2016-onca-585"}
+    assert not any(i["url"].startswith("/laws/2016-onca-585") for i in items)
+    assert law.status_code == 404 and section.status_code == 404
