@@ -68,4 +68,6 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — pdftotext keeps PDF line wraps as newlines → rejoin lines into paragraphs (new paragraph only at labels, defined terms, `[history]`) before display or chunking.
 - 2026-09-25 — Everyday wording ("sue") misses statute terms ("proceeding", "claim") in keyword search, and RRF then demotes a good vector hit (LA s. 4) → synonyms/rerank (Phase 3); judge retrieval changes on the gold set, not one query.
 - 2026-09-25 — Postgres rejects `func(...)::type alias` in FROM → compute casts in a CTE.
+- 2026-09-25 — Screenshots fail when the Browser pane is hidden, and clipboard writes fail in background tabs → verify with `get_page_text`/`javascript_exec`; use a background tab so the user's tab isn't disturbed.
+- 2026-09-25 — Timestamps from the API are UTC → format user-facing dates in America/Toronto.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

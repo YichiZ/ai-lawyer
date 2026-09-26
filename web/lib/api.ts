@@ -60,15 +60,19 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string): Promise<T | null> {
+export type Role = "researcher" | "reviewer";
+
+async function request<T>(path: string, init: RequestInit = {}, role?: Role): Promise<T | null> {
   let res: Response;
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (role) headers["X-Demo-User"] = role;
   try {
-    res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+    res = await fetch(`${API_URL}${path}`, { cache: "no-store", ...init, headers });
   } catch (err) {
     console.error(`API unreachable at ${API_URL}${path}`, err);
     throw new ApiError(503, "The law library is unavailable right now.");
   }
-  if (res.status === 404 || res.status === 422) return null;
+  if (res.status === 404 || (res.status === 422 && !init.method)) return null;
   const body = (await res.json()) as Envelope<T>;
   if (!res.ok || body.error) {
     console.error(`API error ${res.status} on ${path}`, body.error);
@@ -77,10 +81,81 @@ async function get<T>(path: string): Promise<T | null> {
   return body.data;
 }
 
+const get = <T,>(path: string, role?: Role) => request<T>(path, {}, role);
+const post = <T,>(path: string, body: unknown, role: Role) =>
+  request<T>(path, { method: "POST", body: JSON.stringify(body) }, role);
+
 export const listLaws = () => get<{ kind: Kind; documents: DocumentSummary[] }[]>("/laws");
 export const getLaw = (slug: string) => get<{ document: DocumentMeta; tree: TreeNode[] }>(`/laws/${encodeURIComponent(slug)}`);
 export const getSection = (slug: string, pinpoint: string) =>
   get<Section>(`/laws/${encodeURIComponent(slug)}/${encodeURIComponent(pinpoint)}`);
+
+export interface Source {
+  chunk_id: string;
+  slug: string;
+  title: string;
+  pinpoint: string;
+  display: string;
+  citation: { title: string; reference: string; text: string };
+  snippet: string;
+  url: string;
+  score?: number;
+  distance?: number | null;
+}
+
+export interface Claim {
+  text: string;
+  chunk_id: string;
+  quote: string;
+  source: Source;
+  reason?: string;
+}
+
+export interface Answer {
+  id: number;
+  question: string;
+  status: "pending_review" | "approved" | "edited" | "rejected";
+  created_at: string;
+  sources: Source[];
+  message?: string;
+  final_markdown?: string;
+  claims?: Claim[];
+  edited?: boolean;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_reason?: string;
+  draft_markdown?: string;
+  review_note?: string;
+  risk?: string[];
+  dropped_claims?: Claim[];
+}
+
+export interface QueueItem {
+  id: number;
+  question: string;
+  draft_markdown: string;
+  claims: Claim[];
+  created_at: string;
+  asked_by: string | null;
+  risk: string[];
+  draft_status: string;
+  dropped_claims: Claim[];
+  sources: Source[];
+}
+
+export const ask = (question: string, role: Role) =>
+  post<{ answer_id: number; status: string; sources: Source[] }>("/ask", { question }, role);
+export const getAnswer = (id: number, role: Role) => get<Answer>(`/answers/${id}`, role);
+export const getQueue = (role: Role) => get<QueueItem[]>("/review/queue", role);
+export const reviewAnswer = (id: number, body: Record<string, string>, role: Role) =>
+  post<{ id: number; status: string }>(`/answers/${id}/review`, body, role);
+
+export const REJECT_REASONS: Record<string, string> = {
+  wrong_law: "Wrong law",
+  missing_authority: "Missing authority",
+  unsupported_claim: "Unsupported claim",
+  out_of_scope: "Out of scope",
+};
 
 export const KIND_LABELS: Record<Kind, string> = {
   statute: "Statutes",
@@ -92,6 +167,13 @@ export const KIND_LABELS: Record<Kind, string> = {
 export function formatDate(iso: string | null): string {
   if (!iso) return "unknown date";
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+}
+
+export function formatTimestamp(iso: string | null | undefined): string {
+  if (!iso) return "unknown date";
+  return new Date(iso).toLocaleDateString("en-CA", {
+    year: "numeric", month: "long", day: "numeric", timeZone: "America/Toronto",
+  });
 }
 
 export function sourceLabel(doc: DocumentMeta): string {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Source_Code_Pro, Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import RoleSwitch from "@/components/RoleSwitch";
+import { currentRole } from "@/lib/role";
 import "./globals.css";
 
 const serif = Source_Serif_4({ variable: "--font-source-serif", subsets: ["latin"] });
@@ -12,7 +14,8 @@ export const metadata: Metadata = {
   description: "A research guide to Ontario personal-injury law for paralegals and law students.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const role = await currentRole();
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable} ${code.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
@@ -24,8 +27,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="font-serif text-xl font-semibold text-ink no-underline">
               Ontario Injury Law Guide
             </Link>
-            <nav aria-label="Main">
+            <nav aria-label="Main" className="flex flex-wrap items-center gap-4">
               <Link href="/laws">Law library</Link>
+              <Link href="/ask">Ask</Link>
+              <Link href="/review">Review</Link>
+              <RoleSwitch role={role} />
             </nav>
           </div>
         </header>
