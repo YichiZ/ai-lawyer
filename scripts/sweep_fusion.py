@@ -13,18 +13,14 @@ import psycopg
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from app.ask import TOP_K, keyword_ranking, rrf, vector_ranking  # noqa: E402
-from app.synonyms import expand  # noqa: E402
 from evals.gold import load_gold  # noqa: E402
 from evals.metrics import chunk_covers, mrr, recall_at_k  # noqa: E402
 from ingest.vertex import embedder, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
-VARIANTS = {  # name: (keyword mode, depth, k, keyword weight, vector weight, synonyms)
+VARIANTS = {  # name: (keyword mode, depth, k, keyword weight, vector weight, synonyms — removed in 3.2, keep False)
     "Phase 2 (or, 50, k60, 1:1)": ("or", 50, 60, 1.0, 1.0, False),
     "3.3 chosen (k10, 0.3:1)": ("or", 50, 10, 0.3, 1.0, False),
-    "3.3 + synonyms": ("or", 50, 10, 0.3, 1.0, True),
-    "Phase 2 + synonyms": ("or", 50, 60, 1.0, 1.0, True),
-    "k10, 0.5:1 + synonyms": ("or", 50, 10, 0.5, 1.0, True),
     "vector only": ("or", 50, 60, 0.0, 1.0, False),
 }
 
@@ -43,7 +39,7 @@ def main() -> int:
         for name, (mode, depth, k, wk, wv, syn) in VARIANTS.items():
             rec, rr, missed = [], [], []
             for g, vec in zip(gold, vec_lists):
-                kw = keyword_ranking(conn, expand(g["question"]) if syn else g["question"], depth, mode) if wk else []
+                kw = keyword_ranking(conn, g["question"], depth, mode) if wk else []
                 fused = [int(c[1:]) for c, _ in rrf([[f"c{c}" for c in kw], [f"c{c}" for c, _ in vec[:depth]]], k, [wk, wv])][:TOP_K]
                 ranked = [hit[c] for c in fused]
                 rec.append(recall_at_k(ranked, g["expected"], TOP_K)); rr.append(mrr(ranked, g["expected"]))

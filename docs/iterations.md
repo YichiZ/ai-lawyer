@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 3 · 3.2 Synonym expansion — reverted
+
+- **What:** 55 curated everyday → legal phrases (`app/synonyms.tsv`, word-boundary matching, no chaining; 5 tests), applied to the keyword query only.
+- **Result (offline sweep):** with 3.3 fusion: recall@8 1.000 → 1.000, MRR 0.847 → **0.844**; with Phase 2 fusion: 0.887 → 0.887, MRR 0.624 → 0.611. No gain: once fusion stopped burying vector hits, the vocabulary gap no longer costs anything on this gold set.
+- **Decision:** not kept (plan rule); module, list and tests deleted — recoverable from commit d293141. Revisit only if a keyword-heavy query set (exact terms, citations) shows a gap.
+- **Next:** 3.4 rerank.
+
 ## 2026-09-26 · Phase 3 · 3.3 Fusion tuning — kept
 
 - **What:** weighted RRF (`rrf(..., weights)`), keyword mode `and_or` (tried, not kept), `scripts/sweep_fusion.py` (offline: each gold question embedded once, every variant scored with the same metric). Chosen: **k 10, keyword weight 0.3** (`RRF_K`, `KEYWORD_WEIGHT`).
