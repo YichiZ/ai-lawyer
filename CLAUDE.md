@@ -31,6 +31,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `uv run --env-file .env scripts/eval.py retrieval|answers` — Langfuse experiments on the gold set (retrieval: recall@8, MRR; answers: code metrics + Flash-Lite judge, gate trade-off).
 - `make eval` — local only: both experiments vs `evals/baseline.json` (fails on regression / failed items / hash change). `make eval-baseline` re-records it deliberately. `make ci-fixture` re-exports the CI corpus.
 - `uv run --env-file .env scripts/profile_ask.py [n]` — stage latencies of the /ask pipeline (sequential). `scripts/sweep_fusion.py`, `scripts/sweep_rerank.py [candidates]`, `scripts/diagnose_retrieval.py [ids]` — offline retrieval tuning.
+- `make e2e-ci` — Playwright against a freshly rebuilt `ai_lawyer_ci` (schema + fixture), same as GitHub Actions; use it instead of reusing a stale CI-like DB.
 - `make e2e` — Playwright UI tests; starts its own API (`AI_FAKE=1`, :8001) and web (:3001), so it runs beside `make api`/`make web`.
 - Frontend logic that needs tests (indent levels, citations) lives in the API (`app/format.py`, pytest), so the web app has no test runner yet.
 - Add commands here as they are created (`make eval`).

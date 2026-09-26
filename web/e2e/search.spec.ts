@@ -2,9 +2,12 @@ import { expect, test } from "@playwright/test";
 
 test("typing a citation jumps straight to the section", async ({ page }) => {
   await page.goto("/laws");
-  await page.keyboard.press("/");
   const box = page.getByRole("combobox", { name: /Search laws/ });
-  await expect(box).toBeFocused();
+  // "/" works once the page has hydrated; retry the keypress rather than racing a cold dev server.
+  await expect(async () => {
+    await page.keyboard.press("/");
+    await expect(box).toBeFocused({ timeout: 500 });
+  }).toPass();
   await box.fill("Limitations Act s. 4");
   const option = page.getByRole("option").first();
   await expect(option).toContainText("s. 4");
