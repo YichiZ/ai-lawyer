@@ -95,7 +95,7 @@ jobs:
           AI_FAKE=1 uv run uvicorn app.main:app --port 8001 &
           (cd web && NEXT_DIST_DIR=.next-lh API_URL=http://localhost:8001 npx next start --port 3002) &
           sleep 8
-      - run: npx --prefix web lhci autorun --config=web/lighthouserc.json
+      - run: npx lhci autorun
         working-directory: web
       - uses: actions/upload-artifact@v4
         if: always()
