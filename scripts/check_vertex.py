@@ -7,13 +7,12 @@ import os
 import sys
 
 from google import genai
-from google.genai import errors, types
+from google.genai import types
 
 PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "long-indexer-507414-n0")
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
 TIMEOUT_MS = 30_000  # per call; grounding can run many searches
-ANSWER_MODEL = "gemini-3.8-flash"
-FALLBACK_MODEL = "gemini-3.7-flash"  # 3.8 Flash 504s intermittently on the global endpoint
+ANSWER_MODEL = "gemini-3.7-flash"  # 3.8 Flash 504'd intermittently on Vertex global (2026-09-25)
 LOW_THINKING = types.ThinkingConfig(thinking_level="low")
 CHEAP_MODEL = "gemini-3.5-flash-lite"
 EMBED_MODEL = "gemini-embedding-2"
@@ -44,15 +43,10 @@ def norm(s: str) -> str:
 
 
 def generate(client, model, contents, **config):
-    """Call `model`; on a server error (after SDK retries) fall back once to FALLBACK_MODEL."""
+    """Call `model` with low thinking unless overridden; the SDK retries 429/5xx."""
     config.setdefault("thinking_config", LOW_THINKING)
     cfg = types.GenerateContentConfig(**config)
-    try:
-        return client.models.generate_content(model=model, contents=contents, config=cfg), model
-    except errors.ServerError:
-        if model == FALLBACK_MODEL:
-            raise
-        return client.models.generate_content(model=FALLBACK_MODEL, contents=contents, config=cfg), FALLBACK_MODEL
+    return client.models.generate_content(model=model, contents=contents, config=cfg), model
 
 
 def check_generate(client, model):
@@ -88,7 +82,7 @@ def check_search_grounding(client, _):
     r, used = generate(
         client, ANSWER_MODEL,
         "Use Google Search once: what is the official website of the Ontario Court of Appeal? One line.",
-        # Default thinking makes 3.8 Flash over-search until a 504; low thinking answers in ~3s.
+        # Default thinking over-searches until a 504; low thinking answers in ~3s.
         tools=[types.Tool(google_search=types.GoogleSearch())],
     )
     gm = r.candidates[0].grounding_metadata
