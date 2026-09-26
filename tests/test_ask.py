@@ -128,3 +128,11 @@ def test_refine_runs_on_verified_claims_before_composing():
     refine = lambda cs: [{**c, "source": {**c["source"], "citation": {"title": "T", "reference": "R(6)"}}} for c in cs]
     result = run_ask("How long to sue?", [hit("c1", 0.2)], llm, refine)
     assert "— *T*, R(6)" in result.draft_markdown and result.claims[0]["source"]["citation"]["reference"] == "R(6)"
+
+
+def test_weighted_rrf_can_favour_vector_list():
+    keyword, vector = ["k1", "both"], ["v1", "both"]
+    plain = [cid for cid, _ in rrf([keyword, vector])]
+    assert plain[0] == "both"  # in both lists at rank 2 beats rank 1 in one
+    weighted = [cid for cid, _ in rrf([keyword, vector], weights=[0.01, 1.0])]  # k=60 flattens ranks: tiny weight needed
+    assert weighted[0] == "v1"

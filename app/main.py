@@ -9,14 +9,14 @@ from functools import lru_cache
 from typing import Annotated, Iterator, Literal
 
 import psycopg
-from fastapi import Depends, FastAPI, Header, Path, Request
+from fastapi import Depends, FastAPI, Header, Path, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
-from app import ask, laws, review, tracing
+from app import ask, laws, review, search, tracing
 from ingest import vertex
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
@@ -202,3 +202,17 @@ def get_answer(answer_id: int, conn: Conn, user: User):
     if not view:
         raise NotFound(f"No answer {answer_id}")
     return envelope(view)
+
+
+@app.get("/suggest")
+def get_suggest(q: Annotated[str, Query(min_length=2, max_length=200)], conn: Conn):
+    """Typeahead: citations jump to a section; otherwise law titles and section headings (pg_trgm)."""
+    return envelope(search.suggest(conn, q.strip()))
+
+
+@app.get("/search")
+def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Conn, ai: AI):
+    """Hybrid retrieval grouped by law. Question-shaped queries get meta.ask_this so the UI can offer 'Ask this'."""
+    hits = ask.retrieve(conn, q.strip(), ai.embed_query(q.strip()), top_k=search.SEARCH_TOP_K)
+    groups = search.group_by_law(hits)
+    return envelope(groups, meta={"total": len(hits), "ask_this": search.is_question(q)})

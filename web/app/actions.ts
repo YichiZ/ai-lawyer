@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ApiError, ask, getSection, reviewAnswer } from "@/lib/api";
+import { ApiError, ask, getSection, reviewAnswer, suggest, type Suggestion } from "@/lib/api";
 import { ROLE_COOKIE, currentRole } from "@/lib/role";
 
 export type FormState = { error?: string };
@@ -62,4 +62,14 @@ export async function loadPassage(slug: string, pinpoint: string): Promise<Passa
     fullText: s.full_text,
     href: `/laws/${slug}/${pinpoint}`,
   };
+}
+
+export async function suggestAction(q: string): Promise<Suggestion[]> {
+  const query = q.trim();
+  if (query.length < 2 || query.length > 200) return [];
+  try {
+    return (await suggest(query)) ?? [];
+  } catch {
+    return []; // typeahead failing must not break typing; the full search page reports errors
+  }
 }

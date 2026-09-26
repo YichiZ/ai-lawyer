@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 3 · 3.7 Search and typeahead
+
+- **What:** `app/search.py` + `GET /suggest?q=` (citations jump to a section: "s. 4(1)", "OLA s 6.1", "r. 2.02", "§ 743-9", law named by abbreviation or title; otherwise pg_trgm word similarity on law titles and section headings) and `GET /search?q=` (hybrid retrieval top 20 grouped by law; `meta.ask_this` for question-shaped queries). Web: header search box (combobox + listbox ARIA, `/` to focus, arrows/Enter, debounced server action), `/search` results page with "Ask this" → `/ask?q=` prefilled.
+- **Validated:** tests red first → 29 new (246 total); Playwright +2 flows (citation → section; heading typeahead; question → results → Ask this prefilled) → 7/7 on a fresh fixture-only DB. `/suggest` over 60 requests: **p50 7.5 ms, p95 9.0 ms** (target < 100 ms); samples: "OLA s 6.1" → s. 6.1 Notice period — injury from snow or ice; "§ 719-2" → § 719-2 Time limit for removal of snow.
+- **Bug found by the e2e test:** Escape on a `type=search` input clears it natively, so closing suggestions wiped the query → Escape now only closes the list when it is open.
+- **Next:** finish 3.3 (fusion) once `make eval` returns; then 3.2 synonyms, 3.4 rerank, 3.5 context, 3.6 latency.
+
 ## 2026-09-26 · Phase 3 · 3.1 Miss analysis (+ metric fix)
 
 - **What:** `retrieve` split into `keyword_ranking` / `vector_ranking` (results identical: 0.855 / 0.601). `scripts/diagnose_retrieval.py` prints each miss's rank in the keyword, vector and fused lists (depth 200) with the query terms.

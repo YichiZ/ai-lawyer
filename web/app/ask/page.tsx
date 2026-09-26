@@ -3,7 +3,10 @@ import AskForm from "./AskForm";
 
 export const metadata: Metadata = { title: "Ask" };
 
-export default function AskPage() {
+type Props = { searchParams: Promise<{ q?: string }> };
+
+export default async function AskPage({ searchParams }: Props) {
+  const q = ((await searchParams).q ?? "").slice(0, 1000);
   return (
     <div>
       <h1 className="font-serif text-3xl font-semibold">Ask a research question</h1>
@@ -11,7 +14,7 @@ export default function AskPage() {
         This is a research aid, not legal advice: it will not say whether someone has a case, predict outcomes, value a
         claim or calculate deadlines.
       </p>
-      <AskForm />
+      <AskForm defaultQuestion={q} />
     </div>
   );
 }

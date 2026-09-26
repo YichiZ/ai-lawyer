@@ -151,6 +151,34 @@ export const getQueue = (role: Role) => get<QueueItem[]>("/review/queue", role);
 export const reviewAnswer = (id: number, body: Record<string, string>, role: Role) =>
   post<{ id: number; status: string }>(`/answers/${id}/review`, body, role);
 
+export interface Suggestion {
+  type: "law" | "section";
+  slug: string;
+  title: string;
+  display: string | null;
+  heading: string | null;
+  url: string;
+}
+
+export interface SearchGroup {
+  slug: string;
+  title: string;
+  hits: { pinpoint: string; display: string; citation: Source["citation"]; snippet: string; url: string }[];
+}
+
+export const suggest = (q: string) => get<Suggestion[]>(`/suggest?q=${encodeURIComponent(q)}`);
+
+export async function search(q: string): Promise<{ groups: SearchGroup[]; askThis: boolean }> {
+  const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`, { cache: "no-store" }).catch((err) => {
+    console.error("API unreachable for search", err);
+    throw new ApiError(503, "Search is unavailable right now.");
+  });
+  if (res.status === 422) return { groups: [], askThis: false };
+  const body = (await res.json()) as Envelope<SearchGroup[]>;
+  if (!res.ok || body.error) throw new ApiError(res.status, body.error?.message ?? "Search failed.");
+  return { groups: body.data ?? [], askThis: Boolean(body.meta?.ask_this) };
+}
+
 export const REJECT_REASONS: Record<string, string> = {
   wrong_law: "Wrong law",
   missing_authority: "Missing authority",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Source_Code_Pro, Source_Sans_3, Source_Serif_4 } from "next/font/google";
 import RoleSwitch from "@/components/RoleSwitch";
+import SearchBox from "@/components/SearchBox";
 import { currentRole } from "@/lib/role";
 import "./globals.css";
 
@@ -23,10 +24,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <header className="border-b border-rule">
-          <div className="mx-auto flex max-w-5xl items-baseline justify-between gap-4 px-4 py-4">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-4">
             <Link href="/" className="font-serif text-xl font-semibold text-ink no-underline">
               Ontario Injury Law Guide
             </Link>
+            <SearchBox />
             <nav aria-label="Main" className="flex flex-wrap items-center gap-4">
               <Link href="/laws">Law library</Link>
               <Link href="/ask">Ask</Link>

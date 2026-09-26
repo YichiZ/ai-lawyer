@@ -17,7 +17,11 @@ from app.format import mcgill_citation
 from app.laws import excerpt
 from ingest.statutes import display_pinpoint
 
-RRF_K = 60
+# Fusion tuned on the Phase 3 gold sweep (3.3): k 60 / equal weights buried vector #1 hits under keyword noise.
+# k 10 + keyword weight 0.3: recall@8 0.887 -> 1.000, MRR 0.624 -> 0.847 (offline sweep). Vector-only scored
+# MRR 0.919 but the gold set has few exact-term/citation queries, where keyword search earns its place.
+RRF_K = 10
+KEYWORD_WEIGHT = 0.3
 CANDIDATES = 50  # per retriever
 TOP_K = 8
 # Cosine distance of the best vector hit above which we answer "not found" without a model call.
@@ -88,12 +92,12 @@ def normalize(s: str) -> str:
     return " ".join(s.split())
 
 
-def rrf(rankings: list[list[str]], k: int = RRF_K) -> list[tuple[str, float]]:
-    """Reciprocal rank fusion: score = sum 1/(k + rank). Ties keep first-seen order."""
+def rrf(rankings: list[list[str]], k: int = RRF_K, weights: list[float] | None = None) -> list[tuple[str, float]]:
+    """Weighted reciprocal rank fusion: score = sum w/(k + rank). Ties keep first-seen order."""
     scores: dict[str, float] = {}
-    for ranking in rankings:
+    for ranking, w in zip(rankings, weights or [1.0] * len(rankings)):
         for rank, cid in enumerate(ranking, start=1):
-            scores[cid] = scores.get(cid, 0.0) + 1 / (k + rank)
+            scores[cid] = scores.get(cid, 0.0) + w / (k + rank)
     return sorted(scores.items(), key=lambda kv: -kv[1])
 
 
@@ -169,14 +173,17 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
 # --- database side ---
 
-def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES) -> list[int]:
-    """Chunk ids by ts_rank_cd for the question's terms OR'ed together."""
-    return [r[0] for r in conn.execute(
-        "WITH t AS (SELECT replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery AS q)"
-        " SELECT c.id FROM chunks c, t WHERE t.q::text <> '' AND c.tsv @@ t.q"
-        " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s",
-        (question, limit),
-    )]
+def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES, mode: str = "or") -> list[int]:
+    """Chunk ids by ts_rank_cd. mode "or": any term; "and_or": all terms first, then any term to fill up."""
+    sql = ("WITH t AS (SELECT {q} AS q) SELECT c.id FROM chunks c, t WHERE t.q::text <> '' AND c.tsv @@ t.q"
+           " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s")
+    any_term = "replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery"
+    ids = [r[0] for r in conn.execute(sql.format(q=any_term if mode == "or" else "plainto_tsquery('english', %s)"),
+                                      (question, limit))]
+    if mode == "and_or" and len(ids) < limit:
+        seen = set(ids)
+        ids += [r[0] for r in conn.execute(sql.format(q=any_term), (question, limit)) if r[0] not in seen][:limit - len(ids)]
+    return ids
 
 
 def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: int = CANDIDATES) -> list[tuple[int, float]]:
@@ -189,14 +196,14 @@ def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: i
     )]
 
 
-def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float]) -> list[Retrieved]:
+def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float], top_k: int = TOP_K) -> list[Retrieved]:
     """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with RRF; returns the TOP_K best."""
     register_vector(conn)
     cur = conn.cursor(row_factory=dict_row)
     keyword = keyword_ranking(conn, question)
     vector = vector_ranking(conn, query_vector)
     distance = {f"c{cid}": d for cid, d in vector}
-    fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]])[:TOP_K]
+    fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]], weights=[KEYWORD_WEIGHT, 1.0])[:top_k]
     ids = [int(cid[1:]) for cid, _ in fused]
     rows = {r["id"]: r for r in cur.execute(
         "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction"

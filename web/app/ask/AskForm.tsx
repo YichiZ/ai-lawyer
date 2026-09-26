@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { askAction, type FormState } from "@/app/actions";
 
-export default function AskForm() {
+export default function AskForm({ defaultQuestion = "" }: { defaultQuestion?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(askAction, {});
   return (
     <form action={action} className="mt-6 max-w-2xl">
@@ -17,6 +17,7 @@ export default function AskForm() {
         minLength={5}
         maxLength={1000}
         rows={4}
+        defaultValue={defaultQuestion}
         aria-describedby="question-help"
         className="mt-2 w-full rounded-sm border border-rule bg-panel p-3"
         placeholder="e.g. How soon must someone who slipped on an icy Toronto sidewalk notify the City?"
