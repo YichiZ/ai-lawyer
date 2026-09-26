@@ -2,6 +2,14 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 3 · 3.6 Answer latency — Phase 3 complete
+
+- **Profile first** (`scripts/profile_ask.py`, 25 questions sequentially): sources p50 1.5 s / p95 3.1 s; **generate p50 4.2 s / p95 68.6 s** (max 73 s). The tail was not prompt size (73 s and 57 s calls had 16k/11k chars; other 11–14k-char prompts took ~12 s) but Vertex 504/429s multiplied by 30 s timeouts × retries; even sequential calls hit 429 (gemini-3.7-flash quota looks low for this project).
+- **What changed:** (1) `POST /ask` returns the fused top 8 immediately and drafts in a FastAPI background task on its own connection (rerank of the fused top 20 → generate → verify → store; the trace continues as a linked `draft` span); drafts that fail are flagged `failed` for the reviewer; answers still drafting are hidden from the queue and return 409 if reviewed. This matches the design ("sources now; answer when reviewed") — the researcher never sees a draft before review. (2) Interactive rerank: 1 attempt with a 2.5 s deadline. The SDK timeout is sent to Vertex as a deadline: 1.6 s made 24/30 rerank calls 504; 2.5 s gave 0/30 fallbacks (p95 1.5 s). Rerank failures log one line, not a traceback.
+- **Validated:** tests red first → 295 passed; e2e 7/7 on a fresh fixture DB (after rebuilding the stale `ai_lawyer_ci`). 30 real `/ask` calls: **HTTP response p50 280 ms, p95 819 ms** (target < 2 s; was p95 ~70 s); background drafts 30/30 `drafted`, **p50 4.6 s, p95 10.9 s** (target < 8 s: over, the Vertex generation tail). `make eval` → no regression.
+- **Phase 3 exit:** every step's delta recorded (3.2 reverted; 3.3, 3.4, 3.5 kept; 3.7 shipped) · baseline re-recorded after the last kept change (recall@8 1.000, MRR 0.913, has verified claim 1.000, facts 0.968, citation supported 0.968, faithful 0.919, out-of-scope refused 0.933) · search + typeahead live · sources p95 0.8 s; draft p95 10.9 s remains over 8 s — the gap is Vertex generation latency/quota, revisit with a quota increase or streaming in Phase 6's load test.
+- **Next:** Phase 4 — run summaries (estimate $2.40), summary evals, glossary, guides, design pass.
+
 ## 2026-09-26 · Phase 3 · 3.5 Chunk context — kept (+ rerank safety net)
 
 - **What:** `ingest/contextualize.py` + `scripts/contextualize_chunks.py`: gemini-3.5-flash-lite writes 1–2 situating sentences per chunk from the law title, the outline of the chunk's Part (≤ 60 headings) and the chunk text; stored in `chunks.situating`, used in the embedding input only (keyword `tsv` unchanged); writing it clears the embedding so only those chunks re-embed; `sync_chunks` carries situating sentences over for unchanged chunks; `--clear` reverts. Rerank safety net: the reranker may reorder but not drop the fused top 3 (`KEEP_FUSED`) — one sweep showed it dropping a fused #1 (city-08).

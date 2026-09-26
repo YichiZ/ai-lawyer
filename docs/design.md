@@ -142,22 +142,25 @@ Redis dispatches work; Postgres remembers it. This follows the Hello Interview g
 
 ## Retrieval
 
+Measured in Phase 3 against the gold set (`docs/iterations.md` has every delta, kept or reverted).
+
 1. **Filter** — in-force versions only by default; jurisdiction (Ontario + SCC), doc type, court, date.
-2. **Expand** — curated synonym table (~50 rows): "slip and fall" → occupiers' liability, "sue the city" → City of Toronto Act notice, "car accident" → motor vehicle. BM25 only.
-3. **Retrieve** — top 50 BM25 + top 50 pgvector, in parallel.
-4. **Fuse** — reciprocal rank fusion, `score = Σ 1/(60 + rank)`.
-5. **Authority boost** — small boost for SCC/ONCA and often-cited decisions; demote overturned ones.
-6. **Rerank** — gemini-3.5-flash-lite ranks the top 30 (ids + first ~120 words) in one JSON call; keep top 8. If p95 suffers, cut candidates before changing models.
+2. **Retrieve** — top 50 keyword (terms OR'ed, `ts_rank_cd`) + top 50 pgvector.
+3. **Fuse** — weighted reciprocal rank fusion, `score = Σ w / (10 + rank)`, keyword weight 0.3, vector 1.0. (k 60 with equal weights buried vector #1 hits under broad keyword matches: recall@8 0.887 → 1.000, MRR 0.624 → 0.847.)
+4. **Chunk context** — gemini-3.5-flash-lite writes 1–2 situating sentences per chunk (law title + Part outline); used in the embedding input only. Fused MRR 0.847 → 0.895.
+5. **Rerank** — gemini-3.5-flash-lite orders the fused top 20 (ids + first ~120 words) in one JSON call; keep top 8; it may reorder but not drop the fused top 3; errors/timeouts (2.5 s deadline) fall back to fused order. MRR ~0.91–0.92. Runs in the background before drafting, so it adds nothing to the researcher's wait. (Top 30 was slower and no better.)
+6. **Authority boost** — (Phase 5) small boost for SCC/ONCA and often-cited decisions; demote overturned ones.
 7. **Expand context** — attach section heading or neighbouring paragraphs.
 
-Each step is measured in Langfuse and kept only if it moves recall@8 or MRR.
+Tried and dropped: a curated synonym table on the keyword side (no gain once fusion was fixed).
 
 ## Answering
 
 gemini-3.7-flash answers only from the top 8 chunks, and code — not the model — decides which citations survive.
+`POST /ask` returns the fused sources in well under a second (p95 0.8 s) and drafts in a background task (rerank → generate → verify; p50 4.6 s, p95 10.9 s): the researcher never sees the draft before review, so only the reviewer waits for it. A failed draft is flagged in the review queue.
 
 - **Quote verification** — model returns `claims: [{text, chunk_id, quote}]`; code checks each quote is an exact (whitespace-normalized) substring of its chunk. Failing claims are dropped and retried once; two failures → refusal path.
-- **Grounding gate** — best rerank score below threshold → "not found in the laws we cover" + 3 closest passages, no model call.
+- **Grounding gate** — best vector distance above 0.30 → "not found in the laws we cover" + 3 closest passages, no model call (0.30 from the gold set: refuses 7/15 out-of-scope, 0 in-scope).
 - **Answer shape** — plain answer in 2–3 sentences, then "what the law says" with quotes, then any deadline rule.
 - **Canadian citations** — *Limitations Act, 2002*, SO 2002, c 24, Sched B, s 4; *Smith v Jones*, 2024 ONCA 123 at para 45.
 - **Decomposition** — compound questions split by Flash-Lite into sub-queries.

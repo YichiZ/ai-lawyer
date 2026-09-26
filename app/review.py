@@ -24,13 +24,16 @@ def risk_reasons(flags: dict) -> list[str]:
         reasons.append("dropped_claims")
     if flags.get("retried"):
         reasons.append("retried")
+    if flags.get("status") == "failed":
+        reasons.append("failed")
     return reasons
 
 
 def queue(conn: psycopg.Connection) -> list[dict]:
     rows = conn.cursor(row_factory=dict_row).execute(
         "SELECT a.id, a.question, a.draft_markdown, a.claims, a.flags, a.created_at, a.trace_id, u.name AS asked_by"
-        " FROM answers a LEFT JOIN users u ON u.id = a.asked_by WHERE a.status = 'pending_review'"
+        " FROM answers a LEFT JOIN users u ON u.id = a.asked_by"
+        " WHERE a.status = 'pending_review' AND a.draft_markdown IS NOT NULL"
         " ORDER BY a.created_at, a.id"
     ).fetchall()
     items = []
@@ -52,7 +55,7 @@ def decide(conn: psycopg.Connection, answer_id: int, reviewer_id: int, decision:
             "UPDATE answers SET status = %s, reviewed_by = %s, reviewed_at = now(), review_note = %s,"
             " review_reason = %s,"
             " final_markdown = CASE %s WHEN 'approve' THEN draft_markdown WHEN 'edit' THEN %s ELSE NULL END"
-            " WHERE id = %s AND status = 'pending_review' RETURNING status",
+            " WHERE id = %s AND status = 'pending_review' AND draft_markdown IS NOT NULL RETURNING status",
             (status, reviewer_id, note, reason, decision, final_markdown, answer_id),
         ).fetchone()
     return row[0] if row else None
@@ -60,6 +63,11 @@ def decide(conn: psycopg.Connection, answer_id: int, reviewer_id: int, decision:
 
 def exists(conn: psycopg.Connection, answer_id: int) -> bool:
     return conn.execute("SELECT 1 FROM answers WHERE id = %s", (answer_id,)).fetchone() is not None
+
+
+def is_drafting(conn: psycopg.Connection, answer_id: int) -> bool:
+    row = conn.execute("SELECT draft_markdown IS NULL FROM answers WHERE id = %s", (answer_id,)).fetchone()
+    return bool(row and row[0])
 
 
 def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | None:

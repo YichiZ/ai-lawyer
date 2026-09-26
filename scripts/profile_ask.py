@@ -32,9 +32,16 @@ def main() -> int:
     gold = [g for g in load_gold() if not g["must_refuse"]][:n]
     client = make_client()
     t = {k: [] for k in ("embed", "retrieve+rerank", "rerank", "generate", "attempts", "total", "sources")}
+    sizes, failures = [], []
     embed = timed(embedder(client, "RETRIEVAL_QUERY"), t["embed"])
     rerank = timed(make_reranker(json_generator(client, model=CHEAP_MODEL)), t["rerank"])
-    generate = timed(json_generator(client), t["generate"])
+    raw_generate = json_generator(client)
+
+    def sized(prompt, schema):
+        sizes.append(len(prompt))
+        return raw_generate(prompt, schema)
+
+    generate = timed(sized, t["generate"])
     with psycopg.connect(DATABASE_URL) as conn:
         for g in gold:
             t0 = time.perf_counter()
@@ -44,9 +51,15 @@ def main() -> int:
             t["retrieve+rerank"].append((time.perf_counter() - t1) * 1000)
             t["sources"].append((time.perf_counter() - t0) * 1000)
             before = len(t["generate"])
-            run_ask(g["question"], hits, generate, refine=lambda c: pinpoint_claims(conn, c))
+            try:
+                run_ask(g["question"], hits, generate, refine=lambda c: pinpoint_claims(conn, c))
+            except Exception as e:  # record, keep profiling
+                failures.append((g["id"], type(e).__name__, str(e)[:60]))
             t["attempts"].append(len(t["generate"]) - before)
             t["total"].append((time.perf_counter() - t0) * 1000)
+    print(f"  prompt chars: median {statistics.median(sizes):.0f}, max {max(sizes)}; failures: {failures}")
+    slow = sorted(zip(t["generate"], sizes), reverse=True)[:5]
+    print("  slowest generate calls (ms, prompt chars):", [(round(a), b) for a, b in slow])
     for k, v in t.items():
         if k == "attempts":
             print(f"  generate attempts: {sum(v)} over {len(v)} questions ({sum(x > 1 for x in v)} needed a retry)")

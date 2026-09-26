@@ -6,10 +6,10 @@ import logging
 import os
 import time
 from functools import lru_cache
-from typing import Annotated, Iterator, Literal
+from typing import Annotated, Callable, ContextManager, Iterator, Literal
 
 import psycopg
-from fastapi import Depends, FastAPI, Header, Path, Query, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, Path, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -17,11 +17,12 @@ from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
 from app import ask, laws, review, search, tracing
-from app.rerank import make_reranker
+from app.rerank import RERANK_CANDIDATES, make_reranker
 from ingest import vertex
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 SLUG = r"^[a-z0-9][a-z0-9.\-]*$"
+RERANK_TIMEOUT_MS = 2_500  # sent to Vertex as a deadline: 1.6 s made 24/30 calls 504; 2.5 s: 0/30, rerank p95 1.5 s
 
 log = logging.getLogger("app")
 app = FastAPI(title="Ontario Injury Law Guide API")
@@ -40,7 +41,9 @@ class VertexAI:
         client = vertex.make_client()
         self.embed_query = vertex.embedder(client, task_type="RETRIEVAL_QUERY")
         self.generate = vertex.json_generator(client)
-        self.rerank = make_reranker(vertex.json_generator(client, model=vertex.CHEAP_MODEL))
+        # Interactive rerank fails fast (one 3 s attempt) and falls back to fused order; evals use a patient client.
+        fast = vertex.make_client(attempts=1, timeout_ms=RERANK_TIMEOUT_MS)
+        self.rerank = make_reranker(vertex.json_generator(fast, model=vertex.CHEAP_MODEL))
 
 
 @lru_cache(maxsize=1)
@@ -53,7 +56,13 @@ def get_ai() -> VertexAI:
     return VertexAI()
 
 
+def get_connect() -> Callable[[], ContextManager[psycopg.Connection]]:
+    """Connection factory for work that outlives the request (background drafting)."""
+    return lambda: psycopg.connect(DATABASE_URL, autocommit=True)
+
+
 Conn = Annotated[psycopg.Connection, Depends(get_conn)]
+Connect = Annotated[Callable[[], ContextManager[psycopg.Connection]], Depends(get_connect)]
 AI = Annotated[VertexAI, Depends(get_ai)]
 
 
@@ -137,29 +146,47 @@ class AskRequest(BaseModel):
 
 
 @app.post("/ask")
-def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User):
-    """Sources right away; the drafted answer is stored pending_review and never returned here."""
+def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: BackgroundTasks, connect: Connect):
+    """Sources right away; the draft is written in the background, stored pending_review, never returned here."""
     question = body.question.strip()
     with tracing.observe("ask", input={"question": question}, metadata={"role": user["role"]}) as root:
         t0 = time.perf_counter()
         with tracing.observe("embed_query"):
             query_vector = ai.embed_query(question)
         with tracing.observe("retrieve", input={"question": question}) as span:
-            hits = ask.retrieve(conn, question, query_vector, rerank=getattr(ai, "rerank", None))
+            # Fused candidates now (fast); the reranker orders them in the background, before drafting.
+            candidates = ask.retrieve(conn, question, query_vector, top_k=RERANK_CANDIDATES)
+            hits = candidates[:ask.TOP_K]
             span.update(output=[{"chunk_id": h.chunk_id, "citation": h.source["citation"]["text"], "rrf": h.score,
                                  "distance": h.distance} for h in hits])
-        t_sources = time.perf_counter()
-        result = ask.run_ask(question, hits, ai.generate, refine=lambda claims: ask.pinpoint_claims(conn, claims))
-        timings = {"sources": round((t_sources - t0) * 1000), "total": round((time.perf_counter() - t0) * 1000)}
+        timings = {"sources": round((time.perf_counter() - t0) * 1000)}
         trace_id = tracing.current_trace_id()
         with tracing.observe("store"):
-            answer_id = ask.store_answer(conn, question, user["id"], result, hits, timings, trace_id)
-        root.update(output={"answer_id": answer_id, "status": result.status, "claims": len(result.claims),
-                            "dropped": len(result.dropped)}, metadata={"timings_ms": timings})
-    log.info("ask %s: %s, %d claims, %d dropped, %s", answer_id, result.status, len(result.claims),
-             len(result.dropped), timings)
+            answer_id = ask.create_pending(conn, question, user["id"], hits, timings, trace_id)
+        root.update(output={"answer_id": answer_id, "status": "drafting"}, metadata={"timings_ms": timings})
+    background.add_task(draft_answer, connect, answer_id, question, candidates, ai.generate, trace_id,
+                        getattr(ai, "rerank", None))
+    log.info("ask %s: sources in %s ms, drafting in background", answer_id, timings["sources"])
     return envelope({"answer_id": answer_id, "status": "pending_review", "sources": [h.source for h in hits]},
                     meta={"timings_ms": timings})
+
+
+def draft_answer(connect, answer_id: int, question: str, candidates: list, generate, trace_id: str | None,
+                 rerank=None) -> None:
+    """Background: rerank the candidates, generate + verify the draft, store it (or flag the failure for review)."""
+    t0 = time.perf_counter()
+    context = {"trace_context": {"trace_id": trace_id}} if trace_id else {}
+    with tracing.observe("draft", input={"answer_id": answer_id}, **context) as span, connect() as conn:
+        try:
+            hits = rerank(question, candidates, ask.TOP_K) if rerank else candidates[:ask.TOP_K]
+            result = ask.run_ask(question, hits, generate, refine=lambda claims: ask.pinpoint_claims(conn, claims))
+            ask.complete_draft(conn, answer_id, result, round((time.perf_counter() - t0) * 1000), hits)
+            span.update(output={"status": result.status, "claims": len(result.claims), "dropped": len(result.dropped)})
+            log.info("answer %s drafted: %s in %d ms", answer_id, result.status, (time.perf_counter() - t0) * 1000)
+        except Exception as e:  # never lose the answer row: flag it for the reviewer
+            log.exception("drafting answer %s failed", answer_id)
+            ask.fail_draft(conn, answer_id, f"{type(e).__name__}: {e}")
+            span.update(level="ERROR", status_message=str(e)[:200])
 
 
 class ReviewRequest(BaseModel):
@@ -189,6 +216,8 @@ def review_answer(answer_id: int, body: ReviewRequest, conn: Conn, reviewer: Rev
     if status is None:
         if not review.exists(conn, answer_id):
             raise NotFound(f"No answer {answer_id}")
+        if review.is_drafting(conn, answer_id):
+            raise HTTPException(status_code=409, detail=f"Answer {answer_id} is still drafting; try again shortly")
         raise HTTPException(status_code=409, detail=f"Answer {answer_id} was already reviewed")
     try:
         review.log_decision(conn, answer_id)

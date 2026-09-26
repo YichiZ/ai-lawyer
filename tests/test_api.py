@@ -100,7 +100,9 @@ def test_section_has_indented_lines_and_citation(client):
 
 import re as _re
 
-from app.main import get_ai
+from contextlib import nullcontext
+
+from app.main import get_ai, get_connect
 from ingest.chunks import embed_pending, plan_chunks, sync_chunks
 
 
@@ -131,6 +133,7 @@ def ask_client(client, conn):
     embed_pending(conn, lambda t: [0.01] * 1536, model="fake", workers=1)
     fake = FakeAI()
     app.dependency_overrides[get_ai] = lambda: fake
+    app.dependency_overrides[get_connect] = lambda: (lambda: nullcontext(conn))  # background draft sees test rows
     yield client, fake
 
 
@@ -167,7 +170,7 @@ def test_ask_is_traced_and_trace_id_stored(ask_client, conn, monkeypatch):
     client, _ = ask_client
     data = client.post("/ask", json={"question": "How long do I have to sue after an injury?"}).json()["data"]
     started = [e[1] for e in fake.log if e[0] == "start"]
-    assert started == ["ask", "embed_query", "retrieve", "generate", "verify", "store"]
+    assert started == ["ask", "embed_query", "retrieve", "store", "draft", "generate", "verify"]
     assert conn.execute("SELECT trace_id FROM answers WHERE id = %s", (data["answer_id"],)).fetchone()[0] == "trace-123"
 
 
@@ -176,3 +179,51 @@ def test_section_returns_plain_summary_when_present(client, conn):
     data = client.get("/laws/test-act/s-4").json()["data"]
     assert data["plain_summary"] == "You generally have two years."
     assert client.get("/laws/test-act/s-15").json()["data"]["plain_summary"] is None
+
+
+
+def test_ask_responds_before_drafting_and_draft_lands_in_background(ask_client, conn):
+    client, fake = ask_client
+    data = client.post("/ask", json={"question": "How long do I have to sue after an injury?"}).json()
+    assert data["meta"]["timings_ms"]["sources"] >= 0 and "total" not in data["meta"]["timings_ms"]
+    draft, flags = conn.execute("SELECT draft_markdown, flags FROM answers WHERE id = %s", (data["data"]["answer_id"],)).fetchone()
+    assert draft.startswith("Generally two years") and flags["status"] == "drafted" and "draft" in flags["timings_ms"]
+
+
+def test_failed_draft_is_flagged_for_the_reviewer(ask_client, conn):
+    client, fake = ask_client
+
+    def boom(prompt, schema):
+        raise RuntimeError("504 DEADLINE_EXCEEDED")
+
+    fake.generate = boom
+    aid = client.post("/ask", json={"question": "How long do I have to sue after an injury?"}).json()["data"]["answer_id"]
+    status, draft, flags = conn.execute("SELECT status, draft_markdown, flags FROM answers WHERE id = %s", (aid,)).fetchone()
+    assert status == "pending_review" and flags["status"] == "failed" and "could not be drafted" in draft
+    queue = client.get("/review/queue", headers={"X-Demo-User": "reviewer"}).json()["data"]
+    assert "failed" in next(i for i in queue if i["id"] == aid)["risk"]
+
+
+def test_answer_still_drafting_cannot_be_reviewed_and_is_not_queued(client, conn):
+    from app.ask import create_pending
+
+    aid = create_pending(conn, "Still drafting?", None, [], {"sources": 1}, None)
+    assert all(i["id"] != aid for i in client.get("/review/queue", headers={"X-Demo-User": "reviewer"}).json()["data"])
+    r = client.post(f"/answers/{aid}/review", headers={"X-Demo-User": "reviewer"}, json={"decision": "approve"})
+    assert r.status_code == 409 and "drafting" in r.json()["error"]["message"]
+
+
+def test_rerank_runs_in_background_and_updates_sources(ask_client, conn):
+    client, fake = ask_client
+    seen = {}
+
+    def reverse(question, hits, top_k):
+        seen["candidates"] = len(hits)
+        return list(reversed(hits))[:top_k]
+
+    fake.rerank = reverse
+    body = client.post("/ask", json={"question": "How long do I have to sue after an injury?"}).json()["data"]
+    shown = [s["chunk_id"] for s in body["sources"]]
+    stored = [s["chunk_id"] for s in conn.execute("SELECT flags FROM answers WHERE id = %s", (body["answer_id"],)).fetchone()[0]["sources"]]
+    assert seen["candidates"] >= len(shown)  # reranked the wider candidate list, after responding
+    assert stored != shown and stored[0] == shown[-1] or len(shown) == 1

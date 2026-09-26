@@ -226,23 +226,52 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
     return rerank(question, hits, top_k) if rerank else hits
 
 
-def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, result: AskResult,
-                 hits: list[Retrieved], timings: dict, trace_id: str | None = None) -> int:
+def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None, hits: list[Retrieved],
+                   timings: dict, trace_id: str | None) -> int:
+    """The answer row as soon as sources are known; the draft is written later (see complete_draft)."""
     flags = {
-        "status": result.status,
-        "retried": result.retried,
-        "dropped_claims": result.dropped,
+        "status": "drafting",
         "best_distance": min((h.distance for h in hits if h.distance is not None), default=None),
         "sources": [{**h.source, "score": h.score, "distance": h.distance} for h in hits],
         "timings_ms": timings,
     }
-    claims = result.claims
     with conn.transaction():
         return conn.execute(
-            "INSERT INTO answers (asked_by, question, draft_markdown, claims, flags, trace_id)"
-            " VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-            (asked_by, question, result.draft_markdown, json.dumps(claims), json.dumps(flags), trace_id),
+            "INSERT INTO answers (asked_by, question, flags, trace_id) VALUES (%s, %s, %s, %s) RETURNING id",
+            (asked_by, question, json.dumps(flags), trace_id),
         ).fetchone()[0]
+
+
+def complete_draft(conn: psycopg.Connection, answer_id: int, result: AskResult, draft_ms: int,
+                   hits: list[Retrieved] | None = None) -> None:
+    """Store the draft; `hits` (the reranked passages the draft used) replace the sources shown at ask time."""
+    patch = {"status": result.status, "retried": result.retried, "dropped_claims": result.dropped}
+    if hits is not None:
+        patch["sources"] = [{**h.source, "score": h.score, "distance": h.distance} for h in hits]
+    with conn.transaction():
+        conn.execute(
+            "UPDATE answers SET draft_markdown = %s, claims = %s,"
+            " flags = jsonb_set(flags || %s::jsonb, '{timings_ms,draft}', to_jsonb(%s::int)) WHERE id = %s",
+            (result.draft_markdown, json.dumps(result.claims), json.dumps(patch), draft_ms, answer_id),
+        )
+
+
+def fail_draft(conn: psycopg.Connection, answer_id: int, error: str) -> None:
+    """Drafting failed after retries: the reviewer sees a flagged placeholder to reject (or the researcher re-asks)."""
+    with conn.transaction():
+        conn.execute(
+            "UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb WHERE id = %s",
+            ("This answer could not be drafted automatically. Reject it and ask the researcher to try again.",
+             json.dumps({"status": "failed", "error": error[:300]}), answer_id),
+        )
+
+
+def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, result: AskResult,
+                 hits: list[Retrieved], timings: dict, trace_id: str | None = None) -> int:
+    """Create and complete in one go (tests and scripts)."""
+    answer_id = create_pending(conn, question, asked_by, hits, timings, trace_id)
+    complete_draft(conn, answer_id, result, timings.get("total", 0))
+    return answer_id
 
 
 def pinpoint_claims(conn: psycopg.Connection, claims: list[dict]) -> list[dict]:

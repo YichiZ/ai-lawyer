@@ -30,6 +30,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `uv run scripts/check_gold.py [file]` — validate the gold set against the corpus.
 - `uv run --env-file .env scripts/eval.py retrieval|answers` — Langfuse experiments on the gold set (retrieval: recall@8, MRR; answers: code metrics + Flash-Lite judge, gate trade-off).
 - `make eval` — local only: both experiments vs `evals/baseline.json` (fails on regression / failed items / hash change). `make eval-baseline` re-records it deliberately. `make ci-fixture` re-exports the CI corpus.
+- `uv run --env-file .env scripts/profile_ask.py [n]` — stage latencies of the /ask pipeline (sequential). `scripts/sweep_fusion.py`, `scripts/sweep_rerank.py [candidates]`, `scripts/diagnose_retrieval.py [ids]` — offline retrieval tuning.
 - `make e2e` — Playwright UI tests; starts its own API (`AI_FAKE=1`, :8001) and web (:3001), so it runs beside `make api`/`make web`.
 - Frontend logic that needs tests (indent levels, citations) lives in the API (`app/format.py`, pytest), so the web app has no test runner yet.
 - Add commands here as they are created (`make eval`).
@@ -83,4 +84,6 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-26 — Langfuse `run_experiment` drops failed items silently (a run scored 59/62 after 429s) → check completeness before scoring; evals use concurrency 2, longer backoff and a 60 s timeout.
 - 2026-09-26 — LLM-judge scores vary up to 8 points between identical runs; retrieval and code metrics don't → gate judge metrics at 5 points, others at 2.
 - 2026-09-26 — An e2e test depended on data in the dev DB and failed in CI → e2e tests create their own data; reproduce CI with a fresh fixture-only DB (`DATABASE_URL=…/ai_lawyer_ci npm --prefix web run e2e`).
+- 2026-09-26 — google-genai sends the client timeout to Vertex as a server deadline: a tight one (1.6 s) makes most calls 504 immediately → measure fallback rate before cutting timeouts.
+- 2026-09-26 — gemini-3.7-flash has a long latency tail (p95 ~70 s with retries) and 429s even sequentially → keep generation off the researcher's path (background drafting); profile stages before optimizing.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

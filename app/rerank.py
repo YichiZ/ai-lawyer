@@ -46,8 +46,8 @@ def rerank(question: str, hits: list, generate: Callable[[str, dict], dict], top
     ids = [h.chunk_id for h in hits]
     try:
         order = parse_ranking(generate(rerank_prompt(question, hits), SCHEMA), ids)
-    except Exception:
-        log.exception("rerank failed; keeping fused order")
+    except Exception as e:  # expected occasionally (deadline, quota): one line, no traceback
+        log.warning("rerank failed (%s: %s); keeping fused order", type(e).__name__, str(e)[:120])
         return hits[:top_k], "rerank_error"
     if order is None:
         return hits[:top_k], "rerank_malformed"
