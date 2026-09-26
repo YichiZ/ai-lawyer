@@ -29,5 +29,6 @@ def test_db() -> str:
 def conn(test_db):
     """Per-test connection; everything rolls back afterwards."""
     with psycopg.connect(test_db) as c:
+        c.execute("SELECT 1")  # open the outer transaction so code-under-test's conn.transaction() is a savepoint
         yield c
         c.rollback()

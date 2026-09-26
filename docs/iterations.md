@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.3 Load statutes into Postgres
+
+- **What:** `ingest/statutes.py` parses each A2AJ row into a document + tree: Part (`##` headings; `### RULE n` for the Rules) > section (A2AJ section map, text kept byte-for-byte) > subsection (`(1)`, `(1.1)` lines; clauses stay inside). Pinpoints `s-4`, `s-4-1`, `r-1.06`, `ss-25-49`, `part-iii.1`, `rule-2.1`, `schedule`; `display_pinpoint` gives `s. 4(1)`. `load_document` inserts/replaces one document per transaction, skipped when its hash (source row + `PARSER_VERSION`) is unchanged. `scripts/load_statutes.py` loads all 12. Schema: `documents.citation`, `sections.kind` via `ADD COLUMN IF NOT EXISTS`.
+- **Validated:** tests red first → 81 passed. Load: 12 inserted (3.8 s); rerun 12 unchanged (0.1 s); parser bump → 12 updated, then unchanged. SQL: 12 documents, 13,053 section rows, 0 empty text, 0 null pinpoints, 0 orphan subsections; Limitations Act s. 4 identical to source; spot checks (OLA s. 3(1) under s. 3, COTA s. 42 under Part III, HTA s. 128 under Part IX, r. 2.02 under Rule 2) correct.
+- **Numbers:** 196 parts/rules, 2,946 sections, 9,911 subsections. Sections with no heading: 245, nearly all `[blank]` (57), `Repealed` or `Omitted`.
+- **Next:** 1.4 — chunk, tsvector and embed (gemini-embedding-2, 1536), idempotent on text hash.
+
 ## 2026-09-25 · Phase 1 · 1.2 Acquire A2AJ statutes
 
 - **What:** `scripts/fetch_a2aj.py` downloads `LEGISLATION-ON` and `REGULATIONS-ON` Parquet (approved: 64.1 + 63.6 MB) into `input/a2aj/`, verifies sha256 against Hugging Face's `x-linked-etag`, and appends validated lines to `input/manifest.jsonl` (`ingest/manifest.py`). `ingest/v0.py` defines the 12 v0 instruments and matches them to rows by (dataset, normalized citation) with a title guard; `scripts/match_v0.py` prints the report. Dep: pyarrow. Licence checked: Ontario permits reproducing statutes and regulations without permission; rows are marked unofficial, so the UI must say so.

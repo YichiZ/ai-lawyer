@@ -21,7 +21,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `uv run scripts/check_vertex.py` — Vertex AI smoke test (6 checks). Run first in every session; if it fails, fix auth/models before anything else.
 - Local auth: `gcloud auth application-default login` then `gcloud auth application-default set-quota-project long-indexer-507414-n0`
 - `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432, dev only) / apply `db/schema.sql` (idempotent).
-- `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report.
+- `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report. `uv run scripts/load_statutes.py` — load the 12 laws (idempotent).
 - `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
 - Add commands here as they are created (`make dev`, `make eval`).
 
@@ -55,4 +55,7 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — Postgres 18 images store data in `/var/lib/postgresql/18/docker` → mount the volume at `/var/lib/postgresql`, not `.../data`.
 - 2026-09-25 — Hugging Face `x-linked-etag` on a HEAD (redirects off) is the file's sha256 → compare it to the manifest to skip unchanged downloads with 0 bytes.
 - 2026-09-25 — A2AJ has all 12 v0 instruments; match by citation, not title (titles collide: "Limitations Act" federal vs "Real Property Limitations Act").
+- 2026-09-25 — A test's `conn.transaction()` on an idle connection COMMITS, leaking rows between tests → the `conn` fixture opens an outer transaction first so inner ones are savepoints.
+- 2026-09-25 — A2AJ section-map order differs from its Markdown order (Rules 2.1.01 vs 2.02) → look sections up by index, not a forward-only scan.
+- 2026-09-25 — A content hash of the source alone hid a parser fix (loader said `unchanged`) → include `PARSER_VERSION` in the document hash and bump it with parser changes.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

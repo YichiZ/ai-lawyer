@@ -84,3 +84,8 @@ CREATE INDEX IF NOT EXISTS sections_heading_trgm ON sections USING gin (heading 
 CREATE INDEX IF NOT EXISTS sections_document_order ON sections (document_id, sort_order);
 CREATE INDEX IF NOT EXISTS documents_kind_court_date ON documents (kind, court, date);
 CREATE INDEX IF NOT EXISTS answers_status_created ON answers (status, created_at);
+
+-- 1.3: columns added after the first schema; ADD COLUMN IF NOT EXISTS keeps re-apply idempotent.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS citation text;
+ALTER TABLE sections ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'section'
+    CHECK (kind IN ('part', 'section', 'subsection'));
