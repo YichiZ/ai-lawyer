@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 140" role="img" aria-label="Ontario Injury Law Guide">
+  <rect x="8" y="14" width="112" height="112" rx="22" fill="#9db4d6"/>
+  <text x="64" y="104" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="92" font-weight="700" fill="#14171c">§</text>
+  <circle cx="112" cy="116" r="20" fill="#e0a2a9" stroke="#14171c" stroke-width="5"/>
+  <path d="M102 116 l7 7 l13 -14" fill="none" stroke="#14171c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="152" y="70" font-family="Georgia, 'Times New Roman', serif" font-size="42" font-weight="700" fill="#e8e6e1">Ontario Injury Law Guide</text>
+  <text x="154" y="108" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" letter-spacing="0.5" fill="#a9aeb7">Every quote checked in code · every answer reviewed by a human</text>
+</svg>

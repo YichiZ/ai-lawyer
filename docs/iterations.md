@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Repo presentation · README header, screenshots, guarantees table
+
+- **What:** README gets a light/dark logo (`docs/logo*.svg`), badges (live CI, stack, eval numbers, licence), section nav, three real screenshots (`docs/img/`, Playwright at 2x against the dev DB), a "What keeps an answer honest" table linking each guarantee to the code and test that enforce it, and a Mermaid pipeline diagram. MIT `LICENSE` for the code (data keeps upstream licences). Modelled on YichiZ/toronto-3djs.
+- **Validated:** README rendered on GitHub (logo swaps with theme, Mermaid renders, all relative links resolve).
+- **Next:** GitHub description, topics and social preview image are repo settings, not files → set by the owner.
+
 ## 2026-09-26 · Phase 6 · 6.2 Add to corpus, 6.3 Load test; Phase 5 decision summaries done
 
 - **6.2 What:** Redis 8 in Compose (AOF everysec, `noeviction`, 256 MB) + `redis-py`; `app/jobs.py` queue: `ingest_jobs` row in Postgres first, then `XADD` (id = hash of kind + url, so re-adding is a no-op), `XREADGROUP`/`XACK` in one group, `XAUTOCLAIM` sweeper, reconciler re-dispatching due retries, stale running rows and rows Redis lost; failures back off 1/4/16 min then `dead` + `ingest:dead`; refusals are permanent (dead at once). `ingest/web.py`: https on the 5 official domains only (redirects refused before they are followed), robots.txt, ≤ 1 req/s per host, file in `input/web/` + manifest line, HTML split on h2/h3 (menus and link-only blocks dropped) or PDF by page, kind `web` (toronto.ca excerpt-only), chunk + embed. `POST /ingest` (reviewer), `GET /ingest/{id}`; review queue lists web sources with "Add to library" for official ones; `make worker`; Redis service in CI. Added pages join law retrieval (`LAW_KINDS` + `web`) and the law list ("Official web pages").
