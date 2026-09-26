@@ -9,12 +9,7 @@ async function switchRole(page: Page, role: "researcher" | "reviewer") {
 test("ask → reviewer approves → researcher sees the reviewed answer and opens a citation", async ({ page }) => {
   const question = `[e2e ${Date.now()}] How long after a dog bite can the owner be sued under the Dog Owners' Liability Act?`;
 
-  await page.goto("/ask");
-  await switchRole(page, "researcher");
-  await page.getByLabel("Your research question").fill(question);
-  await page.getByRole("button", { name: "Ask" }).click();
-
-  await expect(page).toHaveURL(/\/answers\/\d+$/, { timeout: 30_000 });
+  await askAsResearcher(page, question);
   const answerUrl = page.url();
   await expect(page.getByRole("status")).toContainText("Awaiting review");
   await expect(page.getByText("[Test answer]")).toHaveCount(0); // draft never shown before review
@@ -41,17 +36,26 @@ test("ask → reviewer approves → researcher sees the reviewed answer and open
   await expect(panel).toHaveCount(0);
 });
 
-test("reviewer queue is hidden from researchers; edit needs a note", async ({ page }) => {
-  await page.goto("/review");
+async function askAsResearcher(page: Page, question: string) {
+  await page.goto("/ask");
   await switchRole(page, "researcher");
+  await page.getByLabel("Your research question").fill(question);
+  await page.getByRole("button", { name: "Ask" }).click();
+  await expect(page).toHaveURL(/\/answers\/\d+$/, { timeout: 30_000 });
+}
+
+test("reviewer queue is hidden from researchers; edit needs a note", async ({ page }) => {
+  // Self-contained: creates its own pending answer (CI starts from an empty answers table).
+  const question = `[e2e ${Date.now()}] What is the basic limitation period under the Limitations Act, 2002?`;
+  await askAsResearcher(page, question);
   await page.goto("/review");
   await expect(page.getByText("Only reviewers can see the queue")).toBeVisible();
 
   await switchRole(page, "reviewer");
   await page.goto("/review");
-  const first = page.getByRole("article").first();
-  await first.getByLabel("edit").check();
-  await first.getByLabel("Note (required)").fill("   ");
-  await first.getByRole("button", { name: "edit answer" }).click();
-  await expect(first.getByRole("alert")).toContainText("needs the revised answer and a note");
+  const item = page.getByRole("article").filter({ hasText: question });
+  await item.getByLabel("edit").check();
+  await item.getByLabel("Note (required)").fill("   ");
+  await item.getByRole("button", { name: "edit answer" }).click();
+  await expect(item.getByRole("alert")).toContainText("needs the revised answer and a note");
 });
