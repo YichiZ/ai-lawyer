@@ -55,3 +55,9 @@ def test_plain_lines_and_labels_stay_verbatim():
 
 def test_bylaw_letter_labels():
     assert [l["level"] for l in indent_lines("A. Every owner shall clear.\nB. The City may repair.")] == [1, 1]
+
+
+def test_mcgill_citation_for_decisions():
+    doc = {"kind": "decision", "title": "Smith v. Jones", "citation": "2023 ONCA 9"}
+    assert mcgill_citation(doc, "para-45") == {"title": "Smith v. Jones", "reference": "2023 ONCA 9 at para 45",
+                                               "text": "Smith v. Jones, 2023 ONCA 9 at para 45"}

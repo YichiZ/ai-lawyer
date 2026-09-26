@@ -156,7 +156,8 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: Backg
         with tracing.observe("retrieve", input={"question": question}) as span:
             # Fused candidates now (fast); the reranker orders them in the background, before drafting.
             candidates = ask.retrieve(conn, question, query_vector, top_k=RERANK_CANDIDATES)
-            hits = candidates[:ask.TOP_K]
+            case_candidates = ask.retrieve(conn, question, query_vector, top_k=RERANK_CANDIDATES, kinds=["decision"])
+            hits = candidates[:ask.TOP_K] + case_candidates[:ask.CASE_K]
             span.update(output=[{"chunk_id": h.chunk_id, "citation": h.source["citation"]["text"], "rrf": h.score,
                                  "distance": h.distance} for h in hits])
         timings = {"sources": round((time.perf_counter() - t0) * 1000)}
@@ -165,20 +166,22 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: Backg
             answer_id = ask.create_pending(conn, question, user["id"], hits, timings, trace_id)
         root.update(output={"answer_id": answer_id, "status": "drafting"}, metadata={"timings_ms": timings})
     background.add_task(draft_answer, connect, answer_id, question, candidates, ai.generate, trace_id,
-                        getattr(ai, "rerank", None))
+                        getattr(ai, "rerank", None), case_candidates)
     log.info("ask %s: sources in %s ms, drafting in background", answer_id, timings["sources"])
     return envelope({"answer_id": answer_id, "status": "pending_review", "sources": [h.source for h in hits]},
                     meta={"timings_ms": timings})
 
 
 def draft_answer(connect, answer_id: int, question: str, candidates: list, generate, trace_id: str | None,
-                 rerank=None) -> None:
+                 rerank=None, case_candidates: list | None = None) -> None:
     """Background: rerank the candidates, generate + verify the draft, store it (or flag the failure for review)."""
     t0 = time.perf_counter()
     context = {"trace_context": {"trace_id": trace_id}} if trace_id else {}
     with tracing.observe("draft", input={"answer_id": answer_id}, **context) as span, connect() as conn:
         try:
             hits = rerank(question, candidates, ask.TOP_K) if rerank else candidates[:ask.TOP_K]
+            cases = case_candidates or []
+            hits += rerank(question, cases, ask.CASE_K) if rerank and cases else cases[:ask.CASE_K]
             result = ask.run_ask(question, hits, generate, refine=lambda claims: ask.pinpoint_claims(conn, claims))
             ask.complete_draft(conn, answer_id, result, round((time.perf_counter() - t0) * 1000), hits)
             span.update(output={"status": result.status, "claims": len(result.claims), "dropped": len(result.dropped)})

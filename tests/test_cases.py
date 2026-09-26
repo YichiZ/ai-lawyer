@@ -51,3 +51,21 @@ def test_suggest_jumps_to_case_and_paragraph(conn):
                      "heading": None, "url": "/cases/2023-onca-9"}]
     assert para[0]["url"] == "/cases/2023-onca-9#para-2" and para[0]["display"] == "2023 ONCA 9 at para 2"
     assert missing == []
+
+
+def test_claims_in_decisions_are_pinned_to_the_quoted_paragraph(conn):
+    from app.ask import pinpoint_claims
+    from ingest.chunks import plan_decision_chunks, sync_chunks
+
+    load_document(conn, decision("2023 ONCA 9", "Smith v. Jones",
+                                 "Decision Content\n[1] The facts were simple. [2] The appeal is dismissed with costs."))
+    doc = conn.execute("SELECT id FROM documents WHERE slug = '2023-onca-9'").fetchone()[0]
+    rows = conn.execute("SELECT id, pinpoint, kind, heading, text, NULL FROM sections WHERE document_id = %s ORDER BY sort_order", (doc,)).fetchall()
+    sync_chunks(conn, doc, plan_decision_chunks("Smith v. Jones", "2023 ONCA 9",
+                                                [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]))
+    cid = conn.execute("SELECT id FROM chunks WHERE document_id = %s", (doc,)).fetchone()[0]
+    source = {"chunk_id": f"c{cid}", "slug": "2023-onca-9", "pinpoint": "para-1", "display": "para 1", "url": "/cases/2023-onca-9",
+              "citation": {"title": "Smith v. Jones", "reference": "2023 ONCA 9 at para 1", "text": "x"}}
+    [c] = pinpoint_claims(conn, [{"text": "Dismissed.", "chunk_id": f"c{cid}", "quote": "The appeal is dismissed", "source": source}])
+    assert c["source"]["pinpoint"] == "para-2" and c["source"]["citation"]["reference"] == "2023 ONCA 9 at para 2"
+    assert c["source"]["url"] == "/cases/2023-onca-9#para-2"

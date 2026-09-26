@@ -1,6 +1,7 @@
 """Run Langfuse experiments on the gold set.
 
-Run: uv run --env-file .env scripts/eval.py retrieval | answers | summaries | gate | record [--from-latest]
+Run: uv run --env-file .env scripts/eval.py retrieval | answers | summaries | caselaw | retrieval-with-decisions
+                                          | gate | record [--from-latest]
   gate    run both experiments and compare with evals/baseline.json (exit 1 on regression) — `make eval`
   record  run both and write evals/baseline.json; --from-latest uses the newest saved runs instead
 Needs LANGFUSE_* keys (Langfuse Cloud) and Vertex ADC. Each run is also saved to evals/runs/ (gitignored).
@@ -19,14 +20,14 @@ from langfuse import Evaluation, Langfuse
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from app.ask import GATE_MAX_DISTANCE, pinpoint_claims, retrieve, run_ask  # noqa: E402
+from app.ask import ALL_KINDS, GATE_MAX_DISTANCE, LAW_KINDS, pinpoint_claims, retrieve, retrieve_for_answer, run_ask  # noqa: E402
 from evals.answers import JUDGE_MODEL, facts_covered, gate_tradeoff, judge_answer, refusal_correct, verified_rate  # noqa: E402
 from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash  # noqa: E402
 from evals.gold import GOLD_PATH, load_gold  # noqa: E402
 from evals.readability import fk_grade  # noqa: E402
 from evals.summaries import judge_summary, summarize_scores  # noqa: E402
 from ingest.statutes import display_pinpoint  # noqa: E402
-from evals.langfuse_io import DATASET, upsert_dataset  # noqa: E402
+from evals.langfuse_io import CASELAW_DATASET, DATASET, upsert_dataset  # noqa: E402
 from evals.metrics import chunk_covers, mrr, recall_at_k, summarize  # noqa: E402
 from app.rerank import RERANK_CANDIDATES, make_reranker  # noqa: E402
 from ingest.vertex import ANSWER_MODEL, CHEAP_MODEL, embedder, json_generator, make_client  # noqa: E402
@@ -54,12 +55,12 @@ def _retrievers(client):
     return embedder(client, "RETRIEVAL_QUERY"), make_reranker(json_generator(client, model=CHEAP_MODEL))
 
 
-def retrieval_task(embed, rerank=None):
+def retrieval_task(embed, rerank=None, kinds=LAW_KINDS):
     def task(*, item, **_):
         question = item.input["question"]
         t0 = time.perf_counter()
         with psycopg.connect(DATABASE_URL) as conn:
-            hits = retrieve(conn, question, embed(question), rerank=rerank)
+            hits = retrieve(conn, question, embed(question), rerank=rerank, kinds=kinds)
             covers = chunk_covers(conn, [int(h.chunk_id[1:]) for h in hits])
         return {
             "ranked": [[h.source["slug"], h.source["pinpoint"], covers[int(h.chunk_id[1:])]] for h in hits],
@@ -78,14 +79,15 @@ def retrieval_evaluator(*, output, expected_output, **_):
             Evaluation(name="mrr", value=mrr(ranked, expected_output["expected"]))]
 
 
-def run_retrieval(lf: Langfuse) -> dict:
-    gold = {g["id"]: g for g in load_gold()}
-    upsert_dataset(lf, list(gold.values()))
-    dataset = lf.get_dataset(DATASET)
-    items = [i for i in dataset.items if i.id in gold]  # only items still in gold.jsonl
+def run_retrieval(lf: Langfuse, gold_path: Path = GOLD_PATH, dataset_name: str = DATASET, kinds=LAW_KINDS,
+                  name: str = "retrieval") -> dict:
+    gold = {g["id"]: g for g in load_gold(gold_path)}
+    upsert_dataset(lf, list(gold.values()), dataset_name)
+    dataset = lf.get_dataset(dataset_name)
+    items = [i for i in dataset.items if i.id in gold]  # only items still in the gold file
     result = lf.run_experiment(
-        name="retrieval", description=f"Hybrid retrieval (keyword + vector, RRF) top {K} vs gold pinpoints",
-        data=items, task=retrieval_task(*_retrievers(eval_client())),
+        name=name, description=f"Hybrid retrieval (keyword + vector, RRF, rerank) top {K}; kinds {kinds}",
+        data=items, task=retrieval_task(*_retrievers(eval_client()), kinds=kinds),
         evaluators=[retrieval_evaluator], max_concurrency=CONCURRENCY,
         metadata={"k": K, "gold_items": len(items), "rerank_candidates": RERANK_CANDIDATES},
     )
@@ -97,8 +99,18 @@ def run_retrieval(lf: Langfuse) -> dict:
         row = {"id": g["id"], "topic": g["topic"], "question": g["question"], **r.output, **scores}
         (oos if g["must_refuse"] else rows).append(row)
     summary = summarize(rows, [f"recall@{K}", "mrr"])
-    return {"experiment": "retrieval", "run_name": result.run_name, "url": result.dataset_run_url,
+    return {"experiment": name, "run_name": result.run_name, "url": result.dataset_run_url,
             "summary": summary, "items": rows, "out_of_scope": oos}
+
+
+def run_caselaw(lf: Langfuse) -> dict:
+    """Case-law questions (unverified, not gated) against the decisions index, as /ask searches it."""
+    return run_retrieval(lf, ROOT / "evals" / "gold_caselaw.jsonl", CASELAW_DATASET, ["decision"], "caselaw-retrieval")
+
+
+def run_retrieval_with_decisions(lf: Langfuse) -> dict:
+    """Statute gold with decisions in the index: does adding case law hurt statute retrieval?"""
+    return run_retrieval(lf, kinds=ALL_KINDS, name="retrieval-with-decisions")
 
 
 def answer_task(embed, rerank, generate):
@@ -106,7 +118,7 @@ def answer_task(embed, rerank, generate):
         question = item.input["question"]
         t0 = time.perf_counter()
         with psycopg.connect(DATABASE_URL) as conn:
-            hits = retrieve(conn, question, embed(question), rerank=rerank)
+            hits = retrieve_for_answer(conn, question, embed(question), rerank=rerank)
             t_sources = time.perf_counter()
             result = run_ask(question, hits, generate, refine=lambda claims: pinpoint_claims(conn, claims))
         return {
@@ -268,7 +280,8 @@ def main() -> int:
     lf = Langfuse()
     if not lf.auth_check():
         sys.exit("Langfuse auth failed: check LANGFUSE_* in .env (run with uv run --env-file .env)")
-    report = {"retrieval": run_retrieval, "answers": run_answers, "summaries": run_summaries}[kind](lf)
+    report = {"retrieval": run_retrieval, "answers": run_answers, "summaries": run_summaries, "caselaw": run_caselaw,
+              "retrieval-with-decisions": run_retrieval_with_decisions}[kind](lf)
     lf.flush()
     path = save(kind, report)
     print(f"{kind}: {report['url'] or report['run_name']}\nsaved {path.relative_to(ROOT)}")

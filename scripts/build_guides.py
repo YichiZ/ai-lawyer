@@ -49,9 +49,11 @@ GUIDES = [  # slug, title, intro, [(heading, question)] — deadlines first, sta
 
 
 def draft(conn, connect, ai, generate, question: str) -> int:
-    candidates = ask.retrieve(conn, question, ai.embed_query(question), top_k=RERANK_CANDIDATES)
-    answer_id = ask.create_pending(conn, question, None, candidates[:ask.TOP_K], {"sources": 0}, None)
-    draft_answer(connect, answer_id, question, candidates, generate, None, ai.rerank)
+    vec = ai.embed_query(question)
+    candidates = ask.retrieve(conn, question, vec, top_k=RERANK_CANDIDATES)
+    cases = ask.retrieve(conn, question, vec, top_k=RERANK_CANDIDATES, kinds=["decision"])
+    answer_id = ask.create_pending(conn, question, None, candidates[:ask.TOP_K] + cases[:ask.CASE_K], {"sources": 0}, None)
+    draft_answer(connect, answer_id, question, candidates, generate, None, ai.rerank, cases)
     return answer_id
 
 

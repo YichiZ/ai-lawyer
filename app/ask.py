@@ -140,8 +140,10 @@ Refine = Callable[[list[dict]], list[dict]]
 
 
 def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Refine = lambda claims: claims) -> AskResult:
-    """`refine` narrows each verified claim's source (e.g. to the subsection holding the quote) before composing."""
-    best = min((h.distance for h in hits if h.distance is not None), default=None)
+    """`refine` narrows each verified claim's source (e.g. to the subsection holding the quote) before composing.
+    The grounding gate looks at law hits only (its threshold was calibrated on them)."""
+    best = min((h.distance for h in hits if h.distance is not None and h.source.get("kind") != "decision"),
+               default=None)
     if best is None or best > GATE_MAX_DISTANCE:
         return _not_found(hits)
 
@@ -176,6 +178,14 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 LAW_KINDS = ["statute", "regulation", "bylaw"]  # decisions join retrieval only once measured on the gold set (5.5)
 
 
+def retrieve_for_answer(conn: psycopg.Connection, question: str, query_vector: list[float],
+                        rerank: Callable[[str, list, int], list] | None = None) -> list[Retrieved]:
+    """What the answer model reads: the law top TOP_K, then the decision top CASE_K, each ranked separately."""
+    laws = retrieve(conn, question, query_vector, rerank=rerank)
+    cases = retrieve(conn, question, query_vector, top_k=CASE_K, rerank=rerank, kinds=["decision"])
+    return laws + cases
+
+
 def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES, mode: str = "or",
                     kinds: list[str] = LAW_KINDS) -> list[int]:
     """Chunk ids by ts_rank_cd. mode "or": any term; "and_or": all terms first, then any term to fill up."""
@@ -204,16 +214,20 @@ def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: i
     )]
 
 
+ALL_KINDS = LAW_KINDS + ["decision"]
+CASE_K = 4  # decisions searched separately: mixing them into law retrieval dropped statute recall@8 1.000 -> 0.935
+
+
 def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float], top_k: int = TOP_K,
-             rerank: Callable[[str, list, int], list] | None = None) -> list[Retrieved]:
+             rerank: Callable[[str, list, int], list] | None = None, kinds: list[str] = LAW_KINDS) -> list[Retrieved]:
     """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with weighted RRF; the top_k best.
     With `rerank`, the fused top RERANK_CANDIDATES are reordered by the reranker before cutting to top_k."""
     from app.rerank import RERANK_CANDIDATES
 
     register_vector(conn)
     cur = conn.cursor(row_factory=dict_row)
-    keyword = keyword_ranking(conn, question)
-    vector = vector_ranking(conn, query_vector)
+    keyword = keyword_ranking(conn, question, kinds=kinds)
+    vector = vector_ranking(conn, query_vector, kinds=kinds)
     distance = {f"c{cid}": d for cid, d in vector}
     fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]], weights=[KEYWORD_WEIGHT, 1.0])[:RERANK_CANDIDATES if rerank else top_k]
     ids = [int(cid[1:]) for cid, _ in fused]
@@ -225,10 +239,11 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
     for cid, score in fused:
         r = rows[int(cid[1:])]
         pin = r["pinpoint"]
+        url = f"/cases/{r['slug']}#{pin}" if r["kind"] == "decision" else f"/laws/{r['slug']}/{pin}"
         source = {
             "chunk_id": cid, "slug": r["slug"], "title": r["title"], "pinpoint": pin,
             "display": display_pinpoint(pin), "citation": mcgill_citation(r, pin),
-            "snippet": excerpt(r["text"]), "url": f"/laws/{r['slug']}/{pin}",
+            "snippet": excerpt(r["text"]), "url": url, "kind": r["kind"],
         }
         hits.append(Retrieved(cid, r["text"], distance.get(cid), source, score))
     return rerank(question, hits, top_k) if rerank else hits
@@ -288,6 +303,20 @@ def pinpoint_claims(conn: psycopg.Connection, claims: list[dict]) -> list[dict]:
     out = []
     for c in claims:
         src = c["source"]
+        if src["url"].startswith("/cases/"):  # decisions: the paragraph of the chunk that holds the quote
+            paras = cur.execute(
+                "SELECT s.pinpoint, s.text, d.title, d.citation, d.kind FROM chunks ch JOIN sections s ON s.id = ANY(ch.section_ids)"
+                " JOIN documents d ON d.id = s.document_id WHERE ch.id = %s", (int(c["chunk_id"][1:]),),
+            ).fetchall()
+            holding = [r for r in paras if normalize(c["quote"]) in normalize(r["text"])]
+            if len(holding) == 1:
+                r = holding[0]
+                out.append({**c, "source": {**src, "pinpoint": r["pinpoint"], "display": display_pinpoint(r["pinpoint"]),
+                                            "citation": mcgill_citation(r, r["pinpoint"]),
+                                            "url": f"/cases/{src['slug']}#{r['pinpoint']}"}})
+            else:
+                out.append(c)
+            continue
         subs = cur.execute(
             "SELECT s.pinpoint, s.text, d.title, d.citation, d.kind FROM sections s"
             " JOIN sections p ON p.id = s.parent_id JOIN documents d ON d.id = s.document_id"

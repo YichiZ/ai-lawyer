@@ -136,3 +136,10 @@ def test_weighted_rrf_can_favour_vector_list():
     assert plain[0] == "both"  # in both lists at rank 2 beats rank 1 in one
     weighted = [cid for cid, _ in rrf([keyword, vector], weights=[0.01, 1.0])]  # k=60 flattens ranks: tiny weight needed
     assert weighted[0] == "v1"
+
+
+def test_gate_ignores_decision_hits():
+    near_decision = Retrieved("c9", "A court said something.", 0.05, {"citation": {"title": "T", "reference": "R"}, "kind": "decision"})
+    far_law = hit("c1", GATE_MAX_DISTANCE + 0.1)
+    llm = FakeLLM([])
+    assert run_ask("q?", [far_law, near_decision], llm).status == "not_found" and llm.prompts == []

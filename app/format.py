@@ -48,6 +48,10 @@ def _pinpoint_reference(pinpoint: str) -> str:
 
 def mcgill_citation(doc: dict, pinpoint: str) -> dict:
     """{"title": italicized part, "reference": the rest, "text": plain copyable string}."""
+    if doc["kind"] == "decision":  # Smith v Jones, 2023 ONCA 9 at para 45
+        para = pinpoint[5:] if pinpoint.startswith("para-") else None
+        reference = doc["citation"] + (f" at para {para}" if para else "")
+        return {"title": doc["title"], "reference": reference, "text": f"{doc['title']}, {reference}"}
     ref = _pinpoint_reference(pinpoint)
     if doc["kind"] == "bylaw":
         reference = f"City of {doc['citation']}, {ref}"
