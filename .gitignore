@@ -3,3 +3,6 @@
 input/*
 !input/.gitkeep
 __pycache__/
+
+# local eval run outputs
+evals/runs/

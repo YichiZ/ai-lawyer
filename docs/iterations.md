@@ -2,6 +2,20 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 2 · 2.3 Retrieval experiment (baseline)
+
+- **What:** `evals/metrics.py` (a hit matches an expected pinpoint in the same law when either contains the other; recall@8 = any expected in top 8; MRR), `evals/langfuse_io.py` (dataset `ontario-injury-gold`, items keyed by gold id → idempotent), `scripts/eval.py retrieval` (Langfuse `run_experiment` over the dataset, real embedding + `retrieve`, item evaluators recall@8/mrr; local copy in `evals/runs/`, gitignored).
+- **Validated:** metric tests red first → 186 passed. Run → [Langfuse dataset run](https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/2e5590b2-e6ae-489a-8387-0d61cb87af60). Re-upload → 77 items, 0 new.
+- **Baseline (62 in-scope items):** recall@8 **0.855**, MRR **0.601**. By topic: city-claims 1.000 / 0.917 · slip-and-fall 1.000 / 0.762 · dog-bites 0.900 / 0.395 · procedure 0.818 / 0.611 · motor-vehicle 0.818 / 0.470 · **limitations 0.600 / 0.467**.
+- **Misses (9):** lim-02 (discovery, s. 5), lim-03 (presumption), lim-07 (mediation suspends), lim-09 (adding a defendant), mv-01 (tort threshold), mv-11 (LAT application time), dog-09 (court orders), proc-02 (contributory negligence), proc-07 (serving a statement of claim).
+- **Gate data:** best vector distance in scope 0.119–0.286 (median 0.194), out of scope 0.201–0.348 (median 0.288) — overlapping; the 0.35 gate refuses none of the 15. Calibration in 2.4.
+- **Next:** 2.4 answer experiment + judge + gate calibration.
+
+## 2026-09-25 · Phase 2 · 2.1 Gold set v1
+
+- **What:** a subagent drafted 77 items from DB text (62 in scope across 6 topics, 15 out of scope incl. look-alikes: Alberta/BC/Quebec/US versions of in-scope questions, family property, rent, a 401 speeding ticket). `evals/gold.py` validates: required fields, unique ids, topics, expected pinpoints exist, every fact appears in an expected section's text (normalized), out-of-scope items have no pinpoints and `must_refuse`. Redundant parent pinpoints dropped (115 → 68) since metrics treat a section and its subsections as matching.
+- **Validated:** validator tests (13) → `check_gold.py` → 77/77 valid (city 10, dog 10, limitations 10, motor-vehicle 11, procedure 11, slip 10, out-of-scope 15). Random 10 checked by the main session against the section text; **user spot-check pending**.
+
 ## 2026-09-25 · Phase 2 · 2.2 Langfuse tracing on `/ask`
 
 - **What:** `langfuse` 4.15.6. `app/tracing.py`: off unless `LANGFUSE_PUBLIC_KEY`/`SECRET_KEY` are set (one log line either way); `observe()` nests spans under the current trace. `/ask` trace: `ask` → `embed_query`, `retrieve` (fused top 8 with RRF scores and distances), `generate` (generation with prompt, output, attempt, token usage from Vertex `usage_metadata`), `verify` (kept / dropped with reasons), `store`. `answers.trace_id` saved; the review queue shows "View trace". `make api` / launch config load `.env` via `uv run --env-file`; pytest clears the keys; `make e2e` runs without them.
