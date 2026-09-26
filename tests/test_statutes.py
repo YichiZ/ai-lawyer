@@ -203,3 +203,14 @@ def test_hash_changes_with_parser_version(monkeypatch):
     before = st.source_hash(row())
     monkeypatch.setattr(st, "PARSER_VERSION", st.PARSER_VERSION + 1)
     assert st.source_hash(row()) != before
+
+
+@pytest.mark.parametrize("pinpoint, display, mcgill", [
+    ("s-4", "s. 4", "s 4"), ("s-4-1", "s. 4(1)", "s 4(1)"), ("r-1.06-2", "r. 1.06(2)", "r 1.06(2)"),
+    ("ss-25-49", "ss. 25-49", "ss 25–49"), ("rr-3-5", "rr. 3-5", "rr 3–5"), ("part-iii.1", "Part III.1", "Part III.1"),
+    ("rule-2.1.01", "Rule 2.1.01", "Rule 2.1.01"), ("rule-7a", "Rule 7A", "Rule 7a"), ("743-9", "§ 743-9", "§ 743-9"),
+    ("schedule-a", "Schedule A", "Schedule A"), ("para-45", "para 45", "Para 45"),
+])
+def test_display_and_mcgill_pinpoints(pinpoint, display, mcgill):
+    assert display_pinpoint(pinpoint) == display
+    assert display_pinpoint(pinpoint, mcgill=True) == mcgill
