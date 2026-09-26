@@ -1,6 +1,6 @@
 """Run Langfuse experiments on the gold set.
 
-Run: uv run --env-file .env scripts/eval.py retrieval | answers | summaries | caselaw | retrieval-with-decisions
+Run: uv run --env-file .env -m scripts.eval retrieval | answers | summaries | caselaw | retrieval-with-decisions
                                           | gate | record [--from-latest]
   gate    run both experiments and compare with evals/baseline.json (exit 1 on regression) — `make eval`
   record  run both and write evals/baseline.json; --from-latest uses the newest saved runs instead
@@ -11,35 +11,46 @@ import os
 import random
 import sys
 import time
-from statistics import mean, quantiles
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import quantiles
 
 import psycopg
 from langfuse import Evaluation, Langfuse
 
+from app.ask import (
+    ALL_KINDS,
+    GATE_MAX_DISTANCE,
+    LAW_KINDS,
+    pinpoint_claims,
+    retrieve,
+    retrieve_for_answer,
+    run_ask,
+)
+from app.rerank import RERANK_CANDIDATES, make_reranker
+from evals.answers import (
+    JUDGE_MODEL,
+    facts_covered,
+    gate_tradeoff,
+    judge_answer,
+    refusal_correct,
+    verified_rate,
+)
+from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash
+from evals.gold import GOLD_PATH, load_gold
+from evals.langfuse_io import CASELAW_DATASET, DATASET, upsert_dataset
+from evals.metrics import chunk_covers, mean_of, mrr, recall_at_k, summarize
+from evals.readability import fk_grade
+from evals.summaries import judge_summary, summarize_scores
+from ingest.statutes import display_pinpoint
+from ingest.vertex import ANSWER_MODEL, CHEAP_MODEL, batch_client, embedder, json_generator
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from app.ask import ALL_KINDS, GATE_MAX_DISTANCE, LAW_KINDS, pinpoint_claims, retrieve, retrieve_for_answer, run_ask  # noqa: E402
-from evals.answers import JUDGE_MODEL, facts_covered, gate_tradeoff, judge_answer, refusal_correct, verified_rate  # noqa: E402
-from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash  # noqa: E402
-from evals.gold import GOLD_PATH, load_gold  # noqa: E402
-from evals.readability import fk_grade  # noqa: E402
-from evals.summaries import judge_summary, summarize_scores  # noqa: E402
-from ingest.statutes import display_pinpoint  # noqa: E402
-from evals.langfuse_io import CASELAW_DATASET, DATASET, upsert_dataset  # noqa: E402
-from evals.metrics import chunk_covers, mrr, recall_at_k, summarize  # noqa: E402
-from app.rerank import RERANK_CANDIDATES, make_reranker  # noqa: E402
-from ingest.vertex import ANSWER_MODEL, CHEAP_MODEL, embedder, json_generator, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 RUNS = ROOT / "evals" / "runs"
 K = 8
 CONCURRENCY = 2  # 4 hit Vertex per-minute quota (429) on the answers run
-
-
-def eval_client():
-    return make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)  # 30 s timed out on long answers
 
 
 def require_complete(result, items, kind: str) -> None:
@@ -87,7 +98,7 @@ def run_retrieval(lf: Langfuse, gold_path: Path = GOLD_PATH, dataset_name: str =
     items = [i for i in dataset.items if i.id in gold]  # only items still in the gold file
     result = lf.run_experiment(
         name=name, description=f"Hybrid retrieval (keyword + vector, RRF, rerank) top {K}; kinds {kinds}",
-        data=items, task=retrieval_task(*_retrievers(eval_client()), kinds=kinds),
+        data=items, task=retrieval_task(*_retrievers(batch_client()), kinds=kinds),
         evaluators=[retrieval_evaluator], max_concurrency=CONCURRENCY,
         metadata={"k": K, "gold_items": len(items), "rerank_candidates": RERANK_CANDIDATES},
     )
@@ -153,16 +164,11 @@ def answer_evaluator(judge):
     return evaluate
 
 
-def _mean(rows: list[dict], key: str) -> float | None:
-    vals = [r[key] for r in rows if r.get(key) is not None]
-    return round(mean(vals), 3) if vals else None
-
-
 def run_answers(lf: Langfuse) -> dict:
     gold = {g["id"]: g for g in load_gold()}
     upsert_dataset(lf, list(gold.values()))
     items = [i for i in lf.get_dataset(DATASET).items if i.id in gold]
-    client = eval_client()
+    client = batch_client()
     result = lf.run_experiment(
         name="answers", description="Full /ask pipeline (no DB writes) + code metrics + LLM judge",
         data=items, task=answer_task(*_retrievers(client), json_generator(client)),
@@ -178,14 +184,14 @@ def run_answers(lf: Langfuse) -> dict:
     ins, oos = [r for r in rows if not r["must_refuse"]], [r for r in rows if r["must_refuse"]]
     metrics = ["has_verified_claim", "verified_claim_rate", "facts_covered", "citation_supported", "faithful",
                "no_advice", "refusal_correct"]
-    summary = {"in_scope": {"n": len(ins), **{m: _mean(ins, m) for m in metrics}},
-               "out_of_scope": {"n": len(oos), "refusal_correct": _mean(oos, "refusal_correct")},
+    summary = {"in_scope": {"n": len(ins), **{m: mean_of(ins, m) for m in metrics}},
+               "out_of_scope": {"n": len(oos), "refusal_correct": mean_of(oos, "refusal_correct")},
                "judge_errors": sum(1 for r in ins if r.get("judge_error")),
                "latency_ms": {k: {"p50": quantiles([r[k] for r in rows], n=100)[49],
                                   "p95": quantiles([r[k] for r in rows], n=100)[94]} for k in ("sources_ms", "total_ms")}}
     for topic in sorted({r["topic"] for r in ins}):
         t = [r for r in ins if r["topic"] == topic]
-        summary[topic] = {"n": len(t), **{m: _mean(t, m) for m in ("has_verified_claim", "facts_covered", "citation_supported")}}
+        summary[topic] = {"n": len(t), **{m: mean_of(t, m) for m in ("has_verified_claim", "facts_covered", "citation_supported")}}
     gate = gate_tradeoff([r["best_distance"] for r in ins], [r["best_distance"] for r in oos],
                          [0.22, 0.24, 0.26, 0.28, 0.30, 0.35])
     judged = [(r["id"], c, v) for r in ins if r.get("judge") and not r["judge"]["error"]
@@ -207,7 +213,7 @@ def run_summaries(lf: Langfuse) -> dict:
             "SELECT d.slug, s.pinpoint, s.text, s.plain_summary, d.title FROM sections s JOIN documents d ON d.id = s.document_id"
             " WHERE s.plain_summary IS NOT NULL ORDER BY md5(d.slug || s.pinpoint) LIMIT %s", (SUMMARY_SAMPLE,),
         ).fetchall()
-    judge = json_generator(eval_client(), model=JUDGE_MODEL)
+    judge = json_generator(batch_client(), model=JUDGE_MODEL)
     data = [{"input": {"slug": r[0], "pinpoint": r[1], "text": r[2], "summary": r[3],
                        "where": f"{r[4]}, {display_pinpoint(r[1])}"}} for r in rows]
 

@@ -20,21 +20,21 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 
 ## Commands
 
-- `uv run scripts/check_vertex.py` — Vertex AI smoke test (6 checks). Run first in every session; if it fails, fix auth/models before anything else.
-- Local auth: `gcloud auth application-default login` then `gcloud auth application-default set-quota-project long-indexer-507414-n0`
+- `uv run -m scripts.check_vertex` — Vertex AI smoke test (6 checks). Run first in every session; if it fails, fix auth/models before anything else.
+- Local auth: `gcloud auth application-default login` then `gcloud auth application-default set-quota-project <your-gcp-project-id>` (project in `.env`, see `.env.example`)
 - `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432) and Redis 8 (localhost:6379), dev only / apply `db/schema.sql` (idempotent).
 - `make worker` — ingest worker for add-to-corpus jobs (Redis stream `ingest`; job state in `ingest_jobs`). Reviewer enqueues with `POST /ingest {url}`; `GET /ingest/{id}` shows status and stage.
-- `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report. `uv run scripts/load_statutes.py` — load the 12 laws (idempotent). `uv run scripts/fetch_toronto.py` / `load_toronto.py` — Toronto Municipal Code ch. 719, 743, 629 (needs `pdftotext`: `brew install poppler`). `uv run scripts/embed_chunks.py` — chunk + embed changed sections (idempotent, resumable).
+- `uv run -m scripts.fetch_a2aj` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run -m scripts.match_v0` — v0 match report. `uv run -m scripts.load_statutes` — load the 12 laws (idempotent). `uv run -m scripts.fetch_toronto` / `load_toronto.py` — Toronto Municipal Code ch. 719, 743, 629 (needs `pdftotext`: `brew install poppler`). `uv run -m scripts.embed_chunks` — chunk + embed changed sections (idempotent, resumable).
 - `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
-- `make api` — FastAPI on :8000 (`/docs`), loads `.env` (Langfuse tracing on when keys are present). `uv run scripts/crawl_api.py` — request every section, report status + p50/p95.
-- `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run scripts/crawl_api.py --web http://localhost:3000` — crawl every rendered section page.
-- `uv run scripts/check_gold.py [file]` — validate the gold set against the corpus.
-- `uv run --env-file .env scripts/eval.py retrieval|answers` — Langfuse experiments on the gold set (retrieval: recall@8, MRR; answers: code metrics + Flash-Lite judge, gate trade-off).
-- `make eval-suite` / `uv run --env-file .env scripts/eval_suite.py [name …]` — production eval suite (docs/evals-plan.md, results in docs/evals.md): pinpoint, search, safety, abstention, robustness, glossary; exit 1 on a missed threshold.
+- `make api` — FastAPI on :8000 (`/docs`), loads `.env` (Langfuse tracing on when keys are present). `uv run -m scripts.crawl_api` — request every section, report status + p50/p95.
+- `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run -m scripts.crawl_api --web http://localhost:3000` — crawl every rendered section page.
+- `uv run -m scripts.check_gold [file]` — validate the gold set against the corpus.
+- `uv run --env-file .env -m scripts.eval retrieval|answers` — Langfuse experiments on the gold set (retrieval: recall@8, MRR; answers: code metrics + Flash-Lite judge, gate trade-off).
+- `make eval-suite` / `uv run --env-file .env -m scripts.eval_suite [name …]` — production eval suite (docs/evals-plan.md, results in docs/evals.md): pinpoint, search, safety, abstention, robustness, glossary; exit 1 on a missed threshold.
 - `make eval` — local only: both experiments vs `evals/baseline.json` (fails on regression / failed items / hash change). `make eval-baseline` re-records it deliberately. `make ci-fixture` re-exports the CI corpus.
-- `uv run --env-file .env scripts/profile_ask.py [n]` — stage latencies of the /ask pipeline (sequential). `scripts/sweep_fusion.py`, `scripts/sweep_rerank.py [candidates]`, `scripts/diagnose_retrieval.py [ids]` — offline retrieval tuning.
+- `uv run --env-file .env -m scripts.profile_ask [n]` — stage latencies of the /ask pipeline (sequential). `scripts/sweep_fusion.py`, `scripts/sweep_rerank.py [candidates]`, `scripts/diagnose_retrieval.py [ids]` — offline retrieval tuning.
 - `loadtest/locustfile.py` — locust load test (`Researcher` mix on a fake-model API with 4 workers; `Asker` at a low rate on the real model); commands in its docstring.
-- `uv run --env-file .env scripts/judge_case_summaries.py [n]` — Flash-Lite faithfulness judge on a fixed sample of decision summaries.
+- `uv run --env-file .env -m scripts.judge_case_summaries [n]` — Flash-Lite faithfulness judge on a fixed sample of decision summaries.
 - `make e2e-ci` — Playwright against a freshly rebuilt `ai_lawyer_ci` (schema + fixture), same as GitHub Actions; use it instead of reusing a stale CI-like DB.
 - `make e2e` — Playwright UI tests; starts its own API (`AI_FAKE=1`, :8001) and web (:3001), so it runs beside `make api`/`make web`.
 - Frontend logic that needs tests (indent levels, citations) lives in the API (`app/format.py`, pytest), so the web app has no test runner yet.

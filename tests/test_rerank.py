@@ -45,15 +45,13 @@ def test_candidate_count_from_sweep():
 
 def test_retrieve_uses_reranker_on_fused_candidates(conn):
     from app.ask import retrieve
-    from ingest.chunks import embed_pending, plan_chunks, sync_chunks
+    from ingest.chunks import embed_pending, load_sections, plan_chunks, sync_chunks
     from ingest.statutes import load_document, parse_law
     from test_statutes import LAW, row
 
     load_document(conn, parse_law(row(), LAW))
     doc_id = conn.execute("SELECT id FROM documents WHERE slug = 'test-act'").fetchone()[0]
-    rows = conn.execute("SELECT s.id, s.pinpoint, s.kind, s.heading, s.text, p.pinpoint FROM sections s LEFT JOIN sections p"
-                        " ON p.id = s.parent_id WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,)).fetchall()
-    sync_chunks(conn, doc_id, plan_chunks("Test Act", [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]))
+    sync_chunks(conn, doc_id, plan_chunks("Test Act", load_sections(conn, doc_id)))
     embed_pending(conn, lambda t: [0.01] * 1536, model="fake", workers=1)
     seen = {}
 

@@ -1,17 +1,15 @@
 """Phase 5.5: plain-language summaries for loaded decisions (gemini-3.5-flash-lite). Idempotent.
 
-Run: uv run --env-file .env scripts/summarize_cases.py [--estimate]
+Run: uv run --env-file .env -m scripts.summarize_cases [--estimate]
 """
 import os
 import sys
 import time
-from pathlib import Path
 
 import psycopg
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingest.case_summaries import MAX_CHARS, summarize_cases  # noqa: E402
-from ingest.vertex import CHEAP_MODEL, make_client, text_generator  # noqa: E402
+from ingest.case_summaries import MAX_CHARS, summarize_cases
+from ingest.vertex import CHEAP_MODEL, batch_client, text_generator
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 PRICE_IN, PRICE_OUT = 0.30, 2.50  # gemini-3.5-flash-lite, USD / 1M tokens (checked 2026-09-26)
@@ -28,7 +26,7 @@ def main() -> int:
         if cost > BUDGET_LEFT:
             sys.exit("estimate exceeds the remaining approved budget — ask the user first")
         t = time.monotonic()
-        client = make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
+        client = batch_client()
         calls = summarize_cases(conn, text_generator(client, model=CHEAP_MODEL), workers=6)
     print(f"{calls} decision summaries in {time.monotonic() - t:.0f}s", flush=True)
     return 0

@@ -1,17 +1,15 @@
 """Build chunks for every loaded document and embed the ones that changed. Idempotent and resumable.
 
-Run: uv run scripts/embed_chunks.py
+Run: uv run -m scripts.embed_chunks
 """
 import os
 import sys
 import time
-from pathlib import Path
 
 import psycopg
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingest.chunks import embed_pending, plan_chunks, plan_decision_chunks, sync_chunks  # noqa: E402
-from ingest.vertex import EMBED_MODEL, embedder, make_client  # noqa: E402
+from ingest.chunks import embed_pending, load_sections, plan_chunks, plan_decision_chunks, sync_chunks
+from ingest.vertex import EMBED_MODEL, embedder, make_client
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 WORKERS = 8
@@ -23,12 +21,7 @@ def main() -> int:
         docs = conn.execute("SELECT id, slug, title, kind, citation FROM documents ORDER BY id").fetchall()
         quiet = 0
         for doc_id, slug, title, kind, citation in docs:
-            rows = conn.execute(
-                "SELECT s.id, s.pinpoint, s.kind, s.heading, s.text, p.pinpoint FROM sections s"
-                " LEFT JOIN sections p ON p.id = s.parent_id WHERE s.document_id = %s ORDER BY s.sort_order",
-                (doc_id,),
-            ).fetchall()
-            sections = [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]
+            sections = load_sections(conn, doc_id)
             planned = plan_decision_chunks(title, citation, sections) if kind == "decision" else plan_chunks(title, sections)
             status, reused = sync_chunks(conn, doc_id, planned)
             if kind == "decision":  # thousands of decisions: summarize instead of one line each

@@ -1,6 +1,6 @@
 """Phase 5.4: citation graph for every loaded decision (A2AJ cited-case lists + statute references in the text).
 
-Run: uv run scripts/build_citations.py
+Run: uv run -m scripts.build_citations
 """
 import os
 import sys
@@ -11,9 +11,9 @@ from pathlib import Path
 import psycopg
 import pyarrow.parquet as pq
 
+from ingest.citations import build_citations, statute_refs
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from ingest.citations import build_citations, statute_refs  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 

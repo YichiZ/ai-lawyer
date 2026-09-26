@@ -1,6 +1,6 @@
 """Download the approved Toronto Municipal Code chapters into input/toronto/ with manifest lines.
 
-Run: uv run scripts/fetch_toronto.py
+Run: uv run -m scripts.fetch_toronto
 Approved 2026-09-25 for LOCAL INDEXING ONLY (City copyright): the UI shows excerpts + a link, never full text.
 Idempotent: a HEAD request's Last-Modified is compared with the manifest; unchanged files are skipped.
 """
@@ -10,8 +10,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingest.manifest import append_entry, read_manifest, sha256_file  # noqa: E402
+from ingest.manifest import append_entry, read_manifest, sha256_file
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "input" / "manifest.jsonl"

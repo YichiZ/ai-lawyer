@@ -1,7 +1,7 @@
 """Offline check of the listwise reranker on the gold set: fused top 30 -> Flash-Lite rerank -> top 8.
 Reports recall@8 / MRR with and without rerank, rerank latency and flags. Exploration only.
 
-Run: uv run --env-file .env scripts/sweep_rerank.py [candidates]
+Run: uv run --env-file .env -m scripts.sweep_rerank [candidates]
 """
 import os
 import statistics
@@ -12,13 +12,13 @@ from pathlib import Path
 
 import psycopg
 
+from app.ask import TOP_K, retrieve
+from app.rerank import RERANK_CANDIDATES, rerank
+from evals.gold import load_gold
+from evals.metrics import chunk_covers, mrr, recall_at_k
+from ingest.vertex import CHEAP_MODEL, batch_client, embedder, json_generator
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from app.ask import TOP_K, retrieve  # noqa: E402
-from app.rerank import RERANK_CANDIDATES, rerank  # noqa: E402
-from evals.gold import load_gold  # noqa: E402
-from evals.metrics import chunk_covers, mrr, recall_at_k  # noqa: E402
-from ingest.vertex import CHEAP_MODEL, embedder, json_generator, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 
@@ -26,7 +26,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localho
 def main() -> int:
     candidates = int(sys.argv[1]) if len(sys.argv) > 1 else RERANK_CANDIDATES
     gold = [g for g in load_gold() if not g["must_refuse"]]
-    client = make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
+    client = batch_client()
     embed, cheap = embedder(client, "RETRIEVAL_QUERY"), json_generator(client, model=CHEAP_MODEL)
 
     def one(g):

@@ -4,7 +4,7 @@ import os
 from google import genai
 from google.genai import types
 
-PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "long-indexer-507414-n0")
+PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")  # None: google-genai uses the ADC project
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
 TIMEOUT_MS = 30_000
 ANSWER_MODEL = "gemini-3.7-flash"
@@ -15,7 +15,7 @@ EMBED_DIMS = 1536
 
 def make_client(attempts: int = 5, initial_delay: float = 1.0, max_delay: float | None = None,
                 timeout_ms: int = TIMEOUT_MS) -> genai.Client:
-    """Bulk jobs (evals) pass more attempts, a longer max_delay and timeout so quota 429s and slow calls recover."""
+    """The app's client: ADC, 30 s timeout, retries on 429/5xx. Bulk jobs use batch_client()."""
     return genai.Client(
         vertexai=True, project=PROJECT, location=LOCATION,
         http_options=types.HttpOptions(
@@ -24,6 +24,11 @@ def make_client(attempts: int = 5, initial_delay: float = 1.0, max_delay: float 
                                                  http_status_codes=[429, 500, 503, 504]),
         ),
     )
+
+
+def batch_client() -> genai.Client:
+    """Bulk jobs (ingest, evals, sweeps): more retries, longer backoff and timeout, so 429s and long answers recover."""
+    return make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
 
 
 def embedder(client: genai.Client, task_type: str = "RETRIEVAL_DOCUMENT"):

@@ -4,17 +4,16 @@ Stored on `sections.plain_summary` with `summary_source_hash` = sha256(section t
 new or changed sections (or a new prompt) are summarized again. Shown beside the official text, labelled as AI-written.
 """
 import hashlib
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 import psycopg
 
+from ingest.chunks import run_batched
 from ingest.statutes import display_pinpoint
 
 PROMPT_VERSION = 3  # v2: no glosses/outside facts (glossary defines terms); v3: shorter sentences, short words (grade <= 10)
 MIN_CHARS = 60
 PLACEHOLDERS = ("[blank]", "Repealed", "Omitted", "Revoked")
-FLUSH_EVERY = 25
 PROMPT = """Rewrite this provision of Ontario law in plain language for a paralegal or law student.
 
 {title}, {display}{heading}
@@ -56,27 +55,8 @@ def summarize_pending(conn: psycopg.Connection, generate: Callable[[str], str], 
         if eligible({"kind": kind, "text": text}) and old_hash != source_hash(text):
             jobs.append((sid, source_hash(text), build_prompt(title, display_pinpoint(pin), heading, text)))
 
-    done: list[tuple[int, str, str]] = []
-
-    def flush():
-        if done:
-            with conn.transaction():
-                for sid, h, summary in done:
-                    conn.execute("UPDATE sections SET plain_summary = %s, summary_source_hash = %s WHERE id = %s",
-                                 (summary, h, sid))
-            done.clear()
-
-    calls = 0
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(generate, prompt): (sid, h) for sid, h, prompt in jobs}
-        try:
-            for fut in as_completed(futures):
-                sid, h = futures[fut]
-                done.append((sid, h, fut.result().strip()))
-                calls += 1
-                if len(done) >= FLUSH_EVERY:
-                    flush()
-        finally:
-            flush()
-            pool.shutdown(cancel_futures=True)
-    return calls
+    return run_batched(
+        conn, generate, (((sid, h), prompt) for sid, h, prompt in jobs),
+        lambda key, out: conn.execute("UPDATE sections SET plain_summary = %s, summary_source_hash = %s WHERE id = %s",
+                                      (out.strip(), key[1], key[0])),
+        workers)

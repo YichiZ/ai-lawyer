@@ -11,7 +11,7 @@ recall, answer quality on the gold set, and summaries. They do not cover these.
   not lowered to pass.
 - **Versioned datasets** in `evals/data/*.jsonl`. Each item has an id, a category and its expected behaviour, and is
   checked against the corpus where it references it.
-- **One runner:** `uv run --env-file .env scripts/eval_suite.py [name ...]`. Results go to `evals/runs/<ts>-suite-*.json`
+- **One runner:** `uv run --env-file .env -m scripts.eval_suite [name ...]`. Results go to `evals/runs/<ts>-suite-*.json`
   and a table.
 
 ## The suite

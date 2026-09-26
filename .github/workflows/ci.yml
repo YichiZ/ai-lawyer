@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 # Evals (`make eval`) are local only: they need Vertex AI and Langfuse credentials.
 jobs:
   test:

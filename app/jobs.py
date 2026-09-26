@@ -9,12 +9,13 @@ import hashlib
 from typing import Callable
 
 import psycopg
+from psycopg.rows import dict_row
 import redis
 
 MAX_ATTEMPTS = 3
 BACKOFF_MINUTES = (1, 4, 16)
-STALE = "5 minutes"
-STREAM_MAXLEN = 100_000  # approximate cap; Postgres holds the backlog, the stream only dispatches  # a queued/running row untouched this long is re-dispatched by the reconciler
+STALE = "5 minutes"  # a queued/running row untouched this long is re-dispatched by the reconciler
+STREAM_MAXLEN = 100_000  # approximate cap; Postgres holds the backlog, the stream only dispatches
 
 
 def job_id(kind: str, url: str) -> str:
@@ -80,9 +81,9 @@ class Queue:
         """Run one delivery. `run(job, set_stage)` returns the loaded document's slug."""
         with conn.transaction():
             job = conn.execute(
-                """UPDATE ingest_jobs SET status = 'running', updated_at = now()
+                f"""UPDATE ingest_jobs SET status = 'running', updated_at = now()
                    WHERE id = %s AND (status = 'queued' OR (status = 'running' AND updated_at < now() - interval '{STALE}'))
-                   RETURNING id, kind, url, attempts""".replace("{STALE}", STALE),
+                   RETURNING id, kind, url, attempts""",
                 (jid,),
             ).fetchone()
         if job is None:  # done, dead, in flight elsewhere or unknown: a duplicate delivery
@@ -121,7 +122,6 @@ class Queue:
 
 
 def get_job(conn: psycopg.Connection, jid: str) -> dict | None:
-    row = conn.execute("SELECT id, kind, url, status, stage, attempts, error, document_slug, enqueued_at, updated_at "
-                       "FROM ingest_jobs WHERE id = %s", (jid,)).fetchone()
-    keys = ("id", "kind", "url", "status", "stage", "attempts", "error", "document_slug", "enqueued_at", "updated_at")
-    return dict(zip(keys, row)) if row else None
+    return conn.cursor(row_factory=dict_row).execute(
+        "SELECT id, kind, url, status, stage, attempts, error, document_slug, enqueued_at, updated_at"
+        " FROM ingest_jobs WHERE id = %s", (jid,)).fetchone()

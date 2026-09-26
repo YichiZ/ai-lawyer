@@ -1,18 +1,16 @@
 """Stage-by-stage latency of the /ask pipeline, run sequentially (no eval concurrency): embed, retrieve, rerank,
-generate (per attempt), total. Run: uv run --env-file .env scripts/profile_ask.py [n]"""
+generate (per attempt), total. Run: uv run --env-file .env -m scripts.profile_ask [n]"""
 import os
 import statistics
 import sys
 import time
-from pathlib import Path
 
 import psycopg
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from app.ask import pinpoint_claims, retrieve, run_ask  # noqa: E402
-from app.rerank import make_reranker  # noqa: E402
-from evals.gold import load_gold  # noqa: E402
-from ingest.vertex import CHEAP_MODEL, embedder, json_generator, make_client  # noqa: E402
+from app.ask import pinpoint_claims, retrieve, run_ask
+from app.rerank import make_reranker
+from evals.gold import load_gold
+from ingest.vertex import CHEAP_MODEL, embedder, json_generator, make_client
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 

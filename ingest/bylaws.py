@@ -14,7 +14,6 @@ from ingest.statutes import ParsedLaw
 
 PARSER_VERSION = 3  # 2: rejoin PDF-wrapped lines; 3: pdftotext -layout keeps labels beside their paragraphs
 MONTH = r"(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}"
-MONTH_DATE = re.compile(rf"^{MONTH}$")
 ARTICLE = re.compile(r"^ARTICLE ([IVXLC]+)$")
 LABEL = re.compile(r"^(?:[A-Z]{1,2}\.|\(\w{1,4}\))$")  # "A." or "(1)" alone on a line
 # A line starts a new paragraph at a label ("A. ", "(1) "), a defined term ("SIDEWALK - ") or a "[history]" note;

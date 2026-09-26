@@ -1,22 +1,24 @@
 """Smoke-test every Vertex AI call the app depends on, using ADC.
 
-Run: uv run scripts/check_vertex.py
+Run: uv run -m scripts.check_vertex
 """
 import json
-import os
 import sys
 
-from google import genai
 from google.genai import types
 
-PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "long-indexer-507414-n0")
-LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
-TIMEOUT_MS = 30_000  # per call; grounding can run many searches
-ANSWER_MODEL = "gemini-3.7-flash"  # 3.8 Flash 504'd intermittently on Vertex global (2026-09-25)
-LOW_THINKING = types.ThinkingConfig(thinking_level="low")
-CHEAP_MODEL = "gemini-3.5-flash-lite"
-EMBED_MODEL = "gemini-embedding-2"
-EMBED_DIMS = 1536
+from ingest.vertex import (
+    ANSWER_MODEL,
+    CHEAP_MODEL,
+    EMBED_DIMS,
+    EMBED_MODEL,
+    LOCATION,
+    LOW_THINKING,
+    PROJECT,
+    TIMEOUT_MS,
+    make_client,
+)
+
 CHUNK = (
     "4 Unless this Act provides otherwise, a proceeding shall not be commenced in respect "
     "of a claim after the second anniversary of the day on which the claim was discovered."
@@ -130,14 +132,8 @@ CHECKS = [
 
 
 def main() -> int:
-    client = genai.Client(
-        vertexai=True, project=PROJECT, location=LOCATION,
-        http_options=types.HttpOptions(
-            timeout=TIMEOUT_MS,
-            retry_options=types.HttpRetryOptions(attempts=3, initial_delay=1.0, http_status_codes=[429, 500, 503, 504]),
-        ),
-    )
-    print(f"project={PROJECT} location={LOCATION}")
+    client = make_client(attempts=3)  # the app's settings: fails fast on a broken setup
+    print(f"project={PROJECT or '(ADC default)'} location={LOCATION}")
     failed = 0
     for name, fn, arg in CHECKS:
         print(f"[....] {name}", flush=True)

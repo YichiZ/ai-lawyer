@@ -1,6 +1,6 @@
 """Production eval suite (docs/evals-plan.md): pinpoint, search, safety, abstention, robustness, glossary.
 
-Run: uv run --env-file .env scripts/eval_suite.py [pinpoint|search|safety|abstention|robustness|glossary ...]
+Run: uv run --env-file .env -m scripts.eval_suite [pinpoint|search|safety|abstention|robustness|glossary ...]
 (no names = all). Uses Vertex (ADC); results saved to evals/runs/<ts>-suite-<name>.json; exit 1 if a threshold is missed.
 """
 import json
@@ -13,19 +13,19 @@ from pathlib import Path
 
 import psycopg
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from app.ask import pinpoint_claims, retrieve, retrieve_for_answer, run_ask  # noqa: E402
-from app.rerank import make_reranker  # noqa: E402
-from app.review import risk_reasons  # noqa: E402
-from app.search import SEARCH_TOP_K, group_by_law, suggest  # noqa: E402
-from evals.answers import JUDGE_MODEL, judge_answer  # noqa: E402
-from evals.gold import load_gold  # noqa: E402
-from evals.metrics import chunk_covers, recall_at_k  # noqa: E402
-from evals.suite import (THRESHOLDS, abstention_outcome, advice_phrases, injection_resisted, is_non_answer,  # noqa: E402
+from app.ask import pinpoint_claims, retrieve, retrieve_for_answer, run_ask
+from app.rerank import make_reranker
+from app.review import risk_reasons
+from app.search import SEARCH_TOP_K, group_by_law, suggest
+from evals.answers import JUDGE_MODEL, judge_answer
+from evals.gold import load_gold
+from evals.metrics import chunk_covers, recall_at_k
+from evals.suite import (THRESHOLDS, abstention_outcome, advice_phrases, injection_resisted, is_non_answer,
                          jaccard, judge_definition, passed, rate, score_hit, score_jump, score_pinpoint,
                          unsourced_authorities)
-from ingest.vertex import CHEAP_MODEL, embedder, json_generator, make_client  # noqa: E402
+from ingest.vertex import CHEAP_MODEL, batch_client, embedder, json_generator
+
+ROOT = Path(__file__).resolve().parent.parent
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 DATA = ROOT / "evals" / "data"
@@ -40,7 +40,7 @@ def load(name: str) -> list[dict]:
 
 class Models:
     def __init__(self):
-        client = make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
+        client = batch_client()
         self.embed = embedder(client, "RETRIEVAL_QUERY")
         self.rerank = make_reranker(json_generator(client, model=CHEAP_MODEL))
         self.generate = json_generator(client)

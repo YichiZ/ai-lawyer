@@ -1,17 +1,15 @@
 """Phase 4.1: plain-language summaries for every eligible section (gemini-3.7-flash). Idempotent.
 
-Run: uv run --env-file .env scripts/summarize_sections.py [--estimate]
+Run: uv run --env-file .env -m scripts.summarize_sections [--estimate]
 """
 import os
 import sys
 import time
-from pathlib import Path
 
 import psycopg
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingest.summaries import MIN_CHARS, PLACEHOLDERS, source_hash, summarize_pending  # noqa: E402
-from ingest.vertex import ANSWER_MODEL, make_client, text_generator  # noqa: E402
+from ingest.summaries import MIN_CHARS, PLACEHOLDERS, source_hash, summarize_pending
+from ingest.vertex import ANSWER_MODEL, batch_client, text_generator
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 PRICE_IN, PRICE_OUT = 0.75, 3.75  # USD / 1M tokens, gemini-3.7-flash introductory pricing to 2026-12-31 (checked 2026-09-26)
@@ -29,7 +27,7 @@ def main() -> int:
         if "--estimate" in sys.argv or not todo:
             return 0
         t = time.monotonic()
-        client = make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
+        client = batch_client()
         calls = summarize_pending(conn, text_generator(client, model=ANSWER_MODEL), workers=6)
     print(f"{calls} summaries in {time.monotonic() - t:.0f}s", flush=True)
     return 0

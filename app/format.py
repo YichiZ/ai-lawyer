@@ -1,6 +1,8 @@
 """Presentation helpers the web pages use: legislative indent levels and McGill-style citations."""
 import re
 
+from ingest.statutes import display_pinpoint
+
 LABEL = re.compile(r"^\(([0-9]+(?:\.[0-9]+)?|[a-z]{1,2}(?:\.[0-9]+)?|[ivxl]+(?:\.[0-9]+)?|[A-Z]{1,2}(?:\.[0-9]+)?)\)\s")
 BYLAW_LABEL = re.compile(r"^[A-Z]{1,2}\.\s")
 ROMAN = re.compile(r"^[ivxl]+$")
@@ -29,30 +31,13 @@ def indent_lines(text: str) -> list[dict]:
     return out
 
 
-def _pinpoint_reference(pinpoint: str) -> str:
-    if re.fullmatch(r"\d+-\d+(?:\.\d+)*", pinpoint):
-        return f"§ {pinpoint}"
-    head, _, rest = pinpoint.partition("-")
-    if head in ("s", "r"):
-        num, _, sub = rest.partition("-")
-        return f"{head} {num}" + (f"({sub})" if sub else "")
-    if head in ("ss", "rr"):
-        return f"{head} {rest.replace('-', '–')}"
-    if head == "part":
-        return f"Part {rest.upper()}"
-    if head == "rule":
-        return f"Rule {rest}"
-    words = pinpoint.split("-")
-    return " ".join([words[0].capitalize()] + [w.upper() for w in words[1:]])
-
-
 def mcgill_citation(doc: dict, pinpoint: str) -> dict:
     """{"title": italicized part, "reference": the rest, "text": plain copyable string}."""
     if doc["kind"] == "decision":  # Smith v Jones, 2023 ONCA 9 at para 45
         para = pinpoint[5:] if pinpoint.startswith("para-") else None
         reference = doc["citation"] + (f" at para {para}" if para else "")
         return {"title": doc["title"], "reference": reference, "text": f"{doc['title']}, {reference}"}
-    ref = _pinpoint_reference(pinpoint)
+    ref = display_pinpoint(pinpoint, mcgill=True)
     if doc["kind"] == "web":  # "Title" (section), online: ontario.ca <url>
         reference = f"({ref}), {doc['citation']}"
         return {"title": "", "reference": f"“{doc['title']}” {reference}", "text": f"“{doc['title']}” {reference}"}

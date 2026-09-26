@@ -1,6 +1,6 @@
 """Load the 12 v0 laws from input/a2aj/ into documents + sections. Idempotent.
 
-Run: make db && uv run scripts/load_statutes.py
+Run: make db && uv run -m scripts.load_statutes
 """
 import os
 import sys
@@ -11,9 +11,8 @@ from pathlib import Path
 import psycopg
 import pyarrow.parquet as pq
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingest.statutes import load_document, parse_law  # noqa: E402
-from ingest.v0 import V0, match_v0  # noqa: E402
+from ingest.statutes import load_document, parse_law
+from ingest.v0 import V0, match_v0
 
 A2AJ = Path(__file__).resolve().parent.parent / "input" / "a2aj"
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")

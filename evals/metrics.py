@@ -40,6 +40,12 @@ def mrr(ranked: list[Hit], expected: list[dict]) -> float:
     return next((1 / rank for rank, h in enumerate(ranked, start=1) if matches(h, expected)), 0.0)
 
 
+def mean_of(rows: list[dict], key: str) -> float | None:
+    """Mean of key over the rows that have it (judge errors leave it unset), to 3 places; None when none do."""
+    vals = [r[key] for r in rows if r.get(key) is not None]
+    return round(mean(vals), 3) if vals else None
+
+
 def summarize(rows: list[dict], metrics: list[str]) -> dict[str, dict]:
     """Mean of each metric overall ("all") and per topic, with counts."""
     groups: dict[str, list[dict]] = {"all": rows}

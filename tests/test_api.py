@@ -103,7 +103,7 @@ import re as _re
 from contextlib import nullcontext
 
 from app.main import get_ai, get_connect
-from ingest.chunks import embed_pending, plan_chunks, sync_chunks
+from ingest.chunks import embed_pending, load_sections, plan_chunks, sync_chunks
 
 
 class FakeAI:
@@ -125,11 +125,7 @@ class FakeAI:
 @pytest.fixture
 def ask_client(client, conn):
     doc_id = conn.execute("SELECT id FROM documents WHERE slug = 'test-act'").fetchone()[0]
-    rows = conn.execute(
-        "SELECT s.id, s.pinpoint, s.kind, s.heading, s.text, p.pinpoint FROM sections s LEFT JOIN sections p ON p.id = s.parent_id"
-        " WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,)).fetchall()
-    sections = [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]
-    sync_chunks(conn, doc_id, plan_chunks("Test Act", sections))
+    sync_chunks(conn, doc_id, plan_chunks("Test Act", load_sections(conn, doc_id)))
     embed_pending(conn, lambda t: [0.01] * 1536, model="fake", workers=1)
     fake = FakeAI()
     app.dependency_overrides[get_ai] = lambda: fake

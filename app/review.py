@@ -10,7 +10,6 @@ from psycopg.rows import dict_row
 from app import tracing
 from ingest.web import site_of
 
-REJECT_REASONS = ("wrong_law", "missing_authority", "unsupported_claim", "out_of_scope")
 REFUSAL_STATUSES = ("not_found", "out_of_scope", "unverified")
 # Edited/rejected answers are gold-set candidates (promoted by hand, never automatically).
 CANDIDATES_PATH = Path(os.environ.get("GOLD_CANDIDATES_PATH",
@@ -65,13 +64,10 @@ def decide(conn: psycopg.Connection, answer_id: int, reviewer_id: int, decision:
     return row[0] if row else None
 
 
-def exists(conn: psycopg.Connection, answer_id: int) -> bool:
-    return conn.execute("SELECT 1 FROM answers WHERE id = %s", (answer_id,)).fetchone() is not None
-
-
-def is_drafting(conn: psycopg.Connection, answer_id: int) -> bool:
+def drafting(conn: psycopg.Connection, answer_id: int) -> bool | None:
+    """Whether the answer is still being drafted; None when there is no such answer."""
     row = conn.execute("SELECT draft_markdown IS NULL FROM answers WHERE id = %s", (answer_id,)).fetchone()
-    return bool(row and row[0])
+    return row[0] if row else None
 
 
 def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | None:

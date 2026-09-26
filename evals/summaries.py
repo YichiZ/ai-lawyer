@@ -2,6 +2,8 @@
 from statistics import mean
 from typing import Callable
 
+from evals.metrics import mean_of
+
 SCHEMA = {
     "type": "object",
     "properties": {"faithful": {"type": "boolean"}, "unsupported": {"type": "array", "items": {"type": "string"}},
@@ -36,11 +38,7 @@ def judge_summary(text: str, summary: str, generate: Callable[[str, dict], dict]
 
 
 def summarize_scores(rows: list[dict]) -> dict:
-    def avg(key):
-        vals = [r[key] for r in rows if r.get(key) is not None]
-        return round(mean(vals), 3) if vals else None
-
     grades = [r["grade"] for r in rows]
-    return {"n": len(rows), "faithful": avg("faithful"), "no_advice": avg("no_advice"),
+    return {"n": len(rows), "faithful": mean_of(rows, "faithful"), "no_advice": mean_of(rows, "no_advice"),
             "mean_grade": round(mean(grades), 1), "grade_le_10": round(sum(g <= 10 for g in grades) / len(grades), 3),
             "judge_errors": sum(r.get("faithful") is None for r in rows)}

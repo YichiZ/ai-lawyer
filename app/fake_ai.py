@@ -4,7 +4,7 @@ embed_query returns the stored embedding of the best keyword match, so retrieval
 generate quotes the first sentence of the first passage, so quote verification runs for real.
 """
 import re
-from typing import Callable
+from typing import Callable, ContextManager
 
 import psycopg
 from pgvector.psycopg import register_vector
@@ -13,16 +13,12 @@ PASSAGE = re.compile(r"^\[(c\d+)\][^\n]*\n([^\n]+)", re.M)
 
 
 class FakeAI:
-    def __init__(self, connect: Callable[[], psycopg.Connection], close_after: bool = False):
-        self.connect, self.close_after = connect, close_after
+    def __init__(self, connect: Callable[[], ContextManager[psycopg.Connection]]):
+        self.connect = connect
 
     def embed_query(self, text: str) -> list[float]:
-        conn = self.connect()
-        try:
+        with self.connect() as conn:
             return self._embed(conn, text)
-        finally:
-            if self.close_after:
-                conn.close()
 
     def _embed(self, conn: psycopg.Connection, text: str) -> list[float]:
         register_vector(conn)

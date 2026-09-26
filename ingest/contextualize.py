@@ -4,15 +4,15 @@ Input: the law's title, the outline of the chunk's Part (section headings, cappe
 go into the embedding input only; the chunk text (which quotes are verified against) is never changed. Writing a
 chunk's sentences clears its embedding so `embed_pending` re-embeds it.
 """
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from typing import Callable
 
 import psycopg
 
+from ingest.chunks import run_batched
 from ingest.statutes import display_pinpoint
 
 MAX_OUTLINE_LINES = 60
-FLUSH_EVERY = 25
 PROMPT = """Here is the outline of part of {title}:
 {outline}
 
@@ -53,31 +53,11 @@ def contextualize_pending(conn: psycopg.Connection, generate: Callable[[str], st
         if doc_id not in sections_by_doc:
             sections_by_doc[doc_id] = [dict(zip(("pinpoint", "kind", "heading", "parent"), r)) for r in conn.execute(
                 "SELECT s.pinpoint, s.kind, s.heading, p.pinpoint FROM sections s LEFT JOIN sections p ON p.id = s.parent_id"
-                " WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,))]
+                " WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,))]  # outline only: no text, the cache spans the run
         key = (doc_id, pin)
         if key not in outlines:
             outlines[key] = part_outline(sections_by_doc[doc_id], pin)
         jobs.append((cid, build_prompt(title, display_pinpoint(pin), outlines[key], text)))
 
-    done: list[tuple[int, str]] = []
-
-    def flush():
-        if done:
-            with conn.transaction():
-                for cid, sentences in done:
-                    conn.execute("UPDATE chunks SET situating = %s, embedding = NULL WHERE id = %s", (sentences, cid))
-            done.clear()
-
-    calls = 0
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(generate, prompt): cid for cid, prompt in jobs}
-        try:
-            for fut in as_completed(futures):
-                done.append((futures[fut], " ".join(fut.result().split())))
-                calls += 1
-                if len(done) >= FLUSH_EVERY:
-                    flush()
-        finally:
-            flush()
-            pool.shutdown(cancel_futures=True)
-    return calls
+    return run_batched(conn, generate, jobs, lambda cid, out: conn.execute(
+        "UPDATE chunks SET situating = %s, embedding = NULL WHERE id = %s", (" ".join(out.split()), cid)), workers)

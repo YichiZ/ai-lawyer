@@ -40,20 +40,26 @@ def section_pinpoint(key: str, prefix: str) -> str:
     return slugify(key)
 
 
-def display_pinpoint(pinpoint: str) -> str:
-    """s-4-1 -> s. 4(1); r-1.06-2 -> r. 1.06(2); ss-25-49 -> ss. 25-49; part-iii.1 -> Part III.1."""
+def display_pinpoint(pinpoint: str, mcgill: bool = False) -> str:
+    """s-4-1 -> s. 4(1); r-1.06-2 -> r. 1.06(2); ss-25-49 -> ss. 25-49; part-iii.1 -> Part III.1.
+
+    mcgill=True is the citation form (McGill Guide): no period after s/r, an en dash in ranges (s 4(1), ss 25–49).
+    """
     if re.fullmatch(r"\d+-\d+(?:\.\d+)*", pinpoint):  # Toronto Municipal Code: 743-9 -> § 743-9
         return f"§ {pinpoint}"
-    if pinpoint.startswith("para-"):  # decisions: para-45 -> para 45
+    if pinpoint.startswith("para-") and not mcgill:  # decisions: para-45 -> para 45 (citations add "at para")
         return f"para {pinpoint[5:]}"
     head, _, rest = pinpoint.partition("-")
+    dot = "" if mcgill else "."
     if head in ("s", "r"):
         num, _, sub = rest.partition("-")
-        return f"{head}. {num}" + (f"({sub})" if sub else "")
+        return f"{head}{dot} {num}" + (f"({sub})" if sub else "")
     if head in ("ss", "rr"):
-        return f"{head}. {rest}"
+        return f"{head}{dot} {rest.replace('-', '–') if mcgill else rest}"
     if head == "part":
         return f"Part {rest.upper()}"
+    if head == "rule" and mcgill:
+        return f"Rule {rest}"
     words = pinpoint.split("-")
     return " ".join([words[0].capitalize()] + [w.upper() for w in words[1:]])
 

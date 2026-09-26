@@ -164,7 +164,7 @@ gcloud auth application-default login
 gcloud auth application-default set-quota-project <your-project>
 uv sync && npm ci --prefix web
 make db                              # Postgres + Redis in Docker, schema applied
-uv run scripts/check_vertex.py       # Vertex smoke test (6 checks)
+uv run -m scripts.check_vertex       # Vertex smoke test (6 checks)
 ```
 
 Optional: put Langfuse Cloud keys in a gitignored `.env` (`chmod 600`) to turn on tracing and evals:
@@ -183,13 +183,13 @@ Each script is idempotent: it only redoes work whose source hash changed. The fe
 (Hugging Face) and toronto.ca, and record a sha256 and a manifest line for every file in `input/manifest.jsonl`.
 
 ```bash
-uv run scripts/fetch_a2aj.py && uv run scripts/load_statutes.py        # statutes and regulations
-uv run scripts/fetch_toronto.py && uv run scripts/load_toronto.py      # Toronto Municipal Code
-uv run scripts/fetch_a2aj.py --caselaw && uv run scripts/load_caselaw.py
-uv run scripts/contextualize_chunks.py && uv run scripts/embed_chunks.py
-uv run scripts/summarize_sections.py && uv run scripts/summarize_cases.py
-uv run scripts/build_glossary.py && uv run scripts/build_citations.py
-uv run --env-file .env scripts/build_guides.py                          # drafts go to the review queue
+uv run -m scripts.fetch_a2aj && uv run -m scripts.load_statutes        # statutes and regulations
+uv run -m scripts.fetch_toronto && uv run -m scripts.load_toronto      # Toronto Municipal Code
+uv run -m scripts.fetch_a2aj --caselaw && uv run -m scripts.load_caselaw
+uv run -m scripts.contextualize_chunks && uv run -m scripts.embed_chunks
+uv run -m scripts.summarize_sections && uv run -m scripts.summarize_cases
+uv run -m scripts.build_glossary && uv run -m scripts.build_citations
+uv run --env-file .env -m scripts.build_guides                          # drafts go to the review queue
 ```
 
 The LLM steps (context, summaries, guides) cost a few dollars on Vertex AI; the context and summary scripts print an estimate first.

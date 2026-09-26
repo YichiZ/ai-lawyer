@@ -42,12 +42,7 @@ def statute_refs(text: str) -> list[tuple[str, str | None]]:
     for m in NAME_ONLY.finditer(text):
         if not any(s <= m.start() < e for s, e in spans):
             found.append((m.start(), _slug(m.group("name")), None))
-    seen, out = set(), []
-    for _, slug, pin in sorted(found):
-        if (slug, pin) not in seen:
-            seen.add((slug, pin))
-            out.append((slug, pin))
-    return out
+    return list(dict.fromkeys((slug, pin) for _, slug, pin in sorted(found)))
 
 
 def build_citations(conn, citing_document_id: int, refs: list[tuple[str, str | None]], cases: list[str]) -> int:

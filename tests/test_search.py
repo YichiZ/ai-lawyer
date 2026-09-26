@@ -42,7 +42,7 @@ def test_is_question(q, yes):
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app, get_ai, get_conn  # noqa: E402
-from ingest.chunks import embed_pending, plan_chunks, sync_chunks  # noqa: E402
+from ingest.chunks import embed_pending, load_sections, plan_chunks, sync_chunks  # noqa: E402
 from ingest.statutes import load_document, parse_law  # noqa: E402
 from test_statutes import LAW, row  # noqa: E402
 
@@ -56,9 +56,7 @@ class FakeAI:
 def client(conn):
     load_document(conn, parse_law(row(), LAW))
     doc_id = conn.execute("SELECT id FROM documents WHERE slug = 'test-act'").fetchone()[0]
-    rows = conn.execute("SELECT s.id, s.pinpoint, s.kind, s.heading, s.text, p.pinpoint FROM sections s LEFT JOIN sections p"
-                        " ON p.id = s.parent_id WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,)).fetchall()
-    sync_chunks(conn, doc_id, plan_chunks("Test Act", [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]))
+    sync_chunks(conn, doc_id, plan_chunks("Test Act", load_sections(conn, doc_id)))
     embed_pending(conn, lambda t: [0.01] * 1536, model="fake", workers=1)
     app.dependency_overrides[get_conn] = lambda: conn
     app.dependency_overrides[get_ai] = lambda: FakeAI()
