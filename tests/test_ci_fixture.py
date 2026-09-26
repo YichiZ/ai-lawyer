@@ -2,7 +2,7 @@ from pathlib import Path
 
 from evals.ci_fixture import FIXTURE_DIR, load_fixture
 
-CSV = ["documents.csv", "sections.csv", "chunks.csv"]
+CSV = ["documents.csv", "sections.csv", "chunks.csv", "citations.csv"]
 
 
 def test_fixture_files_exist():
@@ -13,9 +13,9 @@ def test_fixture_files_exist():
 def test_load_fixture_into_empty_db(conn):
     conn.execute("DELETE FROM documents")
     counts = load_fixture(conn, FIXTURE_DIR)
-    assert counts["documents"] == 3 and counts["sections"] > 100 and counts["chunks"] > 30
+    assert counts["documents"] == 4 and counts["sections"] > 100 and counts["chunks"] > 30 and counts["citations"] > 0
     slugs = {r[0] for r in conn.execute("SELECT slug FROM documents")}
-    assert slugs == {"limitations-act-2002", "dog-owners-liability-act", "toronto-municipal-code-743"}
+    assert slugs == {"limitations-act-2002", "dog-owners-liability-act", "toronto-municipal-code-743", "2016-onca-585"}
     text, parent = conn.execute(
         "SELECT s.text, p.pinpoint FROM sections s JOIN documents d ON d.id = s.document_id"
         " LEFT JOIN sections p ON p.id = s.parent_id WHERE d.slug = 'limitations-act-2002' AND s.pinpoint = 's-15-2'"

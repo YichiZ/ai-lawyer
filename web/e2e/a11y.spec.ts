@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 
 // WCAG 2.2 AA checks on every page type. Pages are checked in both colour schemes.
 const PAGES = ["/", "/laws", "/laws/limitations-act-2002", "/laws/limitations-act-2002/s-4",
-               "/laws/toronto-municipal-code-743/743-44", "/search?q=limitation%20period", "/ask", "/glossary", "/review"];
+               "/laws/toronto-municipal-code-743/743-44", "/search?q=limitation%20period", "/ask", "/glossary", "/review", "/cases/2016-onca-585"];
 
 for (const scheme of ["light", "dark"] as const) {
   test.describe(`${scheme} mode`, () => {

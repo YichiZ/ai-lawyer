@@ -8,13 +8,15 @@ from pathlib import Path
 import psycopg
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "corpus"
-WITH_CHUNKS = ("limitations-act-2002", "dog-owners-liability-act")
+WITH_CHUNKS = ("limitations-act-2002", "dog-owners-liability-act", "2016-onca-585")  # + Galota (cites LA s. 4, 5(1))
 SECTIONS_ONLY = ("toronto-municipal-code-743",)
 TABLES = {
     "documents": ("id, sha256, kind, slug, title, short_name, citation, jurisdiction, in_force_from, url, source, "
-                  "upstream_license, reproduction"),
-    "sections": "id, document_id, parent_id, pinpoint, kind, heading, text, sort_order",
+                  "upstream_license, reproduction, neutral_citation, court, date, plain_summary"),
+    "sections": "id, document_id, parent_id, pinpoint, kind, heading, text, sort_order, plain_summary",
     "chunks": "id, document_id, section_ids, pinpoint, text, text_sha256, context, embedding, embedding_model",
+    "citations": ("id, citing_document_id, kind, cited_citation, cited_document_id, cited_slug, cited_pinpoint,"
+                  " cited_section_id"),
 }
 
 
@@ -25,6 +27,11 @@ def export_fixture(conn: psycopg.Connection, out: Path = FIXTURE_DIR) -> dict[st
         "documents": "slug = ANY(%(all)s)",
         "sections": "document_id IN (SELECT id FROM documents WHERE slug = ANY(%(all)s))",
         "chunks": "document_id IN (SELECT id FROM documents WHERE slug = ANY(%(chunked)s))",
+        # only links whose both ends are in the fixture (others would break foreign keys)
+        "citations": ("citing_document_id IN (SELECT id FROM documents WHERE slug = ANY(%(all)s))"
+                      " AND (cited_section_id IS NULL OR cited_section_id IN (SELECT s.id FROM sections s JOIN documents d"
+                      " ON d.id = s.document_id WHERE d.slug = ANY(%(all)s)))"
+                      " AND (cited_document_id IS NULL OR cited_document_id IN (SELECT id FROM documents WHERE slug = ANY(%(all)s)))"),
     }
     counts = {}
     for table, cols in TABLES.items():
