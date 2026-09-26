@@ -64,6 +64,7 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — A hung Vertex call blocked a run for minutes → every client gets `HttpOptions(timeout=30_000, retry_options=...)` retrying 429/5xx.
 - 2026-09-25 — On an easy question the model answered from memory without searching → grounding checks must ask for something that needs a search, and code must check `grounding_metadata.grounding_chunks` is non-empty.
 - 2026-09-25 — Grounding source URIs come back as `vertexaisearch.cloud.google.com` redirects → resolve to the real URL and title before storing or citing.
+- 2026-09-26 — Following a grounding redirect to the target site failed on sites that 405 a HEAD, and the fallback stored the redirect → read the redirector's `Location` header only, and drop the source when it can't be resolved.
 - 2026-09-25 — ADC expired mid-session (`RefreshError: Reauthentication is needed`) → the user must run `gcloud auth application-default login` (it opens a browser); ask them, don't retry.
 - 2026-09-25 — `grep` in a pipe buffered all output of a long run, so progress was invisible → print with `flush=True` and avoid piping long runs through `grep`.
 - 2026-09-25 — macOS has no `timeout` command → use SDK/http timeouts, not shell `timeout`.

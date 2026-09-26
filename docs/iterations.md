@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Fix · Web fallback stored a vertexaisearch redirect
+
+- **What:** answer 393's `web_sources` kept a `grounding-api-redirect` URL (title "dronemap.com", domain `vertexaisearch.cloud.google.com`). Cause: `_head` let urllib follow the redirect to the target site, dronemap.com answered HEAD with 405, and `resolve_url` fell back to the redirect URL. Now `_head` reads the redirector's `Location` header without contacting the target, and `resolve_url` returns `None` on any failure (or a result that is still a redirect), so `search_web` drops that source instead of storing it.
+- **Validated:** tests red first (2 failed) → green; full suite 386 passed. The 393 redirect now resolves to `https://dronemap.com/ca/on/mississauga/places/toronto-pearson-international-airport/rules`. Live grounding call on the same question: 6 sources, all real URLs, none from vertexaisearch.
+- **Numbers:** 1 Vertex call; 1 HEAD per source, to Google's redirector only.
+- **Next:** answer 393 in the dev DB still holds the old redirect (it was stored before the fix).
+
 ## 2026-09-26 · Repo presentation · README header, screenshots, guarantees table
 
 - **What:** README gets a light/dark logo (`docs/logo*.svg`), badges (live CI, stack, eval numbers, licence), section nav, three real screenshots (`docs/img/`, Playwright at 2x against the dev DB), a "What keeps an answer honest" table linking each guarantee to the code and test that enforce it, and a Mermaid pipeline diagram. MIT `LICENSE` for the code (data keeps upstream licences). Modelled on YichiZ/toronto-3djs.

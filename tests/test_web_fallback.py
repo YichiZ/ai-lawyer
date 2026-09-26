@@ -12,11 +12,31 @@ def test_resolve_url_follows_redirects_and_keeps_title():
     assert resolve_url("https://www.canada.ca/x", head) == "https://www.canada.ca/x"
 
 
-def test_resolve_url_failure_keeps_original():
+def test_resolve_url_failure_drops_the_source():
     def boom(url):
         raise TimeoutError("slow")
 
-    assert resolve_url("https://vertexaisearch.cloud.google.com/r/1", boom) == "https://vertexaisearch.cloud.google.com/r/1"
+    assert resolve_url("https://vertexaisearch.cloud.google.com/r/1", boom) is None
+    assert resolve_url("https://vertexaisearch.cloud.google.com/r/1", lambda u: u) is None  # never store a redirect
+
+
+def test_search_web_skips_unresolvable_sources(monkeypatch):
+    from types import SimpleNamespace as NS
+
+    from app import web_fallback
+
+    def fake_head(url):
+        if url.endswith("/dead"):
+            raise OSError("HTTP Error 405: Method Not Allowed")
+        return "https://www.ontario.ca/page/x"
+
+    monkeypatch.setattr(web_fallback, "_head", fake_head)
+    chunks = [NS(web=NS(uri="https://vertexaisearch.cloud.google.com/grounding-api-redirect/ok", title="ontario.ca")),
+              NS(web=NS(uri="https://vertexaisearch.cloud.google.com/grounding-api-redirect/dead", title="dronemap.com"))]
+    response = NS(text="Answer.", candidates=[NS(grounding_metadata=NS(grounding_chunks=chunks))])
+    client = NS(models=NS(generate_content=lambda **kw: response))
+    _, sources = web_fallback.search_web("q", client, "m")
+    assert sources == [{"url": "https://www.ontario.ca/page/x", "title": "ontario.ca", "domain": "ontario.ca"}]
 
 
 def test_domain_of():
