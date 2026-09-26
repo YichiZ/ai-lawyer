@@ -2,6 +2,16 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 2 · 2.4 Answer experiment + judge + gate calibration
+
+- **What:** `evals/answers.py` (facts_covered, refusal_correct, verified_rate, gate_tradeoff; `judge_answer` — one gemini-3.5-flash-lite call per answer grading each claim against its own quote plus faithful / gives_advice; malformed output → `judge_error`, not dropped). `scripts/eval.py answers`: full pipeline per gold item without DB writes (retrieve → gate → gemini-3.7-flash → verify → subsection pinpoints), code + judge evaluators, local report with gate trade-off and a judge spot-check sample.
+- **Validated:** tests red first → 14 new (200 total). Run → [Langfuse dataset run](https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/f9559fe4-7f54-4193-9e3d-6ef0dca1f486), 0 judge errors.
+- **Baseline (62 in scope / 15 out of scope):** has verified claim 0.919 · verified claim rate 0.994 · facts covered 0.847 · **citation supported (judge) 0.959** (target ≥ 0.95) · faithful 0.912 · no advice 1.000 · in-scope not refused 0.919 · **out-of-scope refused 0.933** (target ≥ 0.90; the miss, oos-06 CRA tax, ended `unverified` — nothing released, but not a clean refusal) · latency p50 / p95: sources 313 / 553 ms, total 3.5 / **9.2 s** (target < 8 s; 2-attempt `unverified` items and concurrency 4 inflate it). Limitations again weakest (0.6 has-verified / facts).
+- **In-scope refused (unverified):** mv-11, lim-02, lim-03, lim-07, lim-09 — the same items retrieval missed.
+- **Gate trade-off (best distance):** 0.30 → refuses 7/15 out-of-scope, 0 in-scope; 0.28 → 10/15, 1 in-scope; 0.26 → 11/15, 3 in-scope; current 0.35 → 0/15. Proposed 0.30 (saves model calls, no false refusals); change pending user OK.
+- **Judge spot check:** random 10 — main session agrees 10/10; the 7 judge rejections — agrees with 5 (claims adding unquoted detail), disagrees with 2 (mv-06: too strict on a rule stated without its exception / a quote starting with "unless"). **User spot-check pending** before the baseline is recorded.
+- **Next:** 2.6 review decisions as scores; then 2.5 baseline + CI once the gold and judge spot checks are approved.
+
 ## 2026-09-25 · Phase 2 · 2.3 Retrieval experiment (baseline)
 
 - **What:** `evals/metrics.py` (a hit matches an expected pinpoint in the same law when either contains the other; recall@8 = any expected in top 8; MRR), `evals/langfuse_io.py` (dataset `ontario-injury-gold`, items keyed by gold id → idempotent), `scripts/eval.py retrieval` (Langfuse `run_experiment` over the dataset, real embedding + `retrieve`, item evaluators recall@8/mrr; local copy in `evals/runs/`, gitignored).

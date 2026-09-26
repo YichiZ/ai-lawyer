@@ -28,7 +28,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `make api` — FastAPI on :8000 (`/docs`), loads `.env` (Langfuse tracing on when keys are present). `uv run scripts/crawl_api.py` — request every section, report status + p50/p95.
 - `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run scripts/crawl_api.py --web http://localhost:3000` — crawl every rendered section page.
 - `uv run scripts/check_gold.py [file]` — validate the gold set against the corpus.
-- `uv run --env-file .env scripts/eval.py retrieval` — Langfuse retrieval experiment on the gold set (recall@8, MRR by topic).
+- `uv run --env-file .env scripts/eval.py retrieval|answers` — Langfuse experiments on the gold set (retrieval: recall@8, MRR; answers: code metrics + Flash-Lite judge, gate trade-off).
 - `make e2e` — Playwright UI tests; starts its own API (`AI_FAKE=1`, :8001) and web (:3001), so it runs beside `make api`/`make web`.
 - Frontend logic that needs tests (indent levels, citations) lives in the API (`app/format.py`, pytest), so the web app has no test runner yet.
 - Add commands here as they are created (`make eval`).
