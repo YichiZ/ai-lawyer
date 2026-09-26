@@ -1,4 +1,31 @@
-from app.web_fallback import WEB_LABEL, compose_web_draft, domain_of, resolve_url
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+from app.web_fallback import WEB_LABEL, _head, compose_web_draft, domain_of, resolve_url
+
+
+def test_head_reads_location_without_visiting_the_target():
+    hits = []
+
+    class Redirector(BaseHTTPRequestHandler):
+        def do_HEAD(self):
+            hits.append(self.path)
+            self.send_response(302 if self.path == "/r" else 405)  # the target refuses HEAD, like dronemap.com
+            self.send_header("Location", "/real")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Redirector)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        assert _head(f"{base}/r") == f"{base}/real"
+        assert hits == ["/r"]
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_resolve_url_follows_redirects_and_keeps_title():

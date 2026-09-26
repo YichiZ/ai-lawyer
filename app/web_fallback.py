@@ -33,6 +33,7 @@ def _head(url: str) -> str:
     try:
         urllib.request.build_opener(_NoRedirect).open(req, timeout=5).close()
     except urllib.error.HTTPError as e:
+        e.close()  # the error wraps the open response
         if 300 <= e.code < 400 and e.headers.get("Location"):
             return urljoin(url, e.headers["Location"])
         raise
