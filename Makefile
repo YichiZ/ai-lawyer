@@ -1,4 +1,4 @@
-.PHONY: up db test psql
+.PHONY: up db test psql api
 
 up:  ## start Postgres and wait until healthy
 	docker compose up -d --wait db
@@ -11,3 +11,6 @@ test: up  ## run the test suite against a fresh ai_lawyer_test database
 
 psql:
 	docker compose exec db psql -U postgres -d ai_lawyer
+
+api: up  ## run the API with reload on http://localhost:8000
+	uv run uvicorn app.main:app --reload --port 8000

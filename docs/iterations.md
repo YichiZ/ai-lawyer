@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.6 Law library API
+
+- **What:** FastAPI app (`app/main.py`, queries in `app/laws.py`): `GET /laws` (grouped by kind, section counts), `GET /laws/{slug}` (document + part/section tree, no text), `GET /laws/{slug}/{pinpoint}` (text, children, breadcrumb, prev/next, document provenance). One envelope `{data, error, meta}` for every response, including 404, 422 (slug/pinpoint must match `^[a-z0-9][a-z0-9.\-]*$`) and 500 (logged, generic message). `reproduction='excerpt'` documents return at most 300 chars + "…" and `full_text: false`. Deps: fastapi, uvicorn, httpx (dev). `make api`, `.claude/launch.json` (api), `scripts/crawl_api.py`.
+- **Validated:** tests red first → 11 API tests, 108 total passing. Crawl against the running API: 15 laws, **3,282/3,282 section pages 200**, p50 9.5 ms, p95 14.0 ms (target < 100 ms). § 719-2 returns a 301-char excerpt with `full_text: false`; unknown pinpoint → 404.
+- **Numbers:** p95 14 ms with a new DB connection per request (no pool yet).
+- **Next:** 1.7 — Next.js law library + section pages.
+
 ## 2026-09-25 · Phase 1 · 1.5 Toronto Municipal Code layer
 
 - **What:** a research subagent found the chapters (ch. 719 Snow and Ice Removal, 743 Streets and Sidewalks, 629 Property Standards), robots.txt (allowed) and toronto.ca's copyright notice (no copying without permission). User chose: download for local indexing only; UI shows excerpts + link. `scripts/fetch_toronto.py` (≤ 1 req/s, Last-Modified skip, manifest lines with the licence note); `ingest/bylaws.py` parses `pdftotext` output (skips the TOC, drops page headers/numbers/dates, Articles → parts, `§ 743-9` → pinpoint `743-9`); `scripts/load_toronto.py`; new `documents.reproduction` ('full' | 'excerpt').

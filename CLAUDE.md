@@ -23,6 +23,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432, dev only) / apply `db/schema.sql` (idempotent).
 - `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report. `uv run scripts/load_statutes.py` — load the 12 laws (idempotent). `uv run scripts/fetch_toronto.py` / `load_toronto.py` — Toronto Municipal Code ch. 719, 743, 629 (needs `pdftotext`: `brew install poppler`). `uv run scripts/embed_chunks.py` — chunk + embed changed sections (idempotent, resumable).
 - `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
+- `make api` — FastAPI on :8000 (`/docs`). `uv run scripts/crawl_api.py` — request every section, report status + p50/p95.
 - Add commands here as they are created (`make dev`, `make eval`).
 
 ## Stack (decided — see design doc for why)
