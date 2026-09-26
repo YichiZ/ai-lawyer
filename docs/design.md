@@ -2,7 +2,7 @@
 
 Sep 25, 2026 · Yichi Zhang · Live version: https://claude.ai/artifact/1eXMcx8vLmKPCRgCxgPpLn
 
-We will build a research guide to Ontario personal-injury law, plaintiff side and Toronto-focused, for paralegals and law students: browse every relevant law, search it in everyday or legal words, and ask research questions whose answers a human reviewer approves before release. It is a portfolio demo. v0 covers ~20 statutes and regulations; v1 adds Ontario Court of Appeal and Supreme Court of Canada decisions from the open A2AJ dataset.
+We will build a research guide to Ontario personal-injury law, plaintiff side and Toronto-focused, for paralegals and law students: browse every relevant law, search it in everyday or legal words, and ask research questions whose answers a human reviewer approves before release. It is a portfolio demo. v0 covers 12 statutes and regulations (2,946 sections); v1 adds Ontario Court of Appeal and Supreme Court of Canada decisions from the open A2AJ dataset.
 
 ## Goals and non-goals
 
@@ -313,7 +313,7 @@ At scale: binary-quantized first pass + halfvec rescore; shard or move vectors p
 
 | Phase | Delivers | Exit criterion |
 | --- | --- | --- |
-| 1 | ~20 Ontario Acts + Toronto layer ingested; law library + section pages; `/ask` drafts + review queue | Every section browsable; one reviewed answer with a verified quote |
+| 1 | 12 Ontario statutes and regulations + Toronto layer ingested; law library + section pages; `/ask` drafts + review queue | Every section browsable; one reviewed answer with a verified quote |
 | 2 | Gold set + Langfuse experiments in CI; review decisions logged | Baseline recorded |
 | 3 | Typeahead, synonyms, hybrid, rerank, context | Each step's eval delta recorded |
 | 4 | 5 topic guides, summaries, glossary, visual design pass | Summaries ≥ 95% faithful, grade ≤ 10; Lighthouse green |

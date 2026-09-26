@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.2 Acquire A2AJ statutes
+
+- **What:** `scripts/fetch_a2aj.py` downloads `LEGISLATION-ON` and `REGULATIONS-ON` Parquet (approved: 64.1 + 63.6 MB) into `input/a2aj/`, verifies sha256 against Hugging Face's `x-linked-etag`, and appends validated lines to `input/manifest.jsonl` (`ingest/manifest.py`). `ingest/v0.py` defines the 12 v0 instruments and matches them to rows by (dataset, normalized citation) with a title guard; `scripts/match_v0.py` prints the report. Dep: pyarrow. Licence checked: Ontario permits reproducing statutes and regulations without permission; rows are marked unofficial, so the UI must say so.
+- **Validated:** tests red first, then 34 new tests green (48 total). Fetch: 127.7 MB in 20 s, 2 manifest lines, `shasum -a 256` matches both; rerun → `0.0 MB downloaded, 0 new manifest lines`. Match report → `12/12 matched`, exit 0.
+- **Numbers:** 12 instruments, 2,946 sections (largest: Rules of Civil Procedure 677, Insurance Act 596, City of Toronto Act 554).
+- **Next:** 1.3 — load the 12 into `documents` + `sections` with pinpoints and hierarchy, idempotently.
+
 ## 2026-09-25 · Phase 1 · 1.1 Database and schema
 
 - **What:** `docker-compose.yml` (pgvector/pgvector:pg18, localhost:5432, healthcheck), idempotent `db/schema.sql` (documents, sections, chunks, users, answers; HNSW halfvec(1536), GIN tsv, trigram, btree indexes; generated `tsv`), `Makefile` (`up`, `db`, `test`, `psql`), `tests/test_schema.py`. Deps: psycopg[binary], pgvector, pytest (dev). Tables for citations, glossary, guides, synonyms, ingest_jobs deferred to the iterations that use them.

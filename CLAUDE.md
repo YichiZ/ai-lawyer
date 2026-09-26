@@ -21,6 +21,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `uv run scripts/check_vertex.py` — Vertex AI smoke test (6 checks). Run first in every session; if it fails, fix auth/models before anything else.
 - Local auth: `gcloud auth application-default login` then `gcloud auth application-default set-quota-project long-indexer-507414-n0`
 - `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432, dev only) / apply `db/schema.sql` (idempotent).
+- `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report.
 - `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
 - Add commands here as they are created (`make dev`, `make eval`).
 
@@ -52,4 +53,6 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — `grep` in a pipe buffered all output of a long run, so progress was invisible → print with `flush=True` and avoid piping long runs through `grep`.
 - 2026-09-25 — macOS has no `timeout` command → use SDK/http timeouts, not shell `timeout`.
 - 2026-09-25 — Postgres 18 images store data in `/var/lib/postgresql/18/docker` → mount the volume at `/var/lib/postgresql`, not `.../data`.
+- 2026-09-25 — Hugging Face `x-linked-etag` on a HEAD (redirects off) is the file's sha256 → compare it to the manifest to skip unchanged downloads with 0 bytes.
+- 2026-09-25 — A2AJ has all 12 v0 instruments; match by citation, not title (titles collide: "Limitations Act" federal vs "Real Property Limitations Act").
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.
