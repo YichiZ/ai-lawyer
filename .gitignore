@@ -6,3 +6,9 @@ __pycache__/
 
 # local eval run outputs
 evals/runs/
+.DS_Store
+
+# Claude Code: personal permissions and session worktrees (launch.json is shared)
+.claude/settings.json
+.claude/settings.local.json
+.claude/worktrees/

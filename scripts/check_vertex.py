@@ -9,7 +9,7 @@ import sys
 from google import genai
 from google.genai import types
 
-PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "long-indexer-507414-n0")
+PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")  # None: google-genai uses the ADC project
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
 TIMEOUT_MS = 30_000  # per call; grounding can run many searches
 ANSWER_MODEL = "gemini-3.7-flash"  # 3.8 Flash 504'd intermittently on Vertex global (2026-09-25)

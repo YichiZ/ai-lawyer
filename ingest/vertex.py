@@ -4,7 +4,7 @@ import os
 from google import genai
 from google.genai import types
 
-PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "long-indexer-507414-n0")
+PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")  # None: google-genai uses the ADC project
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
 TIMEOUT_MS = 30_000
 ANSWER_MODEL = "gemini-3.7-flash"

@@ -47,3 +47,9 @@ next-env.d.ts
 /lighthouse-reports/
 /.next-lh/
 /.lighthouseci/
+
+# e2e / lighthouse build dirs and reports
+/.next-*/
+/test-results/
+/playwright-report/
+/.lighthouseci/

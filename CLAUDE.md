@@ -21,7 +21,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 ## Commands
 
 - `uv run scripts/check_vertex.py` — Vertex AI smoke test (6 checks). Run first in every session; if it fails, fix auth/models before anything else.
-- Local auth: `gcloud auth application-default login` then `gcloud auth application-default set-quota-project long-indexer-507414-n0`
+- Local auth: `gcloud auth application-default login` then `gcloud auth application-default set-quota-project <your-gcp-project-id>` (project in `.env`, see `.env.example`)
 - `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432) and Redis 8 (localhost:6379), dev only / apply `db/schema.sql` (idempotent).
 - `make worker` — ingest worker for add-to-corpus jobs (Redis stream `ingest`; job state in `ingest_jobs`). Reviewer enqueues with `POST /ingest {url}`; `GET /ingest/{id}` shows status and stage.
 - `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report. `uv run scripts/load_statutes.py` — load the 12 laws (idempotent). `uv run scripts/fetch_toronto.py` / `load_toronto.py` — Toronto Municipal Code ch. 719, 743, 629 (needs `pdftotext`: `brew install poppler`). `uv run scripts/embed_chunks.py` — chunk + embed changed sections (idempotent, resumable).
