@@ -21,11 +21,11 @@ def embed_input(context: str, text: str, situating: str | None = None) -> str:
     return f"{context}\n{situating}\n\n{text}" if situating else f"{context}\n\n{text}"
 
 
-def _pack(pieces: list[tuple[list[int], str, str]]) -> list[tuple[list[int], str, str]]:
+def _pack(pieces: list[tuple[list[int], str, str]], limit: int = CHUNK_CHAR_LIMIT) -> list[tuple[list[int], str, str]]:
     """Greedily join (ids, pinpoint, text) pieces with newlines while under the limit."""
     out: list[tuple[list[int], str, str]] = []
     for ids, pin, text in pieces:
-        if out and len(out[-1][2]) + 1 + len(text) <= CHUNK_CHAR_LIMIT:
+        if out and len(out[-1][2]) + 1 + len(text) <= limit:
             prev_ids, prev_pin, prev_text = out[-1]
             out[-1] = (prev_ids + ids, prev_pin, prev_text + "\n" + text)
         else:
@@ -68,10 +68,22 @@ def plan_chunks(doc_title: str, sections: list[dict]) -> list[dict]:
 
 def plan_decision_chunks(name: str, citation: str, sections: list[dict]) -> list[dict]:
     """Windows of whole numbered paragraphs (~500 tokens); the intro/headnote is not chunked."""
-    paras = [s for s in sections if s["kind"] == "section"]
+    paras = []
+    for s in sections:
+        if s["kind"] != "section":
+            continue
+        if len(s["text"]) <= DECISION_CHUNK_CHARS:
+            paras.append(s)
+            continue
+        # Oversized paragraph (old decisions without [N] markers are one "paragraph"): split on line boundaries,
+        # keeping the paragraph's pinpoint — never invent paragraph numbers the court did not publish.
+        for _, _, piece in _pack([([s["id"]], s["pinpoint"], line) for line in s["text"].split("\n")],
+                                 DECISION_CHUNK_CHARS):
+            paras.append({**s, "text": piece})
     windows: list[list[dict]] = []
     for p in paras:
-        if windows and sum(len(x["text"]) + 1 for x in windows[-1]) + len(p["text"]) <= DECISION_CHUNK_CHARS:
+        if (windows and sum(len(x["text"]) + 1 for x in windows[-1]) + len(p["text"]) <= DECISION_CHUNK_CHARS
+                and windows[-1][-1]["pinpoint"] != p["pinpoint"]):
             windows[-1].append(p)
         else:
             windows.append([p])
@@ -80,7 +92,7 @@ def plan_decision_chunks(name: str, citation: str, sections: list[dict]) -> list
         first, last = w[0]["pinpoint"][5:], w[-1]["pinpoint"][5:]
         context = f"{name}, {citation} — " + (f"para {first}" if first == last else f"paras {first}–{last}")
         text = "\n".join(p["text"] for p in w)
-        chunks.append({"pinpoint": w[0]["pinpoint"], "section_ids": [p["id"] for p in w], "text": text,
+        chunks.append({"pinpoint": w[0]["pinpoint"], "section_ids": list(dict.fromkeys(p["id"] for p in w)), "text": text,
                        "context": context,
                        "text_sha256": hashlib.sha256(embed_input(context, text).encode()).hexdigest()})
     return chunks

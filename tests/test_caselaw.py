@@ -99,3 +99,13 @@ def test_decision_chunks_are_windows_of_whole_paragraphs():
     assert "\n".join(c["text"] for c in chunks) == "\n".join(p["text"] for p in paras)  # every paragraph, once, in order
     assert chunks[0]["pinpoint"] == "para-1" and chunks[0]["section_ids"][0] == 1
     assert chunks[0]["context"].startswith("Smith v Jones, 2023 ONCA 844 — paras 1–")
+
+
+def test_unnumbered_decision_is_split_into_windows_without_inventing_paragraph_numbers():
+    from ingest.chunks import DECISION_CHUNK_CHARS, plan_decision_chunks
+
+    lines = [f"Line {i} of an old judgment without paragraph numbers. " + "word " * 40 for i in range(200)]
+    whole = [{"id": 1, "pinpoint": "para-1", "kind": "section", "heading": None, "text": "\n".join(lines), "parent": None}]
+    chunks = plan_decision_chunks("Old v. Case", "1985 SCC 1", whole)
+    assert len(chunks) > 10 and all(len(c["text"]) <= DECISION_CHUNK_CHARS for c in chunks)
+    assert {c["pinpoint"] for c in chunks} == {"para-1"} and "\n".join(c["text"] for c in chunks) == whole[0]["text"]

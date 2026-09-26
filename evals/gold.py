@@ -8,7 +8,7 @@ from pathlib import Path
 import psycopg
 
 GOLD_PATH = Path(__file__).resolve().parent / "gold.jsonl"
-TOPICS = ("limitations", "city-claims", "slip-and-fall", "dog-bites", "motor-vehicle", "procedure-and-other",
+TOPICS = ("limitations", "city-claims", "slip-and-fall", "dog-bites", "motor-vehicle", "procedure-and-other", "case-law",
           "out-of-scope")
 
 
