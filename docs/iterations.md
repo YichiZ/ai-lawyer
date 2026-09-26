@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Repo presentation · User flows tried end to end, documented in README
+
+- **What:** README "User flows" section: browse, search/citation jump, ask → review → release, web fallback, add to library, guides/glossary.
+- **Validated:** each flow run by hand in the built-in browser against the dev DB with real Vertex calls: `LA s. 4` and `2024 SCC 32 at para 3` jumps; ask #390 → sources at once, draft in 6.7 s with 3 verified claims (CTA s. 42(6), (8)) → approved → researcher sees it; #391 (e-scooter) → all claims dropped, flagged unverified; #392 → "no close match" → web answer #393 → reviewer added the tc.canada.ca page → worker done, 7 sections in the library.
+- **Found:** one web source in #393 was stored as an unresolved `vertexaisearch.cloud.google.com` redirect, labelled "dronemap.com" (breaks the resolve-before-storing lesson) → split out as its own task. After a citation jump the search box keeps its text and focus, so pressing `/` again types a slash.
+
 ## 2026-09-26 · Repo presentation · README header, screenshots, guarantees table
 
 - **What:** README gets a light/dark logo (`docs/logo*.svg`), badges (live CI, stack, eval numbers, licence), section nav, three real screenshots (`docs/img/`, Playwright at 2x against the dev DB), a "What keeps an answer honest" table linking each guarantee to the code and test that enforce it, and a Mermaid pipeline diagram. MIT `LICENSE` for the code (data keeps upstream licences). Modelled on YichiZ/toronto-3djs.

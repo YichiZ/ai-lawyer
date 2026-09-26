@@ -24,6 +24,7 @@
 </p>
 
 <p align="center">
+  <a href="#user-flows">User flows</a> ·
   <a href="#what-keeps-an-answer-honest">Guarantees</a> ·
   <a href="#how-an-answer-is-made">Pipeline</a> ·
   <a href="#quick-start">Quick start</a> ·
@@ -60,6 +61,55 @@
   can add official pages (ontario.ca, canada.ca, ontariocourts.ca, scc-csc.ca, toronto.ca) to the library through a
   Redis Streams worker that obeys robots.txt and fetches at most 1 request/s.
 - **Topic guides:** 5 practice areas. Each section is drafted by the answer pipeline and shown only after review.
+
+## User flows
+
+There is no login: switch between the two demo roles, **Researcher** and **Reviewer**, in the page header. Each flow
+below was run by hand against the local app on 2026-09-26, with real Vertex AI calls.
+
+**1. Browse the law (researcher).** *Law library* → an Act → a section, e.g. *Limitations Act, 2002* s. 4. The page
+shows the official text, a plain-language summary, the glossary terms it uses ("proceeding", "claim", "discovered"),
+the decisions that cite it (103 for s. 4), a copyable citation and previous/next links. Click a citing decision, e.g.
+*Scott v. Golden Oaks*, 2024 SCC 32, to read it paragraph by paragraph with its own summary and the laws it cites.
+
+**2. Search or jump (researcher).** Press `/` anywhere to focus the search box.
+- Type a citation to jump straight there: `LA s. 4` opens Limitations Act s. 4; `2024 SCC 32 at para 3` opens the
+  decision at paragraph 3.
+- Type everyday words, e.g. `slipped on ice outside a store`. The results include the Occupiers' Liability Act's 60-day
+  snow-and-ice notice rule (s. 6.1) and Toronto's snow-clearing by-law (ch. 719), even though the query uses none of
+  their words. A question-shaped query offers a link to *Ask* it instead.
+
+**3. Ask a research question (researcher → reviewer → researcher).**
+1. *Ask* → type a question, e.g. "How soon must someone who slipped on an icy Toronto sidewalk notify the City?" →
+   **Ask**.
+2. The answer page opens at once with the sources found (City of Toronto Act s. 42, OLA s. 6.1, the ch. 719 by-law,
+   related Court of Appeal decisions). The answer itself shows **Awaiting review**, and the researcher cannot see the
+   draft.
+3. The draft is written in the background (6.7 s in this run). Switch to **Reviewer** → *Review*. The draft appears in
+   the queue with a table of each claim, its verified quote and the pinpoint it comes from (here s. 42(6) and s. 42(8):
+   written notice to the city clerk within 10 days, and the reasonable-excuse exception).
+4. Choose **Approve**, **Edit** (rewrite the text) or **Reject** (with a reason). After approval, the researcher who
+   refreshes sees the answer with its quotes.
+
+If none of the model's quotes can be found word for word in the sources, every claim is dropped and the draft is
+flagged "No statement could be verified". It goes to the top of the reviewer's queue instead of reaching the researcher.
+
+**4. When the library has no answer: web fallback (researcher → reviewer).** Ask something outside the library, e.g.
+drone rules near Pearson airport. The page says *Our law library has no close match* and offers **Search the web
+instead**. That makes a Google Search–grounded draft labelled *Web search answer — not from our law library*, which is
+reviewed like any other. In the queue, the reviewer sees each web source. Official pages (ontario.ca, canada.ca,
+ontariocourts.ca, scc-csc.ca, toronto.ca) get an **Add to library** button, and every other source is marked "not an
+official source; cannot be added".
+
+**5. Grow the library (reviewer).** **Add to library** queues a job and shows *Queued* with a **Check status** button;
+`make worker` must be running. The worker checks robots.txt, fetches the page, splits it into sections and embeds
+them, and the page appears under *Law library → Official web pages*. In this run, a Transport Canada page became
+7 sections in the library within seconds, so later questions can be answered from it with verified quotes.
+
+**6. Topic guides and glossary (researcher).** The home page lists 5 practice-area guides (motor vehicle accidents,
+slip and fall, claims against the City, dog bites, limitation periods). Each guide section is a standard question put
+through the same answer pipeline, and it shows *awaiting review* until a reviewer approves it. The *Glossary* lists
+every defined legal term in plain language, each with a link to the section that defines it.
 
 ## What keeps an answer honest
 
