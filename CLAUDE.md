@@ -30,6 +30,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run scripts/crawl_api.py --web http://localhost:3000` — crawl every rendered section page.
 - `uv run scripts/check_gold.py [file]` — validate the gold set against the corpus.
 - `uv run --env-file .env scripts/eval.py retrieval|answers` — Langfuse experiments on the gold set (retrieval: recall@8, MRR; answers: code metrics + Flash-Lite judge, gate trade-off).
+- `make eval-suite` / `uv run --env-file .env scripts/eval_suite.py [name …]` — production eval suite (docs/evals-plan.md, results in docs/evals.md): pinpoint, search, safety, abstention, robustness, glossary; exit 1 on a missed threshold.
 - `make eval` — local only: both experiments vs `evals/baseline.json` (fails on regression / failed items / hash change). `make eval-baseline` re-records it deliberately. `make ci-fixture` re-exports the CI corpus.
 - `uv run --env-file .env scripts/profile_ask.py [n]` — stage latencies of the /ask pipeline (sequential). `scripts/sweep_fusion.py`, `scripts/sweep_rerank.py [candidates]`, `scripts/diagnose_retrieval.py [ids]` — offline retrieval tuning.
 - `loadtest/locustfile.py` — locust load test (`Researcher` mix on a fake-model API with 4 workers; `Asker` at a low rate on the real model); commands in its docstring.
@@ -96,5 +97,7 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-26 — A guessed official URL 404'd and was retried with backoff; real pages carry menus inside `<main>` → treat 4xx as permanent (dead at once) and drop link-only blocks when parsing HTML; always try a parser on one real page before trusting fixture tests.
 - 2026-09-26 — In CI a backgrounded `uv run uvicorn &` kept uv's cache lock, so setup-uv's post-step prune timed out and failed the job → start background servers from `.venv/bin/` in CI.
 - 2026-09-26 — No gemini-3.7-flash quota on this project is adjustable (Vertex global = shared capacity; only a 50M input-tokens/min cap at 0% use), and the account is on the free trial → 429s and the draft tail are shared-capacity limits; the fixes are Provisioned Throughput (needs a paid account) or fewer/shorter calls, not a quota request.
+- 2026-09-26 — The first abstention scorer counted decision-grounded answers as "unsourced", and the glossary judge called non-answers "faithful" → read every failing item (and a sample of passing ones) before trusting a new eval's number.
+- 2026-09-26 — A background Python script writing to a file printed nothing until it exited, and `cat > f 2>/dev/null || …` truncated a script to 0 bytes → use `python -u` / `flush=True`, and write files with the Write tool.
 - 2026-09-26 — `pkill -f next-server` killed the user's dev server too, and a leaked `next start` served a stale build → kill test servers by their exact port pattern (`next start --port 3002`), never generic names.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

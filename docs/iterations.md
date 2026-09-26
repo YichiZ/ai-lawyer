@@ -21,6 +21,21 @@ One entry per iteration, newest first. Format: date · milestone · what changed
 - **Validated:** README rendered through the GitHub Markdown API with the relative images: logo, badges, screenshots and the guarantees table display correctly. The CI badge and Mermaid diagram only render on github.com, and the repo is private, so neither was seen rendered.
 - **Next:** GitHub description, topics and social preview image are repo settings, not files → set by the owner.
 
+## 2026-09-26 · Production readiness · user flows, bug bash, eval suite
+
+- **User flows:** `docs/user-flows.md`, 10 flows with acceptance criteria. `make e2e-ci` passed 30/30. Hand tests on the full corpus and the real model covered library, by-law excerpt, search, ask → review → release, 404s and 375 px mobile width. Filed #12 (P1, typeahead sends decisions to `/laws/<case>`), #13, #14, #15, #16, and added evidence to #8. The 10 issues another session had filed were not duplicated.
+- **Eval suite:** plan in `docs/evals-plan.md`, results in `docs/evals.md`. `evals/suite.py` holds the pure scorers (7 unit tests). `scripts/eval_suite.py` / `make eval-suite` runs six evals on versioned datasets (`evals/data/`: 40 search, 28 safety, 15 abstention, 36 paraphrases), with thresholds set before the run.
+- **Results:**
+  - pinpoint 0.929 ❌ (#1)
+  - search jumps 0.857 ❌ (#12, #14, #20), hit@3 0.917 ✅
+  - safety: no advice 1.00 ✅, injection 1.00 ✅, out-of-scope 0.90 ✅ (#19), advice drafts flagged 0/7 (#7)
+  - abstention: invented 0 ✅, abstain-or-grounded 0.533 ❌ (#18: out-of-library statutes answered from decisions that quote them)
+  - robustness recall 1.00 ✅ (overlap 0.57)
+  - glossary: non-answers 23.5 % ❌ (#4), faithful among real definitions 0.968 ✅
+  - Cost under $1, about 10 min.
+- **Scorer checks:** every failing item was read by hand. The abstention scorer was wrong the first time: it counted decision-grounded answers as "unsourced", and its regex cut "Trespass to Property Act" short. It now separates invented / secondary / grounded; the threshold was not changed. The glossary judge scores non-answers as faithful, so faithfulness is reported over real definitions only.
+- **Next:** fix #1 (P0), #12, #18. Move the no-model parts of the suite into CI. Grow the datasets, and calibrate the judges against human labels.
+
 ## 2026-09-26 · Phase 6 · 6.2 Add to corpus, 6.3 Load test; Phase 5 decision summaries done
 
 - **6.2 What:** Redis 8 in Compose (AOF everysec, `noeviction`, 256 MB) + `redis-py`; `app/jobs.py` queue: `ingest_jobs` row in Postgres first, then `XADD` (id = hash of kind + url, so re-adding is a no-op), `XREADGROUP`/`XACK` in one group, `XAUTOCLAIM` sweeper, reconciler re-dispatching due retries, stale running rows and rows Redis lost; failures back off 1/4/16 min then `dead` + `ingest:dead`; refusals are permanent (dead at once). `ingest/web.py`: https on the 5 official domains only (redirects refused before they are followed), robots.txt, ≤ 1 req/s per host, file in `input/web/` + manifest line, HTML split on h2/h3 (menus and link-only blocks dropped) or PDF by page, kind `web` (toronto.ca excerpt-only), chunk + embed. `POST /ingest` (reviewer), `GET /ingest/{id}`; review queue lists web sources with "Add to library" for official ones; `make worker`; Redis service in CI. Added pages join law retrieval (`LAW_KINDS` + `web`) and the law list ("Official web pages").

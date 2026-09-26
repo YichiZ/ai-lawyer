@@ -1,0 +1,36 @@
+{"id": "slip-01-lay", "gold_id": "slip-01", "variant": "lay", "question": "What do property owners have to do to keep visitors safe in Ontario?"}
+{"id": "slip-01-legal", "gold_id": "slip-01", "variant": "legal", "question": "What standard of care does s. 3 of the OLA impose on an occupier toward persons on the premises?"}
+{"id": "slip-01-typo", "gold_id": "slip-01", "variant": "typo", "question": "whats the ocupiers duty of care under ontario liablity act"}
+{"id": "proc-10-lay", "gold_id": "proc-10", "variant": "lay", "question": "If my kid gets a settlement for being hurt, does a court have to okay it?"}
+{"id": "proc-10-legal", "gold_id": "proc-10", "variant": "legal", "question": "Is court approval required for a settlement of a claim by a party under disability (a minor)?"}
+{"id": "proc-10-typo", "gold_id": "proc-10", "variant": "typo", "question": "does my childs injury setlement need a judge to aprove it"}
+{"id": "lim-10-lay", "gold_id": "lim-10", "variant": "lay", "question": "Can both sides agree to pause or stretch the deadline to sue?"}
+{"id": "lim-10-legal", "gold_id": "lim-10", "variant": "legal", "question": "May the parties agree to suspend or extend a limitation period under the Limitations Act, 2002?"}
+{"id": "lim-10-typo", "gold_id": "lim-10", "variant": "typo", "question": "can limitation perod be extended by agrement ontario"}
+{"id": "slip-06-lay", "gold_id": "slip-06", "variant": "lay", "question": "If a property owner hires a contractor who messes up, is the owner still on the hook?"}
+{"id": "slip-06-legal", "gold_id": "slip-06", "variant": "legal", "question": "Is an occupier liable for damage caused by the negligence of an independent contractor it engaged?"}
+{"id": "slip-06-typo", "gold_id": "slip-06", "variant": "typo", "question": "occupier not liable independant contractor negligence when"}
+{"id": "mv-02-lay", "gold_id": "mv-02", "variant": "lay", "question": "How much gets taken off pain and suffering money in a car crash case?"}
+{"id": "mv-02-legal", "gold_id": "mv-02", "variant": "legal", "question": "What deductible applies to damages for non-pecuniary loss under s. 267.5 of the Insurance Act?"}
+{"id": "mv-02-typo", "gold_id": "mv-02", "variant": "typo", "question": "deductable for pain and sufering auto accident ontario"}
+{"id": "lim-04-lay", "gold_id": "lim-04", "variant": "lay", "question": "My kid got hurt at 14 \u2014 when does the time limit to sue start?"}
+{"id": "lim-04-legal", "gold_id": "lim-04", "variant": "legal", "question": "Does the limitation period run against a minor who is not represented by a litigation guardian?"}
+{"id": "lim-04-typo", "gold_id": "lim-04", "variant": "typo", "question": "does 2 year limit run while my son is under 18"}
+{"id": "lim-05-lay", "gold_id": "lim-05", "variant": "lay", "question": "Does the time limit pause if the injured person can't manage their own affairs mentally?"}
+{"id": "lim-05-legal", "gold_id": "lim-05", "variant": "legal", "question": "Is the basic limitation period tolled while the claimant is incapable of commencing a proceeding?"}
+{"id": "lim-05-typo", "gold_id": "lim-05", "variant": "typo", "question": "limitation period incapable person mental condition does it run"}
+{"id": "proc-02-lay", "gold_id": "proc-02", "variant": "lay", "question": "What happens to my compensation if I was partly to blame for getting hurt?"}
+{"id": "proc-02-legal", "gold_id": "proc-02", "variant": "legal", "question": "How are damages apportioned where the plaintiff is contributorily negligent?"}
+{"id": "proc-02-typo", "gold_id": "proc-02", "variant": "typo", "question": "if im partly at fault for my injury do i get less money"}
+{"id": "dog-05-lay", "gold_id": "dog-05", "variant": "lay", "question": "If a dog owner pays for a bite, can they get money back from someone else who was also at fault?"}
+{"id": "dog-05-legal", "gold_id": "dog-05", "variant": "legal", "question": "May a dog owner held liable under the DOLA seek contribution from another tortfeasor?"}
+{"id": "dog-05-typo", "gold_id": "dog-05", "variant": "typo", "question": "dog owner contribution from other person at fault bite"}
+{"id": "lim-07-lay", "gold_id": "lim-07", "variant": "lay", "question": "Does going to mediation stop the clock on the deadline to sue?"}
+{"id": "lim-07-legal", "gold_id": "lim-07", "variant": "legal", "question": "Is the limitation period suspended while the parties engage an independent third party to resolve the claim?"}
+{"id": "lim-07-typo", "gold_id": "lim-07", "variant": "typo", "question": "does mediaton stop limitation clock ontario"}
+{"id": "slip-04-lay", "gold_id": "slip-04", "variant": "lay", "question": "What does a property owner owe someone who knowingly took the risk of coming onto the property?"}
+{"id": "slip-04-legal", "gold_id": "slip-04", "variant": "legal", "question": "What duty is owed to a person who has willingly assumed the risks of entering the premises?"}
+{"id": "slip-04-typo", "gold_id": "slip-04", "variant": "typo", "question": "duty to person who willingly assumed risk entering premisses"}
+{"id": "dog-08-lay", "gold_id": "dog-08", "variant": "lay", "question": "Is a dog owner responsible if their dog bites a burglar?"}
+{"id": "dog-08-legal", "gold_id": "dog-08", "variant": "legal", "question": "Is an owner liable under the DOLA to a person bitten while committing a criminal act on the premises?"}
+{"id": "dog-08-typo", "gold_id": "dog-08", "variant": "typo", "question": "dog owner liable if dog bites someone commiting crime on property"}

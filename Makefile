@@ -1,4 +1,4 @@
-.PHONY: up db test psql api worker web e2e e2e-ci lighthouse eval eval-baseline ci-fixture
+.PHONY: up db test psql api worker web e2e e2e-ci lighthouse eval eval-suite eval-baseline ci-fixture
 
 up:  ## start Postgres + Redis and wait until healthy
 	docker compose up -d --wait db redis
@@ -26,6 +26,9 @@ e2e: up  ## Playwright UI tests (starts its own API with AI_FAKE=1 on :8001 and 
 
 eval: up  ## gold-set experiments in Langfuse; fails on a > 2-point drop vs evals/baseline.json (local only)
 	uv run --env-file .env scripts/eval.py gate
+
+eval-suite: up  ## production eval suite: pinpoint, search, safety, abstention, robustness, glossary (local; ~$1)
+	uv run --env-file .env scripts/eval_suite.py
 
 eval-baseline: up  ## run the experiments and record evals/baseline.json (deliberate; commit the result)
 	uv run --env-file .env scripts/eval.py record
