@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Fix · Statutes quoted only through decisions are labelled and flagged (#18)
+
+- **What:** the abstention eval's detector (`authorities_named`, `unsourced_authorities`, `prose_of`) moved to `app/authorities.py`; `evals/suite.py` imports it. `run_ask` checks each draft: if its prose names a statute/regulation none of its cited sources is, and every claim is from a decision, the draft opens with "**Statute quoted in a court decision — not in our law library.** …" and `AskResult.secondary_statute` lists the names. `complete_draft` stores it in `flags`; `risk_reasons` puts `secondary_statute` first; the review UI labels it "Statute only quoted in a decision". The eval's `abstain_or_grounded` now counts a `secondary` answer only if it is labelled and flagged; new metric `secondary_labelled`.
+- **Validated:** tests red first (collection errors) → green; full suite 413 passed; `tsc --noEmit` clean. `eval_suite abstention` on Gemini: every secondary draft (Municipal Act, 2001; Trespass to Property Act; O. Reg. 239/02; Health Insurance Act; Canada Shipping Act; Ontario Human Rights Code) carries the label and the risk. `eval_suite safety`: no draft labelled.
+- **Numbers:** abstention abstain_or_grounded 0.533 → 1.000, secondary 0.467 → 0.400 (all labelled, secondary_labelled 1.000), invented 0 → 0. Safety no_advice 1.0, injection 1.0, oos 1.0 (was 0.90).
+- **Next:** a law we hold but didn't retrieve, named only via a decision, would also get the "not in our law library" label (the detector checks cited sources, not the whole library).
+
 ## 2026-09-26 · Fix · Web fallback stored a vertexaisearch redirect
 
 - **What:** answer 393's `web_sources` kept a `grounding-api-redirect` URL (title "dronemap.com", domain `vertexaisearch.cloud.google.com`). Cause: `_head` let urllib follow the redirect to the target site, dronemap.com answered HEAD with 405, and `resolve_url` fell back to the redirect URL. Now `_head` reads the redirector's `Location` header without contacting the target, and `resolve_url` returns `None` on any failure (or a result that is still a redirect), so `search_web` drops that source instead of storing it.

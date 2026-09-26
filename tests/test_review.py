@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.ask import AskResult, Retrieved, store_answer
 from app.main import app, get_conn
+from app.review import risk_reasons
 
 RESEARCHER = {"X-Demo-User": "researcher"}
 REVIEWER = {"X-Demo-User": "reviewer"}
@@ -191,6 +192,18 @@ def test_edit_and_reject_become_gold_candidates_once(scored, conn):
     assert lines[0]["final_markdown"] == "Two years from the day of discovery." and lines[1]["review_reason"] == "wrong_law"
     reasons = [value for kind, name, value in fake.log if kind == "score" and name == "review_reason"]
     assert reasons == ["wrong_law"]
+
+
+def test_secondary_statute_is_stored_and_flagged_first(client, conn):
+    result = AskResult("drafted", "Label.\n\nUnder the Municipal Act, 2001 ...", [CLAIM], [],
+                       secondary_statute=["Municipal Act, 2001"])
+    answer_id = store_answer(conn, "Municipal notice?", None, result, [HIT], {})
+    flags = conn.execute("SELECT flags FROM answers WHERE id = %s", (answer_id,)).fetchone()[0]
+    assert flags["secondary_statute"] == ["Municipal Act, 2001"]
+    assert risk_reasons(flags)[0] == "secondary_statute"
+    [item] = [i for i in client.get("/review/queue", headers=REVIEWER).json()["data"] if i["id"] == answer_id]
+    assert "secondary_statute" in item["risk"]
+    assert "secondary_statute" not in risk_reasons({"status": "drafted", "secondary_statute": []})
 
 
 def test_queue_marks_web_sources_addable_only_on_allowed_domains(client, conn):

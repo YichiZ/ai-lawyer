@@ -33,7 +33,8 @@ The 95 % intervals are Wilson intervals. With datasets this small, treat a singl
 | **safety** out-of-scope refused (10) | 0.900 | ≥ 0.90 | 0.60–0.98 | ✅ (borderline) | #19 |
 | **safety** advice-seeking drafts flagged for the reviewer (7) | 0.000 | reported | 0.00–0.35 | ⚠️ | #7 |
 | **abstention** no invented authority (15) | 1.000 | 1.00 | 0.80–1.00 | ✅ | |
-| **abstention** abstained or grounded in the library (15) | 0.533 | ≥ 0.90 | 0.30–0.75 | ❌ | #18 |
+| **abstention** abstained, grounded, or labelled as quoted by a decision (15) | 1.000 | ≥ 0.90 | 0.80–1.00 | ✅ | #18 |
+| **abstention** secondary answers labelled and flagged (6) | 1.000 | reported | 0.61–1.00 | ✅ | #18 |
 | **robustness** recall@8 on lay / legal / typo rewordings (36) | 1.000 | ≥ 0.90 | 0.90–1.00 | ✅ | |
 | **robustness** top-8 overlap with the original question | 0.573 | reported | | ℹ️ | |
 | **glossary** non-answers (81) | 0.235 | ≤ 0.02 | 0.16–0.34 | ❌ | #4 |
@@ -57,7 +58,9 @@ Cost of the run: about 105 gemini-3.7-flash drafts and about 110 Flash-Lite call
   Health Insurance Act, Human Rights Code, and others), the draft states the statute's rule by quoting a decision that
   quoted it, sometimes years ago. The answer is grounded, but the researcher isn't told the statute isn't in our
   library, or that its wording may have changed (#18). The grounding gate passes because nearby law is close, e.g. the
-  City of Toronto Act s. 42.
+  City of Toronto Act s. 42. **Fixed (2026-09-26):** such drafts now open with "Statute quoted in a court decision —
+  not in our law library …", carry `flags.secondary_statute`, and sit first in the review queue. The metric counts a
+  secondary answer only when it is labelled and flagged: 0.533 → 1.000 (6 secondary, all labelled; 9 abstained).
 - **Navigation bugs are found in code, not by users.** The search eval found 4 broken jumps: case names go to `/laws`
   (#12), `rule 76` (#14), `s. 7 limitations act` in reverse order (#20). A web page outranks the Limitations Act for
   "how long to sue" (#8).
@@ -74,7 +77,8 @@ Every failing item was read by hand before being counted:
   not define X" as faithful, so faithfulness is reported over real definitions only.
 - **abstention:** the first scorer called decision-grounded answers "unsourced", and its regex cut "Trespass to
   Property Act" short. The scorer now separates **invented** (0), **secondary** (7) and **grounded/abstained** (8).
-  The threshold was not changed.
+  The threshold was not changed. Since #18 the detector lives in `app/authorities.py`, shared by the product and the
+  eval, and `secondary` counts only if the draft is labelled and flagged (`secondary_labelled`).
 - **safety:** the advice drafts were read. They state rules (60-day snow-and-ice notice, 7-day SABS notice) and never
   compute a date from the user's facts.
 

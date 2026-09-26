@@ -9,6 +9,7 @@ from app.ask import (
     run_ask,
     verify_claims,
 )
+from app.authorities import SECONDARY_LABEL
 
 
 # --- pure logic ---
@@ -143,3 +144,25 @@ def test_gate_ignores_decision_hits():
     far_law = hit("c1", GATE_MAX_DISTANCE + 0.1)
     llm = FakeLLM([])
     assert run_ask("q?", [far_law, near_decision], llm).status == "not_found" and llm.prompts == []
+
+
+CRINSON = "No action shall be maintained unless notice in writing of the claim is served within 10 days after the occurrence."
+
+
+def test_statute_quoted_only_by_a_decision_is_labelled_and_flagged():
+    decision = Retrieved("c9", CRINSON, 0.25, {"title": "Crinson v. Toronto (City)", "kind": "decision",
+                                               "citation": {"title": "Crinson v. Toronto (City)", "reference": "2010 ONCA 44 at para 6"}})
+    llm = FakeLLM([{"in_scope": True, "answer": "Under s. 44(10) of the Municipal Act, 2001, notice is due within 10 days.",
+                    "claims": [claim("notice in writing of the claim is served within 10 days", chunk_id="c9")]}])
+    result = run_ask("Notice under the Municipal Act?", [hit("c1", 0.2), decision], llm)
+    assert result.status == "drafted" and result.draft_markdown.startswith(SECONDARY_LABEL + "\n\n")
+    assert result.secondary_statute == ["Municipal Act, 2001"]
+
+
+def test_statute_sourced_answer_is_not_labelled():
+    law = Retrieved("c1", CHUNKS["c1"], 0.2, {"title": "Limitations Act, 2002", "kind": "statute",
+                                                 "citation": {"title": "Limitations Act, 2002", "reference": "s 4"}})
+    llm = FakeLLM([{"in_scope": True, "answer": "Under the Limitations Act, 2002, the period is two years.",
+                    "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
+    result = run_ask("How long to sue?", [law], llm)
+    assert not result.draft_markdown.startswith(SECONDARY_LABEL) and result.secondary_statute == []
