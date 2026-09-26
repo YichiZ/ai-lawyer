@@ -1,0 +1,54 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "http://localhost:3002/",
+        "http://localhost:3002/laws/limitations-act-2002",
+        "http://localhost:3002/laws/limitations-act-2002/s-4",
+        "http://localhost:3002/laws/toronto-municipal-code-743/743-44"
+      ],
+      "numberOfRuns": 1,
+      "settings": {
+        "preset": "desktop",
+        "throttlingMethod": "simulate",
+        "throttling": {
+          "rttMs": 150,
+          "throughputKbps": 1600,
+          "cpuSlowdownMultiplier": 1
+        }
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:accessibility": [
+          "error",
+          {
+            "minScore": 1
+          }
+        ],
+        "cumulative-layout-shift": [
+          "error",
+          {
+            "maxNumericValue": 0.05
+          }
+        ],
+        "largest-contentful-paint": [
+          "warn",
+          {
+            "maxNumericValue": 2500
+          }
+        ],
+        "resource-summary:script:size": [
+          "warn",
+          {
+            "maxNumericValue": 153600
+          }
+        ]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "./lighthouse-reports"
+    }
+  }
+}

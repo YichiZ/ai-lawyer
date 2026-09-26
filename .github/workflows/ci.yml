@@ -61,3 +61,45 @@ jobs:
           name: playwright-traces
           path: web/test-results/
           retention-days: 7
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_DB: ai_lawyer
+          POSTGRES_PASSWORD: dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ai_lawyer" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      PGPASSWORD: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: uv sync --frozen
+      - name: Schema + fixture corpus
+        run: |
+          psql -h localhost -U postgres -d ai_lawyer -v ON_ERROR_STOP=1 -q -f db/schema.sql
+          uv run python -c "import psycopg; from evals.ci_fixture import load_fixture; c = psycopg.connect('postgresql://postgres:dev@localhost:5432/ai_lawyer'); print(load_fixture(c)); c.commit()"
+      - run: npm ci --prefix web
+      - name: Build and serve (fake model API on :8001, production web on :3002)
+        run: |
+          (cd web && NEXT_DIST_DIR=.next-lh API_URL=http://localhost:8001 npx next build)
+          AI_FAKE=1 uv run uvicorn app.main:app --port 8001 &
+          (cd web && NEXT_DIST_DIR=.next-lh API_URL=http://localhost:8001 npx next start --port 3002) &
+          sleep 8
+      - run: npx --prefix web lhci autorun --config=web/lighthouserc.json
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: web/lighthouse-reports/
+          retention-days: 14

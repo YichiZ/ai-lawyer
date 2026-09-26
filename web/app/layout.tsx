@@ -6,9 +6,10 @@ import SearchBox from "@/components/SearchBox";
 import { currentRole } from "@/lib/role";
 import "./globals.css";
 
+// Code font is not preloaded: only pinpoints use it. (display "optional" was tried in 4.5: no LCP gain.)
 const serif = Source_Serif_4({ variable: "--font-source-serif", subsets: ["latin"] });
 const sans = Source_Sans_3({ variable: "--font-source-sans", subsets: ["latin"] });
-const code = Source_Code_Pro({ variable: "--font-source-code", subsets: ["latin"] });
+const code = Source_Code_Pro({ variable: "--font-source-code", subsets: ["latin"], preload: false });
 
 export const metadata: Metadata = {
   title: { default: "Ontario Injury Law Guide", template: "%s · Ontario Injury Law Guide" },

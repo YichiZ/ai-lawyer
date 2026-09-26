@@ -1,8 +1,9 @@
 """Phase 4.4: create the 5 topic guides. Each section question is drafted by the /ask pipeline (retrieve, rerank,
 generate, verify) and lands in the review queue; the guide shows a section only after a reviewer approves it.
-Idempotent: existing sections are skipped.
+Idempotent: existing sections are skipped. --retry-failed re-drafts sections whose draft failed (Vertex 504/429)
+and removes the failed placeholder answer (never reviewed; the builder created it).
 
-Run: uv run --env-file .env scripts/build_guides.py
+Run: uv run --env-file .env scripts/build_guides.py [--retry-failed]
 """
 import os
 import sys
@@ -14,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app import ask  # noqa: E402
 from app.main import VertexAI, draft_answer  # noqa: E402
 from app.rerank import RERANK_CANDIDATES  # noqa: E402
+from ingest.vertex import json_generator, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 GUIDES = [  # slug, title, intro, [(heading, question)] — deadlines first, stated as rules
@@ -46,11 +48,35 @@ GUIDES = [  # slug, title, intro, [(heading, question)] — deadlines first, sta
 ]
 
 
+def draft(conn, connect, ai, generate, question: str) -> int:
+    candidates = ask.retrieve(conn, question, ai.embed_query(question), top_k=RERANK_CANDIDATES)
+    answer_id = ask.create_pending(conn, question, None, candidates[:ask.TOP_K], {"sources": 0}, None)
+    draft_answer(connect, answer_id, question, candidates, generate, None, ai.rerank)
+    return answer_id
+
+
+def status_of(conn, answer_id: int) -> str:
+    return conn.execute("SELECT flags->>'status' FROM answers WHERE id = %s", (answer_id,)).fetchone()[0]
+
+
 def main() -> int:
     ai = VertexAI()
+    # batch job: patient generation client (the app's interactive one gives up after 30 s)
+    generate = json_generator(make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000))
     connect = lambda: psycopg.connect(DATABASE_URL, autocommit=True)
     created = 0
     with connect() as conn:
+        if "--retry-failed" in sys.argv:
+            failed = conn.execute(
+                "SELECT gs.id, gs.guide_slug, gs.heading, gs.question, gs.answer_id FROM guide_sections gs"
+                " JOIN answers a ON a.id = gs.answer_id WHERE a.flags->>'status' = 'failed' AND a.status = 'pending_review'"
+            ).fetchall()
+            for sid, slug, heading, question, old in failed:
+                new = draft(conn, connect, ai, generate, question)
+                conn.execute("UPDATE guide_sections SET answer_id = %s WHERE id = %s", (new, sid))
+                conn.execute("DELETE FROM answers WHERE id = %s", (old,))
+                print(f"[{status_of(conn, new):<9}] retried {slug} / {heading} -> answer {new} (removed failed {old})", flush=True)
+            return 0
         for order, (slug, title, intro, sections) in enumerate(GUIDES, 1):
             conn.execute("INSERT INTO guides (slug, title, intro, sort_order) VALUES (%s, %s, %s, %s)"
                          " ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title, intro = EXCLUDED.intro,"
@@ -58,13 +84,10 @@ def main() -> int:
             for s_order, (heading, question) in enumerate(sections, 1):
                 if conn.execute("SELECT 1 FROM guide_sections WHERE guide_slug = %s AND heading = %s", (slug, heading)).fetchone():
                     continue
-                candidates = ask.retrieve(conn, question, ai.embed_query(question), top_k=RERANK_CANDIDATES)
-                answer_id = ask.create_pending(conn, question, None, candidates[:ask.TOP_K], {"sources": 0}, None)
-                draft_answer(connect, answer_id, question, candidates, ai.generate, None, ai.rerank)
+                answer_id = draft(conn, connect, ai, generate, question)
                 conn.execute("INSERT INTO guide_sections (guide_slug, heading, question, answer_id, sort_order)"
                              " VALUES (%s, %s, %s, %s, %s)", (slug, heading, question, answer_id, s_order))
-                status = conn.execute("SELECT flags->>'status' FROM answers WHERE id = %s", (answer_id,)).fetchone()[0]
-                print(f"[{status:<9}] {slug} / {heading} -> answer {answer_id}", flush=True)
+                print(f"[{status_of(conn, answer_id):<9}] {slug} / {heading} -> answer {answer_id}", flush=True)
                 created += 1
     print(f"{created} guide sections drafted; approve them in /review to publish", flush=True)
     return 0

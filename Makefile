@@ -1,4 +1,4 @@
-.PHONY: up db test psql api web e2e e2e-ci eval eval-baseline ci-fixture
+.PHONY: up db test psql api web e2e e2e-ci lighthouse eval eval-baseline ci-fixture
 
 up:  ## start Postgres and wait until healthy
 	docker compose up -d --wait db
@@ -35,3 +35,11 @@ e2e-ci: up  ## Playwright against a fresh ai_lawyer_ci DB (current schema + CI f
 	docker compose exec -T db psql -U postgres -d ai_lawyer_ci -v ON_ERROR_STOP=1 -q < db/schema.sql
 	uv run python -c "import psycopg; from evals.ci_fixture import load_fixture; c = psycopg.connect('postgresql://postgres:dev@localhost:5432/ai_lawyer_ci'); print(load_fixture(c)); c.commit()"
 	DATABASE_URL=postgresql://postgres:dev@localhost:5432/ai_lawyer_ci npm --prefix web run e2e
+
+lighthouse: up  ## production build + Lighthouse CI budgets (LCP, CLS, JS size, a11y) against the fake-model API
+	-pkill -f "next start --port 3002"; pkill -f "uvicorn app.main:app --port 8001"; sleep 1
+	cd web && NEXT_DIST_DIR=.next-lh API_URL=http://localhost:8001 npx next build
+	AI_FAKE=1 uv run uvicorn app.main:app --port 8001 & \
+	(cd web && NEXT_DIST_DIR=.next-lh API_URL=http://localhost:8001 npx next start --port 3002) & \
+	trap 'pkill -f "next start --port 3002"; pkill -f "uvicorn app.main:app --port 8001"' EXIT; \
+	sleep 6; cd web && npx lhci autorun

@@ -53,6 +53,13 @@ p a, dd a, td a, blockquote a, figcaption a {
   text-decoration-line: underline;
 }
 
+/* WCAG 2.2 target size (2.5.8): header links and buttons at least 24px tall whatever font loads. */
+header a, header button {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
+}
+
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
