@@ -72,7 +72,7 @@ When no chunk clears the relevance threshold, the answer comes from the web inst
 | Queue / workers | Redis 8 Streams + consumer groups; job records in Postgres | Fast dispatch and worker scale-out; Postgres keeps the durable job state (see Job queue) |
 | Parsing | A2AJ arrives pre-structured; Docling for PDFs and HTML | One tool for layout, tables and OCR; MIT licence |
 | Store | Postgres 18 + pgvector 0.8 (HNSW) + tsvector + pg_trgm | Vectors, keywords, typeahead, metadata and job records in one system |
-| Embeddings | gemini-embedding-2 at 1536 dims | Multimodal, 8,192-token input, MRL down-sizing, batch at 50% |
+| Embeddings | gemini-embedding-2 at 1536 dims | Multimodal, 8,192-token input, MRL down-sizing; one content per request, so bulk runs use a thread pool (3,259 chunks in 2 min) or a Vertex batch job |
 | Reranker | gemini-3.5-flash-lite, listwise (JSON ranking of passage ids) | One vendor, one auth path; tuned by eval |
 | Chunk context | gemini-3.5-flash-lite + context caching | Cheapest per-chunk summaries |
 | Answers + plain summaries | gemini-3.7-flash (low thinking) + verified quotes | Reliable 1–3 s on Vertex global; citations checked in code |

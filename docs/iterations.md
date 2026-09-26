@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.4 Chunk, index, embed
+
+- **What:** `ingest/chunks.py`: one chunk per section; sections over 3,200 chars (~800 tokens) split at subsection boundaries (else at line boundaries), packed greedily; parts and `[blank]` placeholders skipped. Each chunk keeps its section text verbatim, `section_ids`, a first pinpoint, and a deterministic `context` ("Limitations Act, 2002 — s. 4 — Basic limitation period") that feeds `tsv` and the embedding input. `sync_chunks` replaces a document's chunks only when the (pinpoint, hash) list changes and reuses embeddings by hash; `embed_pending` embeds missing/other-model chunks with an 8-thread pool, committing every 25. `ingest/vertex.py` is the shared client (30 s timeout, 5 attempts on 429/5xx). `scripts/embed_chunks.py` runs it all.
+- **Validated:** tests red first → 90 passed. Real run: 3,259 chunks, 3,259 calls, 0 missing, 122 s. Rerun: 0 calls (0.9 s). Nulled 10 embeddings → rerun made exactly 10 calls. 0 sections without a chunk. Keyword `limitation period` → Limitations Act chunks only. Vector (RETRIEVAL_QUERY): "time limit to sue" → Limitations Act s. 15, 16(1), **s. 4** (#3); "icy sidewalk in Toronto" → **City of Toronto Act s. 42** #1; "dog bit me" → **Dog Owners' Liability Act s. 2** #1.
+- **Numbers:** ~955k tokens embedded once. 25 chunks exceed 3,200 chars (single long lines; max 17,920 chars ≈ 4.5k tokens, under the 8,192-token input limit).
+- **Next:** 1.5 — Toronto Municipal Code layer (research + approval table before any download).
+
 ## 2026-09-25 · Phase 1 · 1.3 Load statutes into Postgres
 
 - **What:** `ingest/statutes.py` parses each A2AJ row into a document + tree: Part (`##` headings; `### RULE n` for the Rules) > section (A2AJ section map, text kept byte-for-byte) > subsection (`(1)`, `(1.1)` lines; clauses stay inside). Pinpoints `s-4`, `s-4-1`, `r-1.06`, `ss-25-49`, `part-iii.1`, `rule-2.1`, `schedule`; `display_pinpoint` gives `s. 4(1)`. `load_document` inserts/replaces one document per transaction, skipped when its hash (source row + `PARSER_VERSION`) is unchanged. `scripts/load_statutes.py` loads all 12. Schema: `documents.citation`, `sections.kind` via `ADD COLUMN IF NOT EXISTS`.

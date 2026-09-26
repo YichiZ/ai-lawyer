@@ -1,0 +1,128 @@
+"""Sections -> chunks (one per section; long sections split at subsection/line boundaries) -> embeddings."""
+import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable
+
+import psycopg
+from pgvector import HalfVector
+from pgvector.psycopg import register_vector
+
+from ingest.statutes import display_pinpoint
+
+# ponytail: ~800 tokens at ~4 chars/token; switch to count_tokens if a model limit gets tight.
+CHUNK_CHAR_LIMIT = 3200
+SKIP_TEXTS = {"[blank]"}  # A2AJ placeholders for sections covered by a range entry ("25-49 Omitted ...")
+FLUSH_EVERY = 25
+
+
+def embed_input(context: str, text: str) -> str:
+    return f"{context}\n\n{text}"
+
+
+def _pack(pieces: list[tuple[list[int], str, str]]) -> list[tuple[list[int], str, str]]:
+    """Greedily join (ids, pinpoint, text) pieces with newlines while under the limit."""
+    out: list[tuple[list[int], str, str]] = []
+    for ids, pin, text in pieces:
+        if out and len(out[-1][2]) + 1 + len(text) <= CHUNK_CHAR_LIMIT:
+            prev_ids, prev_pin, prev_text = out[-1]
+            out[-1] = (prev_ids + ids, prev_pin, prev_text + "\n" + text)
+        else:
+            out.append((ids, pin, text))
+    return out
+
+
+def _split(section: dict, subsections: list[dict]) -> list[tuple[list[int], str, str]]:
+    if len(section["text"]) <= CHUNK_CHAR_LIMIT:
+        return [([section["id"]], section["pinpoint"], section["text"])]
+    if subsections and "\n".join(s["text"] for s in subsections) == section["text"]:
+        pieces = [([s["id"]], s["pinpoint"], s["text"]) for s in subsections]
+    else:  # no clean subsections: split on lines, never mid-line
+        pieces = [([], section["pinpoint"], line) for line in section["text"].split("\n")]
+    packed = _pack(pieces)
+    return [([section["id"]] + [i for i in ids if i != section["id"]], pin, text) for ids, pin, text in packed]
+
+
+def plan_chunks(doc_title: str, sections: list[dict]) -> list[dict]:
+    """sections in reading order: dicts with id, pinpoint, kind, heading, text, parent (pinpoint or None)."""
+    children: dict[str, list[dict]] = {}
+    for s in sections:
+        if s["kind"] == "subsection":
+            children.setdefault(s["parent"], []).append(s)
+    chunks = []
+    for s in sections:
+        if s["kind"] != "section" or s["text"].strip() in SKIP_TEXTS:
+            continue
+        context = f"{doc_title} — {display_pinpoint(s['pinpoint'])}" + (f" — {s['heading']}" if s["heading"] else "")
+        for ids, pin, text in _split(s, children.get(s["pinpoint"], [])):
+            chunks.append({
+                "pinpoint": pin,
+                "section_ids": ids,
+                "text": text,
+                "context": context,
+                "text_sha256": hashlib.sha256(embed_input(context, text).encode()).hexdigest(),
+            })
+    return chunks
+
+
+def sync_chunks(conn: psycopg.Connection, document_id: int, planned: list[dict]) -> tuple[str, int]:
+    """Make the document's chunks match `planned`, keeping embeddings whose text hash is unchanged.
+
+    Returns ("unchanged", 0) or ("replaced", number of embeddings reused).
+    """
+    register_vector(conn)
+    with conn.transaction():
+        existing = conn.execute(
+            "SELECT pinpoint, text_sha256, embedding, embedding_model FROM chunks WHERE document_id = %s ORDER BY id",
+            (document_id,),
+        ).fetchall()
+        if [(p, h) for p, h, _, _ in existing] == [(c["pinpoint"], c["text_sha256"]) for c in planned]:
+            return "unchanged", 0
+        cached = {h: (e, m) for _, h, e, m in existing if e is not None}
+        conn.execute("DELETE FROM chunks WHERE document_id = %s", (document_id,))
+        reused = 0
+        for c in planned:
+            emb, model = cached.get(c["text_sha256"], (None, None))
+            reused += emb is not None
+            conn.execute(
+                "INSERT INTO chunks (document_id, section_ids, pinpoint, text, context, text_sha256, embedding, embedding_model)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (document_id, c["section_ids"], c["pinpoint"], c["text"], c["context"], c["text_sha256"], emb, model),
+            )
+    return "replaced", reused
+
+
+def embed_pending(conn: psycopg.Connection, embed: Callable[[str], list[float]], model: str, workers: int = 8) -> int:
+    """Embed chunks with no embedding (or another model's). Commits every FLUSH_EVERY results, so a crash resumes.
+
+    `embed` is called from worker threads; only this thread touches the database. Returns the number of calls made.
+    """
+    register_vector(conn)
+    pending = conn.execute(
+        "SELECT id, context, text FROM chunks WHERE embedding IS NULL OR embedding_model IS DISTINCT FROM %s ORDER BY id",
+        (model,),
+    ).fetchall()
+    done: list[tuple[int, list[float]]] = []
+
+    def flush():
+        if done:
+            with conn.transaction():
+                for chunk_id, values in done:
+                    conn.execute(
+                        "UPDATE chunks SET embedding = %s, embedding_model = %s WHERE id = %s",
+                        (HalfVector(values), model, chunk_id),
+                    )
+            done.clear()
+
+    calls = 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(embed, embed_input(ctx or "", text)): cid for cid, ctx, text in pending}
+        try:
+            for fut in as_completed(futures):
+                done.append((futures[fut], fut.result()))
+                calls += 1
+                if len(done) >= FLUSH_EVERY:
+                    flush()
+        finally:
+            flush()  # keep finished work even when a call fails
+            pool.shutdown(cancel_futures=True)
+    return calls
