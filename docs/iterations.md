@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 2 · 2.6 Review decisions logged
+
+- **What:** after every review decision, `review.log_decision` posts Langfuse scores on the answer's trace — `review_decision` (categorical), `time_to_review_s`, `edit_distance` (1 − difflib ratio, approved/edited; the note as comment), `review_reason` (rejections). Edited and rejected answers are appended once per answer id to `evals/gold_candidates.jsonl` for manual promotion. A logging failure never fails the decision (logged instead).
+- **Validated:** tests red first → 203 passed. Built-in browser as reviewer: approved #8, rejected #10 (`missing_authority`) → Langfuse: #8 `review_decision=approved, edit_distance=0.0, time_to_review_s=930`; #10 `review_decision=rejected, review_reason=missing_authority, time_to_review_s=35`; #10 in the candidates file.
+- **Bug found and fixed:** review tests without the scoring fixture wrote test answers (ids 9, 12) into the repo's candidates file → autouse fixture points every test at a temp file; leaked lines removed; file hash unchanged by `make test`.
+- **Next:** 2.5 baseline + CI after the user's gold and judge spot checks and the gate decision.
+
 ## 2026-09-25 · Phase 2 · 2.4 Answer experiment + judge + gate calibration
 
 - **What:** `evals/answers.py` (facts_covered, refusal_correct, verified_rate, gate_tradeoff; `judge_answer` — one gemini-3.5-flash-lite call per answer grading each claim against its own quote plus faithful / gives_advice; malformed output → `judge_error`, not dropped). `scripts/eval.py answers`: full pipeline per gold item without DB writes (retrieve → gate → gemini-3.7-flash → verify → subsection pinpoints), code + judge evaluators, local report with gate trade-off and a judge spot-check sample.

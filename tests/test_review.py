@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -134,3 +136,58 @@ def test_queue_links_trace_when_tracing_on(client, conn, monkeypatch):
     aid = store_answer(conn, "traced?", None, result, [HIT], {}, trace_id="t-1")
     item = next(i for i in client.get("/review/queue", headers=REVIEWER).json()["data"] if i["id"] == aid)
     assert item["trace_url"] == "https://lf.example/trace/t-1" and "trace_id" not in item
+
+
+# --- 2.6 decisions logged ---
+
+from app.review import edit_distance
+
+
+def test_edit_distance():
+    assert edit_distance("same text", "same text") == 0.0
+    assert edit_distance("abc", "xyz") == 1.0
+    assert 0 < edit_distance("Two years from discovery.", "Two years from the day of discovery.") < 0.5
+
+
+@pytest.fixture
+def scored(client, monkeypatch, tmp_path):
+    from app import review, tracing
+    from test_tracing import FakeLangfuse
+
+    fake = FakeLangfuse()
+    monkeypatch.setattr(tracing, "_client", fake)
+    monkeypatch.setattr(tracing, "_checked", True)
+    candidates = tmp_path / "gold_candidates.jsonl"
+    monkeypatch.setattr(review, "CANDIDATES_PATH", candidates)
+    return client, fake, candidates
+
+
+def make_traced_answer(conn, trace_id="t-9"):
+    result = AskResult("drafted", "Two years from discovery.", [CLAIM], [])
+    return store_answer(conn, "How long to sue?", None, result, [HIT], {}, trace_id=trace_id)
+
+
+def test_approve_posts_scores_and_no_candidate(scored, conn):
+    client, fake, candidates = scored
+    aid = make_traced_answer(conn)
+    client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "approve"})
+    scores = {name: value for kind, name, value in fake.log if kind == "score"}
+    assert scores["review_decision"] == "approved" and scores["edit_distance"] == 0.0
+    assert scores["time_to_review_s"] >= 0 and "review_reason" not in scores
+    assert not candidates.exists()
+
+
+def test_edit_and_reject_become_gold_candidates_once(scored, conn):
+    client, fake, candidates = scored
+    edited = make_traced_answer(conn, "t-e")
+    rejected = make_traced_answer(conn, "t-r")
+    client.post(f"/answers/{edited}/review", headers=REVIEWER,
+                json={"decision": "edit", "final_markdown": "Two years from the day of discovery.", "note": "precise"})
+    client.post(f"/answers/{rejected}/review", headers=REVIEWER, json={"decision": "reject", "reason": "wrong_law"})
+    from app.review import append_candidate
+    append_candidate(conn, rejected)  # second append for the same answer is a no-op
+    lines = [json.loads(l) for l in candidates.read_text().splitlines()]
+    assert [(l["answer_id"], l["decision"]) for l in lines] == [(edited, "edited"), (rejected, "rejected")]
+    assert lines[0]["final_markdown"] == "Two years from the day of discovery." and lines[1]["review_reason"] == "wrong_law"
+    reasons = [value for kind, name, value in fake.log if kind == "score" and name == "review_reason"]
+    assert reasons == ["wrong_law"]

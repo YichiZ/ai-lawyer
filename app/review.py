@@ -1,4 +1,9 @@
 """Human review: every drafted answer waits in pending_review until a reviewer approves, edits or rejects it."""
+import difflib
+import json
+import os
+from pathlib import Path
+
 import psycopg
 from psycopg.rows import dict_row
 
@@ -6,6 +11,9 @@ from app import tracing
 
 REJECT_REASONS = ("wrong_law", "missing_authority", "unsupported_claim", "out_of_scope")
 REFUSAL_STATUSES = ("not_found", "out_of_scope", "unverified")
+# Edited/rejected answers are gold-set candidates (promoted by hand, never automatically).
+CANDIDATES_PATH = Path(os.environ.get("GOLD_CANDIDATES_PATH",
+                                      Path(__file__).resolve().parent.parent / "evals" / "gold_candidates.jsonl"))
 
 
 def risk_reasons(flags: dict) -> list[str]:
@@ -75,3 +83,44 @@ def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | No
         view |= {"draft_markdown": a["draft_markdown"], "claims": a["claims"], "review_note": a["review_note"],
                  "risk": risk_reasons(a["flags"]), "dropped_claims": a["flags"].get("dropped_claims", [])}
     return view
+
+
+def edit_distance(draft: str, final: str) -> float:
+    """0 = unchanged, 1 = completely rewritten (1 - difflib similarity ratio)."""
+    return round(1 - difflib.SequenceMatcher(None, draft or "", final or "").ratio(), 3)
+
+
+def _decided(conn: psycopg.Connection, answer_id: int) -> dict:
+    return conn.cursor(row_factory=dict_row).execute(
+        "SELECT id, question, status, draft_markdown, final_markdown, review_reason, review_note, trace_id,"
+        " extract(epoch FROM reviewed_at - created_at) AS seconds FROM answers WHERE id = %s", (answer_id,),
+    ).fetchone()
+
+
+def log_decision(conn: psycopg.Connection, answer_id: int) -> None:
+    """Scores on the answer's Langfuse trace; edited/rejected answers also become gold candidates."""
+    a = _decided(conn, answer_id)
+    tracing.score(a["trace_id"], "review_decision", a["status"], data_type="CATEGORICAL")
+    tracing.score(a["trace_id"], "time_to_review_s", float(a["seconds"]), data_type="NUMERIC")
+    if a["status"] in ("approved", "edited"):
+        tracing.score(a["trace_id"], "edit_distance", edit_distance(a["draft_markdown"], a["final_markdown"]),
+                      data_type="NUMERIC", comment=a["review_note"])
+    if a["status"] == "rejected":
+        tracing.score(a["trace_id"], "review_reason", a["review_reason"], data_type="CATEGORICAL")
+    if a["status"] in ("edited", "rejected"):
+        append_candidate(conn, answer_id)
+
+
+def append_candidate(conn: psycopg.Connection, answer_id: int) -> bool:
+    """Append once per answer id; returns False if it was already there."""
+    if CANDIDATES_PATH.exists() and any(json.loads(l)["answer_id"] == answer_id
+                                        for l in CANDIDATES_PATH.read_text().splitlines() if l.strip()):
+        return False
+    a = _decided(conn, answer_id)
+    CANDIDATES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with CANDIDATES_PATH.open("a") as f:
+        f.write(json.dumps({"answer_id": a["id"], "question": a["question"], "decision": a["status"],
+                            "draft_markdown": a["draft_markdown"], "final_markdown": a["final_markdown"],
+                            "review_reason": a["review_reason"], "review_note": a["review_note"]},
+                           ensure_ascii=False) + "\n")
+    return True

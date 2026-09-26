@@ -35,3 +35,11 @@ def conn(test_db):
         c.execute("SELECT 1")  # open the outer transaction so code-under-test's conn.transaction() is a savepoint
         yield c
         c.rollback()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_gold_candidates(tmp_path, monkeypatch):
+    """Review decisions append gold candidates to a file; tests must never touch the repo copy."""
+    from app import review
+
+    monkeypatch.setattr(review, "CANDIDATES_PATH", tmp_path / "gold_candidates.jsonl")

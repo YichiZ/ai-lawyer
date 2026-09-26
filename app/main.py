@@ -188,6 +188,10 @@ def review_answer(answer_id: int, body: ReviewRequest, conn: Conn, reviewer: Rev
         if not review.exists(conn, answer_id):
             raise NotFound(f"No answer {answer_id}")
         raise HTTPException(status_code=409, detail=f"Answer {answer_id} was already reviewed")
+    try:
+        review.log_decision(conn, answer_id)
+    except Exception:  # the decision is saved; logging it must not turn success into an error
+        log.exception("could not log review decision for answer %s", answer_id)
     log.info("answer %s %s by %s", answer_id, status, reviewer["name"])
     return envelope({"id": answer_id, "status": status})
 

@@ -78,4 +78,5 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — pdftotext's default reading order separated labels ("A. B. C.") from their paragraphs → always extract Municipal Code PDFs with `-layout`.
 - 2026-09-25 — Next allows one dev server per build dir ("Another next dev server is already running") → e2e uses `NEXT_DIST_DIR=.next-e2e`.
 - 2026-09-25 — Clipboard can't be verified in the built-in browser (pane hidden → `visibilityState: hidden`) → Playwright with granted clipboard permissions.
+- 2026-09-25 — Code that writes to a repo file from a module-level path leaked test data into it → an autouse conftest fixture redirects such paths to `tmp_path`.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.
