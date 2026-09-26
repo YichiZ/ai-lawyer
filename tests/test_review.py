@@ -122,3 +122,15 @@ def test_reviewer_sees_draft_while_pending(client, conn):
     aid = make_answer(conn)
     data = client.get(f"/answers/{aid}", headers=REVIEWER).json()["data"]
     assert data["draft_markdown"].startswith("Two years.")
+
+
+def test_queue_links_trace_when_tracing_on(client, conn, monkeypatch):
+    from app import tracing
+    from test_tracing import FakeLangfuse
+
+    monkeypatch.setattr(tracing, "_client", FakeLangfuse())
+    monkeypatch.setattr(tracing, "_checked", True)
+    result = AskResult("drafted", "d", [CLAIM], [])
+    aid = store_answer(conn, "traced?", None, result, [HIT], {}, trace_id="t-1")
+    item = next(i for i in client.get("/review/queue", headers=REVIEWER).json()["data"] if i["id"] == aid)
+    assert item["trace_url"] == "https://lf.example/trace/t-1" and "trace_id" not in item

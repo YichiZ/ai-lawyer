@@ -4,6 +4,9 @@ from pathlib import Path
 import psycopg
 import pytest
 
+for _key in ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):  # tests never send traces
+    os.environ.pop(_key, None)
+
 SCHEMA = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
 ADMIN_URL = os.environ.get("DATABASE_ADMIN_URL", "postgresql://postgres:dev@localhost:5432/postgres")
 TEST_DB = "ai_lawyer_test"

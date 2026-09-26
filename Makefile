@@ -13,7 +13,7 @@ psql:
 	docker compose exec db psql -U postgres -d ai_lawyer
 
 api: up  ## run the API with reload on http://localhost:8000
-	uv run uvicorn app.main:app --reload --port 8000
+	uv run --env-file .env uvicorn app.main:app --reload --port 8000
 
 web:  ## run the Next.js app on http://localhost:3000 (needs `make api`)
 	npm --prefix web run dev

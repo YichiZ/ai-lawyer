@@ -21,7 +21,15 @@ export default function ReviewItem({ item }: { item: QueueItem }) {
     <article className="rounded-sm border border-rule p-5" aria-labelledby={`q-${item.id}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id={`q-${item.id}`} className="font-serif text-xl font-semibold">{item.question}</h2>
-        <span className="text-sm text-muted">#{item.id} · {item.asked_by ?? "unknown"}</span>
+        <span className="text-sm text-muted">
+          #{item.id} · {item.asked_by ?? "unknown"}
+          {item.trace_url && (
+            <>
+              {" · "}
+              <a href={item.trace_url} target="_blank" rel="noreferrer">View trace</a>
+            </>
+          )}
+        </span>
       </div>
       {item.risk.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2" aria-label="Risk flags">

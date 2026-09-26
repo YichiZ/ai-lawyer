@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
     "google-genai",
+    "langfuse>=4.15.6",
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.6",
     "pyarrow>=25.0.1",

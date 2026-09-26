@@ -155,3 +155,17 @@ def test_ask_validates_question(ask_client, body):
     r = client.post("/ask", json=body)
     assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
     assert fake.prompts == []
+
+
+def test_ask_is_traced_and_trace_id_stored(ask_client, conn, monkeypatch):
+    from app import tracing
+    from test_tracing import FakeLangfuse
+
+    fake = FakeLangfuse()
+    monkeypatch.setattr(tracing, "_client", fake)
+    monkeypatch.setattr(tracing, "_checked", True)
+    client, _ = ask_client
+    data = client.post("/ask", json={"question": "How long do I have to sue after an injury?"}).json()["data"]
+    started = [e[1] for e in fake.log if e[0] == "start"]
+    assert started == ["ask", "embed_query", "retrieve", "generate", "verify", "store"]
+    assert conn.execute("SELECT trace_id FROM answers WHERE id = %s", (data["answer_id"],)).fetchone()[0] == "trace-123"

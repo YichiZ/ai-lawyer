@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 2 · 2.2 Langfuse tracing on `/ask`
+
+- **What:** `langfuse` 4.15.6. `app/tracing.py`: off unless `LANGFUSE_PUBLIC_KEY`/`SECRET_KEY` are set (one log line either way); `observe()` nests spans under the current trace. `/ask` trace: `ask` → `embed_query`, `retrieve` (fused top 8 with RRF scores and distances), `generate` (generation with prompt, output, attempt, token usage from Vertex `usage_metadata`), `verify` (kept / dropped with reasons), `store`. `answers.trace_id` saved; the review queue shows "View trace". `make api` / launch config load `.env` via `uv run --env-file`; pytest clears the keys; `make e2e` runs without them.
+- **Validated:** tracing tests red first (fake Langfuse client) → 177 passed; `make e2e` 5/5 with tracing off. Real `/ask` (answer 8) → trace in Langfuse Cloud with SPAN ask/embed_query/retrieve/verify/store + GENERATION generate `{input: 3075, output: 328, thinking: 0}`; `auth_check` True; trace id stored on the row.
+- **Next:** 2.1 gold set (draft in progress by a subagent), then 2.3 retrieval experiment.
+
 ## 2026-09-25 · Phase 1 follow-up · Small fixes + Playwright
 
 - **What:** (1) Toronto by-laws: `pdftotext -layout` — default reading order emitted label columns ("A. B. C.") apart from their paragraphs in 575 labelled items; layout mode keeps each label with its text (parser v3, footers with page + date on one line handled). (2) Claims are pinned to the subsection that holds the quote (`pinpoint_claims`: s 42 → s 42(6)); the draft's citation lines and the chips use it. (3) Playwright (`@playwright/test` 1.63, Chromium headless shell 94 MB): `make e2e` starts its own API with `AI_FAKE=1` (deterministic fake model: embeds the best keyword match, quotes the first passage — retrieval, gate and quote verification still run for real) on :8001 and the web app on :3001 (`NEXT_DIST_DIR=.next-e2e`, since Next allows one dev server per build dir); `turbopack.root` pinned. Specs: library → law → section (text, provenance, official link, copy citation read back from the clipboard); Toronto excerpt ≤ 320 chars + toronto.ca link; unknown section 404; ask → reviewer approves → researcher sees "Reviewed by" → citation panel highlights the quote, focus on Close, Esc closes; researcher can't see the queue; edit without a note shows the inline error.

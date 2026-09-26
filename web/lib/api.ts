@@ -141,6 +141,7 @@ export interface QueueItem {
   draft_status: string;
   dropped_claims: Claim[];
   sources: Source[];
+  trace_url: string | null;
 }
 
 export const ask = (question: string, role: Role) =>

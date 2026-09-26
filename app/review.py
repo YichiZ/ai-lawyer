@@ -2,6 +2,8 @@
 import psycopg
 from psycopg.rows import dict_row
 
+from app import tracing
+
 REJECT_REASONS = ("wrong_law", "missing_authority", "unsupported_claim", "out_of_scope")
 REFUSAL_STATUSES = ("not_found", "out_of_scope", "unverified")
 
@@ -19,17 +21,17 @@ def risk_reasons(flags: dict) -> list[str]:
 
 def queue(conn: psycopg.Connection) -> list[dict]:
     rows = conn.cursor(row_factory=dict_row).execute(
-        "SELECT a.id, a.question, a.draft_markdown, a.claims, a.flags, a.created_at, u.name AS asked_by"
+        "SELECT a.id, a.question, a.draft_markdown, a.claims, a.flags, a.created_at, a.trace_id, u.name AS asked_by"
         " FROM answers a LEFT JOIN users u ON u.id = a.asked_by WHERE a.status = 'pending_review'"
         " ORDER BY a.created_at, a.id"
     ).fetchall()
     items = []
     for r in rows:
-        flags = r.pop("flags")
+        flags, trace_id = r.pop("flags"), r.pop("trace_id")
         risk = risk_reasons(flags)
         items.append({**r, "risk": risk, "draft_status": flags.get("status"),
                       "dropped_claims": flags.get("dropped_claims", []), "sources": flags.get("sources", []),
-                      "timings_ms": flags.get("timings_ms")})
+                      "timings_ms": flags.get("timings_ms"), "trace_url": tracing.trace_url(trace_id)})
     return sorted(items, key=lambda i: (not i["risk"],))  # stable: risky first, then oldest first
 
 

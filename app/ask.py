@@ -12,6 +12,7 @@ from pgvector import HalfVector
 from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
 
+from app import tracing
 from app.format import mcgill_citation
 from app.laws import excerpt
 from ingest.statutes import display_pinpoint
@@ -144,12 +145,17 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
     passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}\n{h.text}" for h in hits)
     all_dropped, feedback = [], ""
     for attempt in range(2):
-        out = generate(PROMPT.format(question=question, passages=passages, feedback=feedback), CLAIMS_SCHEMA)
+        prompt = PROMPT.format(question=question, passages=passages, feedback=feedback)
+        with tracing.observe("generate", as_type="generation", input=prompt, metadata={"attempt": attempt + 1}) as gen:
+            out = generate(prompt, CLAIMS_SCHEMA)
+            gen.update(output=out)
         if not out.get("in_scope", True):
             note = out.get("scope_note") or "that topic"
             return AskResult(status="out_of_scope", draft_markdown=(
                 f"This guide covers Ontario personal-injury law only; the question is about {note}."))
-        ok, dropped = verify_claims(out.get("claims", []), chunks)
+        with tracing.observe("verify", input={"claims": out.get("claims", [])}) as ver:
+            ok, dropped = verify_claims(out.get("claims", []), chunks)
+            ver.update(output={"kept": len(ok), "dropped": [{"chunk_id": d.get("chunk_id"), "reason": d["reason"]} for d in dropped]})
         all_dropped += dropped
         if ok:
             ok = refine([{**c, "source": sources[c["chunk_id"]]} for c in ok])
@@ -199,7 +205,7 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float])
 
 
 def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, result: AskResult,
-                 hits: list[Retrieved], timings: dict) -> int:
+                 hits: list[Retrieved], timings: dict, trace_id: str | None = None) -> int:
     flags = {
         "status": result.status,
         "retried": result.retried,
@@ -211,8 +217,9 @@ def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, 
     claims = result.claims
     with conn.transaction():
         return conn.execute(
-            "INSERT INTO answers (asked_by, question, draft_markdown, claims, flags) VALUES (%s, %s, %s, %s, %s) RETURNING id",
-            (asked_by, question, result.draft_markdown, json.dumps(claims), json.dumps(flags)),
+            "INSERT INTO answers (asked_by, question, draft_markdown, claims, flags, trace_id)"
+            " VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (asked_by, question, result.draft_markdown, json.dumps(claims), json.dumps(flags), trace_id),
         ).fetchone()[0]
 
 

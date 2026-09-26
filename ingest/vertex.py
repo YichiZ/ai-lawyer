@@ -49,6 +49,13 @@ def json_generator(client: genai.Client, model: str = ANSWER_MODEL):
             config=types.GenerateContentConfig(
                 thinking_config=LOW_THINKING, response_mime_type="application/json", response_schema=schema),
         )
+        u = r.usage_metadata
+        if u is not None:
+            from app import tracing
+
+            tracing.update_current_generation(model=model, usage_details={
+                "input": u.prompt_token_count or 0, "output": u.candidates_token_count or 0,
+                "thinking": u.thoughts_token_count or 0})
         return json.loads(r.text)
 
     return generate

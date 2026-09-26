@@ -6,6 +6,8 @@
       "runtimeExecutable": "uv",
       "runtimeArgs": [
         "run",
+        "--env-file",
+        ".env",
         "uvicorn",
         "app.main:app",
         "--port",

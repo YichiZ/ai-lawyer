@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
-from app import ask, laws, review
+from app import ask, laws, review, tracing
 from ingest import vertex
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
@@ -138,12 +138,22 @@ class AskRequest(BaseModel):
 def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User):
     """Sources right away; the drafted answer is stored pending_review and never returned here."""
     question = body.question.strip()
-    t0 = time.perf_counter()
-    hits = ask.retrieve(conn, question, ai.embed_query(question))
-    t_sources = time.perf_counter()
-    result = ask.run_ask(question, hits, ai.generate, refine=lambda claims: ask.pinpoint_claims(conn, claims))
-    timings = {"sources": round((t_sources - t0) * 1000), "total": round((time.perf_counter() - t0) * 1000)}
-    answer_id = ask.store_answer(conn, question, user["id"], result, hits, timings)
+    with tracing.observe("ask", input={"question": question}, metadata={"role": user["role"]}) as root:
+        t0 = time.perf_counter()
+        with tracing.observe("embed_query"):
+            query_vector = ai.embed_query(question)
+        with tracing.observe("retrieve", input={"question": question}) as span:
+            hits = ask.retrieve(conn, question, query_vector)
+            span.update(output=[{"chunk_id": h.chunk_id, "citation": h.source["citation"]["text"], "rrf": h.score,
+                                 "distance": h.distance} for h in hits])
+        t_sources = time.perf_counter()
+        result = ask.run_ask(question, hits, ai.generate, refine=lambda claims: ask.pinpoint_claims(conn, claims))
+        timings = {"sources": round((t_sources - t0) * 1000), "total": round((time.perf_counter() - t0) * 1000)}
+        trace_id = tracing.current_trace_id()
+        with tracing.observe("store"):
+            answer_id = ask.store_answer(conn, question, user["id"], result, hits, timings, trace_id)
+        root.update(output={"answer_id": answer_id, "status": result.status, "claims": len(result.claims),
+                            "dropped": len(result.dropped)}, metadata={"timings_ms": timings})
     log.info("ask %s: %s, %d claims, %d dropped, %s", answer_id, result.status, len(result.claims),
              len(result.dropped), timings)
     return envelope({"answer_id": answer_id, "status": "pending_review", "sources": [h.source for h in hits]},
