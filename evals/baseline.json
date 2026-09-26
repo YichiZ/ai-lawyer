@@ -1,0 +1,37 @@
+{
+  "recorded_at": "2026-09-26T04:42:17+00:00",
+  "corpus_hash": "d334f0cab0d9e3dd1cd5b3d9bab2c26279d742e8086065218236e9e5eb789df0",
+  "gold_hash": "02255a090cd706c6fb77269e2d952383802e879d95802427dbcd27af95663d50",
+  "models": {
+    "answer": "gemini-3.7-flash",
+    "judge": "gemini-3.5-flash-lite",
+    "embedding": "gemini-embedding-2"
+  },
+  "gate_max_distance": 0.3,
+  "runs": {
+    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/1921649d-ee0b-4c4f-be98-f52d9311e9ac",
+    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/397246f8-3f5e-40a5-b533-0994280b96ad"
+  },
+  "latency_ms": {
+    "sources_ms": {
+      "p50": 340.0,
+      "p95": 528.2
+    },
+    "total_ms": {
+      "p50": 4056.0,
+      "p95": 23304.2
+    }
+  },
+  "metrics": {
+    "retrieval.recall@8": 0.8548,
+    "retrieval.mrr": 0.6015,
+    "answers.out_of_scope.refusal_correct": 0.933,
+    "answers.in_scope.has_verified_claim": 0.919,
+    "answers.in_scope.verified_claim_rate": 0.994,
+    "answers.in_scope.facts_covered": 0.855,
+    "answers.in_scope.citation_supported": 0.966,
+    "answers.in_scope.faithful": 0.93,
+    "answers.in_scope.no_advice": 1.0,
+    "answers.in_scope.refusal_correct": 0.919
+  }
+}

@@ -25,8 +25,8 @@ def test_small_drop_within_tolerance_passes():
 
 
 def test_improvement_reported():
-    ok, lines = compare(report(citation=0.99), report())
-    assert ok and any("improved" in l and "citation_supported" in l for l in lines)
+    ok, lines = compare(report(recall=0.90), report())
+    assert ok and any("improved" in l and "recall@8" in l for l in lines)
 
 
 @pytest.mark.parametrize("change", [{"corpus": "c2"}, {"gold": "g2"}])
@@ -48,3 +48,8 @@ def test_flatten_picks_quality_metrics():
                            "out_of_scope": {"n": 15, "refusal_correct": 1.0}}}
     flat = flatten(retrieval, answers)
     assert set(flat) == set(QUALITY_METRICS) and flat["retrieval.mrr"] == 0.6
+
+
+def test_judge_metrics_have_wider_tolerance():
+    assert compare(report(citation=0.92), report())[0]  # -4 points on a judge metric: within 5
+    assert not compare(report(citation=0.90), report())[0]  # -6 points: fails

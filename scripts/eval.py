@@ -34,7 +34,7 @@ CONCURRENCY = 2  # 4 hit Vertex per-minute quota (429) on the answers run
 
 
 def eval_client():
-    return make_client(attempts=8, initial_delay=2.0, max_delay=60.0)
+    return make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)  # 30 s timed out on long answers
 
 
 def require_complete(result, items, kind: str) -> None:
