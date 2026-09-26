@@ -21,8 +21,9 @@ RRF_K = 60
 CANDIDATES = 50  # per retriever
 TOP_K = 8
 # Cosine distance of the best vector hit above which we answer "not found" without a model call.
+# 0.30 from the Phase 2 gold set: refuses 7/15 out-of-scope, 0/62 in-scope (user-approved 2026-09-25).
 # ponytail: a vector-distance gate until the Phase 3 reranker gives a better relevance score.
-GATE_MAX_DISTANCE = 0.35
+GATE_MAX_DISTANCE = 0.30
 MIN_QUOTE_CHARS = 12
 NOT_FOUND_SOURCES = 3
 

@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Evals (`make eval`) are local only: they need Vertex AI and Langfuse credentials.
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_DB: ai_lawyer
+          POSTGRES_PASSWORD: dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ai_lawyer" --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_DB: ai_lawyer
+          POSTGRES_PASSWORD: dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ai_lawyer" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      PGPASSWORD: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: uv sync --frozen
+      - name: Schema + fixture corpus
+        run: |
+          psql -h localhost -U postgres -d ai_lawyer -v ON_ERROR_STOP=1 -q -f db/schema.sql
+          uv run python -c "import psycopg; from evals.ci_fixture import load_fixture; c = psycopg.connect('postgresql://postgres:dev@localhost:5432/ai_lawyer'); print(load_fixture(c)); c.commit()"
+      - run: npm ci --prefix web
+      - run: npx --prefix web playwright install --with-deps chromium
+      - run: npm --prefix web run e2e
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: web/test-results/
+          retention-days: 7

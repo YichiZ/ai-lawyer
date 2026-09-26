@@ -1,6 +1,8 @@
 """Run Langfuse experiments on the gold set.
 
-Run: uv run --env-file .env scripts/eval.py retrieval | answers
+Run: uv run --env-file .env scripts/eval.py retrieval | answers | gate | record [--from-latest]
+  gate    run both experiments and compare with evals/baseline.json (exit 1 on regression) — `make eval`
+  record  run both and write evals/baseline.json; --from-latest uses the newest saved runs instead
 Needs LANGFUSE_* keys (Langfuse Cloud) and Vertex ADC. Each run is also saved to evals/runs/ (gitignored).
 """
 import json
@@ -19,7 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from app.ask import GATE_MAX_DISTANCE, pinpoint_claims, retrieve, run_ask  # noqa: E402
 from evals.answers import JUDGE_MODEL, facts_covered, gate_tradeoff, judge_answer, refusal_correct, verified_rate  # noqa: E402
-from evals.gold import load_gold  # noqa: E402
+from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash  # noqa: E402
+from evals.gold import GOLD_PATH, load_gold  # noqa: E402
 from evals.langfuse_io import DATASET, upsert_dataset  # noqa: E402
 from evals.metrics import mrr, recall_at_k, summarize  # noqa: E402
 from ingest.vertex import ANSWER_MODEL, embedder, json_generator, make_client  # noqa: E402
@@ -27,7 +30,19 @@ from ingest.vertex import ANSWER_MODEL, embedder, json_generator, make_client  #
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 RUNS = ROOT / "evals" / "runs"
 K = 8
-CONCURRENCY = 4
+CONCURRENCY = 2  # 4 hit Vertex per-minute quota (429) on the answers run
+
+
+def eval_client():
+    return make_client(attempts=8, initial_delay=2.0, max_delay=60.0)
+
+
+def require_complete(result, items, kind: str) -> None:
+    """A run with missing items must not be scored or recorded."""
+    done = {r.item.id for r in result.item_results if r.output is not None}
+    missing = sorted(i.id for i in items if i.id not in done)
+    if missing:
+        raise SystemExit(f"{kind}: {len(missing)} item(s) failed after retries: {missing} — rerun")
 
 
 def retrieval_task(embed):
@@ -60,10 +75,11 @@ def run_retrieval(lf: Langfuse) -> dict:
     items = [i for i in dataset.items if i.id in gold]  # only items still in gold.jsonl
     result = lf.run_experiment(
         name="retrieval", description=f"Hybrid retrieval (keyword + vector, RRF) top {K} vs gold pinpoints",
-        data=items, task=retrieval_task(embedder(make_client(), "RETRIEVAL_QUERY")),
+        data=items, task=retrieval_task(embedder(eval_client(), "RETRIEVAL_QUERY")),
         evaluators=[retrieval_evaluator], max_concurrency=CONCURRENCY,
         metadata={"k": K, "gold_items": len(items)},
     )
+    require_complete(result, items, "retrieval")
     rows, oos = [], []
     for r in result.item_results:
         g = gold[r.item.id]
@@ -124,13 +140,14 @@ def run_answers(lf: Langfuse) -> dict:
     gold = {g["id"]: g for g in load_gold()}
     upsert_dataset(lf, list(gold.values()))
     items = [i for i in lf.get_dataset(DATASET).items if i.id in gold]
-    client = make_client()
+    client = eval_client()
     result = lf.run_experiment(
         name="answers", description="Full /ask pipeline (no DB writes) + code metrics + LLM judge",
         data=items, task=answer_task(embedder(client, "RETRIEVAL_QUERY"), json_generator(client)),
         evaluators=[answer_evaluator(json_generator(client, model=JUDGE_MODEL))], max_concurrency=CONCURRENCY,
         metadata={"answer_model": ANSWER_MODEL, "judge_model": JUDGE_MODEL, "gate_max_distance": GATE_MAX_DISTANCE},
     )
+    require_complete(result, items, "answers")
     rows = []
     for r in result.item_results:
         g = gold[r.item.id]
@@ -158,17 +175,59 @@ def run_answers(lf: Langfuse) -> dict:
             "summary": summary, "gate_tradeoff": gate, "judge_spot_check": spot, "items": rows}
 
 
+def combined(retrieval: dict, answers: dict) -> dict:
+    with psycopg.connect(DATABASE_URL) as conn:
+        corpus = corpus_hash(conn)
+    return {"recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "corpus_hash": corpus, "gold_hash": gold_hash(GOLD_PATH),
+            "models": {"answer": ANSWER_MODEL, "judge": JUDGE_MODEL, "embedding": "gemini-embedding-2"},
+            "gate_max_distance": GATE_MAX_DISTANCE,
+            "runs": {"retrieval": retrieval["url"], "answers": answers["url"]},
+            "latency_ms": answers["summary"]["latency_ms"],
+            "metrics": {k: round(v, 4) for k, v in flatten(retrieval, answers).items()}}
+
+
+def latest(kind: str) -> dict:
+    return json.loads(sorted(RUNS.glob(f"*-{kind}.json"))[-1].read_text())
+
+
+def save(kind: str, report: dict) -> Path:
+    RUNS.mkdir(parents=True, exist_ok=True)
+    path = RUNS / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{kind}.json"
+    path.write_text(json.dumps(report, indent=2, default=str))
+    return path
+
+
+def gate_or_record(lf: Langfuse | None, mode: str, from_latest: bool) -> int:
+    if from_latest:
+        retrieval, answers = latest("retrieval"), latest("answers")
+    else:
+        retrieval, answers = run_retrieval(lf), run_answers(lf)
+        save("retrieval", retrieval), save("answers", answers)
+        lf.flush()
+    current = combined(retrieval, answers)
+    if mode == "record":
+        BASELINE_PATH.write_text(json.dumps(current, indent=2) + "\n")
+        print(f"recorded {BASELINE_PATH.relative_to(ROOT)}")
+        for k, v in current["metrics"].items():
+            print(f"  {k:<42} {v:.3f}")
+        return 0
+    ok, lines = compare(current, json.loads(BASELINE_PATH.read_text()))
+    print("\n".join(lines))
+    return 0 if ok else 1
+
+
 def main() -> int:
     kind = sys.argv[1] if len(sys.argv) > 1 else "retrieval"
+    from_latest = "--from-latest" in sys.argv
+    if kind in ("gate", "record"):
+        return gate_or_record(None if from_latest else Langfuse(), kind, from_latest)
     lf = Langfuse()
     if not lf.auth_check():
         sys.exit("Langfuse auth failed: check LANGFUSE_* in .env (run with uv run --env-file .env)")
     report = {"retrieval": run_retrieval, "answers": run_answers}[kind](lf)
     lf.flush()
-    RUNS.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    path = RUNS / f"{stamp}-{kind}.json"
-    path.write_text(json.dumps(report, indent=2, default=str))
+    path = save(kind, report)
     print(f"{kind}: {report['url'] or report['run_name']}\nsaved {path.relative_to(ROOT)}")
     for group, s in report["summary"].items():
         if isinstance(s, dict) and "n" in s:

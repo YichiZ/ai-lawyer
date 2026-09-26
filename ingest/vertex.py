@@ -13,12 +13,14 @@ EMBED_MODEL = "gemini-embedding-2"
 EMBED_DIMS = 1536
 
 
-def make_client() -> genai.Client:
+def make_client(attempts: int = 5, initial_delay: float = 1.0, max_delay: float | None = None) -> genai.Client:
+    """Bulk jobs (evals) pass more attempts and a longer max_delay so per-minute quota 429s recover."""
     return genai.Client(
         vertexai=True, project=PROJECT, location=LOCATION,
         http_options=types.HttpOptions(
             timeout=TIMEOUT_MS,
-            retry_options=types.HttpRetryOptions(attempts=5, initial_delay=1.0, http_status_codes=[429, 500, 503, 504]),
+            retry_options=types.HttpRetryOptions(attempts=attempts, initial_delay=initial_delay, max_delay=max_delay,
+                                                 http_status_codes=[429, 500, 503, 504]),
         ),
     )
 
