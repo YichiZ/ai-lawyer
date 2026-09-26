@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Fix · Web fallback stored a vertexaisearch redirect
+
+- **What:** answer 393's `web_sources` kept a `grounding-api-redirect` URL (title "dronemap.com", domain `vertexaisearch.cloud.google.com`). Cause: `_head` let urllib follow the redirect to the target site, dronemap.com answered HEAD with 405, and `resolve_url` fell back to the redirect URL. Now `_head` reads the redirector's `Location` header without contacting the target, and `resolve_url` returns `None` on any failure (or a result that is still a redirect), so `search_web` drops that source instead of storing it.
+- **Validated:** tests red first (2 failed) → green; full suite 386 passed. The 393 redirect now resolves to `https://dronemap.com/ca/on/mississauga/places/toronto-pearson-international-airport/rules`. Live grounding call on the same question: 6 sources, all real URLs, none from vertexaisearch.
+- **Numbers:** 1 Vertex call; 1 HEAD per source, to Google's redirector only.
+- **Data:** answer 393 (dev DB, pending review) re-resolved in place: the dronemap.com entry in `web_sources` and its draft line (URL and `(domain)`) now point to the real page; no answer in the dev DB contains `vertexaisearch`.
+
 ## 2026-09-26 · Repo presentation · User flows tried end to end, documented in README
 
 - **What:** README "User flows" section: browse, search/citation jump, ask → review → release, web fallback, add to library, guides/glossary.
@@ -13,6 +20,21 @@ One entry per iteration, newest first. Format: date · milestone · what changed
 - **What:** README gets a light/dark logo (`docs/logo*.svg`), badges (live CI, stack, eval numbers, licence), section nav, three real screenshots (`docs/img/`, Playwright at 2x against the dev DB), a "What keeps an answer honest" table linking each guarantee to the code and test that enforce it, and a Mermaid pipeline diagram. MIT `LICENSE` for the code (data keeps upstream licences). Modelled on YichiZ/toronto-3djs.
 - **Validated:** README rendered through the GitHub Markdown API with the relative images: logo, badges, screenshots and the guarantees table display correctly. The CI badge and Mermaid diagram only render on github.com, and the repo is private, so neither was seen rendered.
 - **Next:** GitHub description, topics and social preview image are repo settings, not files → set by the owner.
+
+## 2026-09-26 · Production readiness · user flows, bug bash, eval suite
+
+- **User flows:** `docs/user-flows.md`, 10 flows with acceptance criteria. `make e2e-ci` passed 30/30. Hand tests on the full corpus and the real model covered library, by-law excerpt, search, ask → review → release, 404s and 375 px mobile width. Filed #12 (P1, typeahead sends decisions to `/laws/<case>`), #13, #14, #15, #16, and added evidence to #8. The 10 issues another session had filed were not duplicated.
+- **Eval suite:** plan in `docs/evals-plan.md`, results in `docs/evals.md`. `evals/suite.py` holds the pure scorers (7 unit tests). `scripts/eval_suite.py` / `make eval-suite` runs six evals on versioned datasets (`evals/data/`: 40 search, 28 safety, 15 abstention, 36 paraphrases), with thresholds set before the run.
+- **Results:**
+  - pinpoint 0.929 ❌ (#1)
+  - search jumps 0.857 ❌ (#12, #14, #20), hit@3 0.917 ✅
+  - safety: no advice 1.00 ✅, injection 1.00 ✅, out-of-scope 0.90 ✅ (#19), advice drafts flagged 0/7 (#7)
+  - abstention: invented 0 ✅, abstain-or-grounded 0.533 ❌ (#18: out-of-library statutes answered from decisions that quote them)
+  - robustness recall 1.00 ✅ (overlap 0.57)
+  - glossary: non-answers 23.5 % ❌ (#4), faithful among real definitions 0.968 ✅
+  - Cost under $1, about 10 min.
+- **Scorer checks:** every failing item was read by hand. The abstention scorer was wrong the first time: it counted decision-grounded answers as "unsourced", and its regex cut "Trespass to Property Act" short. It now separates invented / secondary / grounded; the threshold was not changed. The glossary judge scores non-answers as faithful, so faithfulness is reported over real definitions only.
+- **Next:** fix #1 (P0), #12, #18. Move the no-model parts of the suite into CI. Grow the datasets, and calibrate the judges against human labels.
 
 ## 2026-09-26 · Phase 6 · 6.2 Add to corpus, 6.3 Load test; Phase 5 decision summaries done
 

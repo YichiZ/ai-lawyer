@@ -3,9 +3,10 @@
 The draft is labelled as coming from the web, lists its (resolved) sources, and — like every answer — is released
 only after a reviewer approves it. Quote verification does not apply to web text; the reviewer sees the flag instead.
 """
+import urllib.error
 import urllib.request
 from typing import Callable
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 WEB_LABEL = "**From the web, not our law library.** Check each source before relying on it."
 PROMPT = """Answer this research question about Ontario personal-injury law using Google Search. Prefer official
@@ -21,20 +22,33 @@ def domain_of(url: str) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None  # urllib then raises the 3xx as an HTTPError, headers included
+
+
 def _head(url: str) -> str:
+    """The redirector's Location header. The target site is never contacted (many answer HEAD with 405)."""
     req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "ai-lawyer/0.1 (portfolio research demo)"})
-    with urllib.request.urlopen(req, timeout=5) as r:
-        return r.geturl()
+    try:
+        urllib.request.build_opener(_NoRedirect).open(req, timeout=5).close()
+    except urllib.error.HTTPError as e:
+        e.close()  # the error wraps the open response
+        if 300 <= e.code < 400 and e.headers.get("Location"):
+            return urljoin(url, e.headers["Location"])
+        raise
+    raise ValueError(f"no redirect from {url}")
 
 
-def resolve_url(url: str, head: Callable[[str], str] = _head) -> str:
-    """Grounding URIs are vertexaisearch redirects: follow them to the real page (keep the original on failure)."""
+def resolve_url(url: str, head: Callable[[str], str] = _head) -> str | None:
+    """Grounding URIs are vertexaisearch redirects: resolve them to the real page, or None to drop the source."""
     if "vertexaisearch" not in url:
         return url
     try:
-        return head(url)
-    except Exception:  # a dead redirect must not lose the answer
-        return url
+        resolved = head(url)
+    except Exception:  # a dead redirect drops one source, not the answer
+        return None
+    return None if "vertexaisearch" in resolved else resolved
 
 
 def compose_web_draft(answer: str, sources: list[dict]) -> str:
@@ -58,8 +72,8 @@ def search_web(question: str, client, model: str) -> tuple[str, list[dict]]:
     sources, seen = [], set()
     for ch in (gm.grounding_chunks or []) if gm else []:
         if ch.web and ch.web.uri:
-            url = resolve_url(ch.web.uri)
-            if url not in seen:
+            url = resolve_url(ch.web.uri, _head)
+            if url and url not in seen:
                 seen.add(url)
                 sources.append({"url": url, "title": ch.web.title, "domain": domain_of(url)})
     return (r.text or "").strip(), sources

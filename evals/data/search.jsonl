@@ -1,0 +1,40 @@
+{"id": "jump-01", "kind": "jump", "query": "LA s. 4", "expected_url": "/laws/limitations-act-2002/s-4"}
+{"id": "jump-02", "kind": "jump", "query": "limitations act s 4", "expected_url": "/laws/limitations-act-2002/s-4"}
+{"id": "jump-03", "kind": "jump", "query": "Limitations Act, 2002, s. 5(1)", "expected_url": "/laws/limitations-act-2002/s-5-1"}
+{"id": "jump-04", "kind": "jump", "query": "LA s 15", "expected_url": "/laws/limitations-act-2002/s-15"}
+{"id": "jump-05", "kind": "jump", "query": "s. 7 limitations act", "expected_url": "/laws/limitations-act-2002/s-7"}
+{"id": "jump-06", "kind": "jump", "query": "OLA s. 3", "expected_url": "/laws/occupiers-liability-act/s-3"}
+{"id": "jump-07", "kind": "jump", "query": "occupiers liability act s 6.1", "expected_url": "/laws/occupiers-liability-act/s-6.1"}
+{"id": "jump-08", "kind": "jump", "query": "DOLA s. 2", "expected_url": "/laws/dog-owners-liability-act/s-2"}
+{"id": "jump-09", "kind": "jump", "query": "dog owners liability act s 2", "expected_url": "/laws/dog-owners-liability-act/s-2"}
+{"id": "jump-10", "kind": "jump", "query": "HTA s. 193", "expected_url": "/laws/highway-traffic-act/s-193"}
+{"id": "jump-11", "kind": "jump", "query": "highway traffic act s 128", "expected_url": "/laws/highway-traffic-act/s-128"}
+{"id": "jump-12", "kind": "jump", "query": "Negligence Act s. 3", "expected_url": "/laws/negligence-act/s-3"}
+{"id": "jump-13", "kind": "jump", "query": "FLA s. 61", "expected_url": "/laws/family-law-act/s-61"}
+{"id": "jump-14", "kind": "jump", "query": "Insurance Act s. 258.3", "expected_url": "/laws/insurance-act/s-258.3"}
+{"id": "jump-15", "kind": "jump", "query": "insurance act s 267.5", "expected_url": "/laws/insurance-act/s-267.5"}
+{"id": "jump-16", "kind": "jump", "query": "SABS s. 32", "expected_url": "/laws/statutory-accident-benefits-schedule/s-32"}
+{"id": "jump-17", "kind": "jump", "query": "CJA s. 116", "expected_url": "/laws/courts-of-justice-act/s-116"}
+{"id": "jump-18", "kind": "jump", "query": "City of Toronto Act s. 42", "expected_url": "/laws/city-of-toronto-act-2006/s-42"}
+{"id": "jump-19", "kind": "jump", "query": "WSIA s. 28", "expected_url": "/laws/workplace-safety-and-insurance-act-1997/s-28"}
+{"id": "jump-20", "kind": "jump", "query": "r. 76.01", "expected_url": "/laws/rules-of-civil-procedure/r-76.01"}
+{"id": "jump-21", "kind": "jump", "query": "rule 76", "expected_url": "/laws/rules-of-civil-procedure/rule-76"}
+{"id": "jump-22", "kind": "jump", "query": "Rule 24.1.01", "expected_url": "/laws/rules-of-civil-procedure/r-24.1.01"}
+{"id": "jump-23", "kind": "jump", "query": "2016 ONCA 585", "expected_url": "/cases/2016-onca-585"}
+{"id": "jump-24", "kind": "jump", "query": "2024 SCC 32", "expected_url": "/cases/2024-scc-32"}
+{"id": "jump-25", "kind": "jump", "query": "2012 SCC 32", "expected_url": "/cases/2012-scc-32"}
+{"id": "jump-26", "kind": "jump", "query": "2008 SCC 27", "expected_url": "/cases/2008-scc-27"}
+{"id": "jump-27", "kind": "jump", "query": "Galota v. Festival Hall", "expected_url": "/cases/2016-onca-585"}
+{"id": "jump-28", "kind": "jump", "query": "Clements v. Clements", "expected_url": "/cases/2012-scc-32"}
+{"id": "hit-01", "kind": "hit", "query": "slip and fall on ice", "expected_slug": "occupiers-liability-act"}
+{"id": "hit-02", "kind": "hit", "query": "how long to sue", "expected_slug": "limitations-act-2002"}
+{"id": "hit-03", "kind": "hit", "query": "dog bit my child", "expected_slug": "dog-owners-liability-act"}
+{"id": "hit-04", "kind": "hit", "query": "pothole city road injury", "expected_slug": "city-of-toronto-act-2006"}
+{"id": "hit-05", "kind": "hit", "query": "car accident benefits from my own insurer", "expected_slug": "statutory-accident-benefits-schedule"}
+{"id": "hit-06", "kind": "hit", "query": "both drivers partly at fault", "expected_slug": "negligence-act"}
+{"id": "hit-07", "kind": "hit", "query": "family members suing for loss of care", "expected_slug": "family-law-act"}
+{"id": "hit-08", "kind": "hit", "query": "injured at work can I sue", "expected_slug": "workplace-safety-and-insurance-act-1997"}
+{"id": "hit-09", "kind": "hit", "query": "snow on sidewalk in front of building", "expected_slug": "toronto-municipal-code-719"}
+{"id": "hit-10", "kind": "hit", "query": "simplified procedure small claim value", "expected_slug": "rules-of-civil-procedure"}
+{"id": "hit-11", "kind": "hit", "query": "threshold for pain and suffering after car crash", "expected_slug": "insurance-act"}
+{"id": "hit-12", "kind": "hit", "query": "child injured limitation period minor", "expected_slug": "limitations-act-2002"}
