@@ -124,3 +124,28 @@ def test_model_change_forces_reembed(conn):
     embed_pending(conn, fake_embed([]), model="old-model", workers=1)
     calls = []
     assert embed_pending(conn, fake_embed(calls), model="new-model", workers=1) == 1
+
+
+def test_progress_is_durable_with_an_autocommit_connection(test_db):
+    """Scripts must use autocommit connections: otherwise every flush is a savepoint and a crash loses the run."""
+    import psycopg
+
+    with psycopg.connect(test_db, autocommit=True) as conn, psycopg.connect(test_db, autocommit=True) as other:
+        doc = conn.execute("INSERT INTO documents (sha256, kind, slug, title, source) VALUES ('durable', 'statute',"
+                           " 'durable-act', 'Durable', 't') RETURNING id").fetchone()[0]
+        try:
+            sync_chunks(conn, doc, plan_chunks("Durable", [sec(i, f"s-{i}", f"Text {i}.") for i in range(1, 6)]))
+            seen = []
+
+            def flaky(text):
+                seen.append(text)
+                if len(seen) == 3:
+                    raise RuntimeError("crash")
+                return [0.03] * 1536
+
+            with pytest.raises(RuntimeError):
+                embed_pending(conn, flaky, model="m", workers=1)
+            saved = other.execute("SELECT count(*) FROM chunks WHERE document_id = %s AND embedding IS NOT NULL", (doc,)).fetchone()[0]
+            assert saved == 2  # visible from another connection = committed
+        finally:
+            conn.execute("DELETE FROM documents WHERE id = %s", (doc,))

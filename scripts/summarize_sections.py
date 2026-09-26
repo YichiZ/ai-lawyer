@@ -19,7 +19,7 @@ PROMPT_TOKENS, OUTPUT_TOKENS = 250, 110
 
 
 def main() -> int:
-    with psycopg.connect(DATABASE_URL) as conn:
+    with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         rows = conn.execute("SELECT text, summary_source_hash FROM sections WHERE kind = 'section'").fetchall()
         todo = [t for t, h in rows if len(t.strip()) >= MIN_CHARS and not t.strip().startswith(PLACEHOLDERS)
                 and h != source_hash(t)]

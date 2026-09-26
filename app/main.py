@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
-from app import ask, laws, review, search, tracing
+from app import ask, guides, laws, review, search, tracing
 from app.rerank import RERANK_CANDIDATES, make_reranker
 from ingest import vertex
 
@@ -253,3 +253,16 @@ def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Con
 def get_glossary(conn: Conn):
     items = laws.glossary(conn)
     return envelope(items, meta={"total": len(items)})
+
+
+@app.get("/guides")
+def get_guides(conn: Conn):
+    return envelope(guides.list_guides(conn))
+
+
+@app.get("/guides/{slug}")
+def get_guide(slug: Slug, conn: Conn):
+    guide = guides.get_guide(conn, slug)
+    if not guide:
+        raise NotFound(f"No guide '{slug}'")
+    return envelope(guide)

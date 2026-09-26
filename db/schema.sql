@@ -111,3 +111,20 @@ CREATE TABLE IF NOT EXISTS glossary_terms (
     source_pinpoint  text,
     created_at       timestamptz NOT NULL DEFAULT now()
 );
+
+-- 4.4: topic guides. Each guide section is an ordinary answer, so it goes through the review queue.
+CREATE TABLE IF NOT EXISTS guides (
+    slug       text PRIMARY KEY,
+    title      text NOT NULL,
+    intro      text NOT NULL,
+    sort_order integer NOT NULL
+);
+CREATE TABLE IF NOT EXISTS guide_sections (
+    id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    guide_slug text NOT NULL REFERENCES guides (slug) ON DELETE CASCADE,
+    heading    text NOT NULL,
+    question   text NOT NULL,
+    answer_id  bigint REFERENCES answers (id),
+    sort_order integer NOT NULL,
+    UNIQUE (guide_slug, heading)
+);

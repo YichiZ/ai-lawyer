@@ -19,7 +19,7 @@ WORKERS = 8
 
 def main() -> int:
     start = time.monotonic()
-    with psycopg.connect(DATABASE_URL) as conn:
+    with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         docs = conn.execute("SELECT id, slug, title FROM documents ORDER BY id").fetchall()
         for doc_id, slug, title in docs:
             rows = conn.execute(

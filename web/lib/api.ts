@@ -174,6 +174,29 @@ export interface SearchGroup {
   hits: { pinpoint: string; display: string; citation: Source["citation"]; snippet: string; url: string }[];
 }
 
+export interface GuideSummary {
+  slug: string;
+  title: string;
+  intro: string;
+  sections: number;
+  reviewed: number;
+}
+
+export interface GuideSection {
+  heading: string;
+  question: string;
+  answer_id: number | null;
+  status: string;
+  final_markdown?: string;
+  claims?: Claim[];
+  reviewed_by?: string;
+  reviewed_at?: string;
+  edited?: boolean;
+}
+
+export const listGuides = () => get<GuideSummary[]>("/guides");
+export const getGuide = (slug: string) =>
+  get<{ slug: string; title: string; intro: string; sections: GuideSection[] }>(`/guides/${encodeURIComponent(slug)}`);
 export const getGlossary = () => get<GlossaryEntry[]>("/glossary");
 export const suggest = (q: string) => get<Suggestion[]>(`/suggest?q=${encodeURIComponent(q)}`);
 

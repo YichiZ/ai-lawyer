@@ -23,7 +23,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localho
 def main() -> int:
     client = make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
     terms = load_terms()
-    with psycopg.connect(DATABASE_URL) as conn:
+    with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         calls = upsert_definitions(conn, terms, text_generator(client, model=ANSWER_MODEL))
         rows = conn.execute(
             "SELECT g.term, g.plain_definition, d.title, g.source_pinpoint, s.text FROM glossary_terms g"

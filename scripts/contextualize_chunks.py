@@ -23,7 +23,7 @@ OUTLINE_TOKENS, OUTPUT_TOKENS, PROMPT_TOKENS = 600, 80, 120  # rough per-call av
 
 def main() -> int:
     client = make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
-    with psycopg.connect(DATABASE_URL) as conn:
+    with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         if "--clear" in sys.argv:
             n = conn.execute("UPDATE chunks SET situating = NULL, embedding = NULL WHERE situating IS NOT NULL").rowcount
             conn.commit()
