@@ -22,5 +22,27 @@ def test_secondary_statutes_only_when_every_claim_is_a_decision():
     assert secondary_statutes(prose, []) == []
 
 
+LIBRARY = ["Highway Traffic Act", "Limitations Act, 2002", "Insurance Act", "O Reg 34/10",
+           "Toronto Municipal Code, Chapter 719, Snow and Ice Removal"]
+
+
+def test_laws_in_the_library_are_not_secondary():
+    assert secondary_statutes("Under the Highway Traffic Act, s. 193, the owner is liable.", [CASE], LIBRARY) == []
+    assert secondary_statutes("The Limitations Act sets two years.", [CASE], LIBRARY) == []  # year dropped
+    assert secondary_statutes("See O. Reg. 34/10.", [CASE], LIBRARY) == []  # citation form
+    assert secondary_statutes("The Toronto Municipal Code requires clearing.", [CASE], LIBRARY) == []
+    # exact match, not containment: "Insurance Act" in the library does not cover the Health Insurance Act
+    assert secondary_statutes("Under the Health Insurance Act, OHIP may sue.", [CASE], LIBRARY) == ["Health Insurance Act"]
+    assert secondary_statutes("Under the Municipal Act, 2001, notice is due.", [CASE], LIBRARY) == ["Municipal Act, 2001"]
+
+
+def test_determiner_phrases_are_not_authorities():
+    for text in ("This Act requires notice within 10 days, as the court held.", "Such Act applies.",
+                 "The Act says so.", "the Act says so.", "That Code governs.", "Each Act differs."):
+        assert authorities_named(text) == [], text
+        assert secondary_statutes(text, [CASE]) == [], text
+    assert authorities_named("This Highway Traffic Act section applies.") == ["Highway Traffic Act"]
+
+
 def test_label_names_no_authority():
     assert authorities_named(SECONDARY_LABEL) == []

@@ -7,7 +7,7 @@ import time
 
 import psycopg
 
-from app.ask import pinpoint_claims, retrieve, run_ask
+from app.ask import library_titles, pinpoint_claims, retrieve, run_ask
 from app.rerank import make_reranker
 from evals.gold import load_gold
 from ingest.vertex import CHEAP_MODEL, embedder, json_generator, make_client
@@ -50,7 +50,8 @@ def main() -> int:
             t["sources"].append((time.perf_counter() - t0) * 1000)
             before = len(t["generate"])
             try:
-                run_ask(g["question"], hits, generate, refine=lambda c: pinpoint_claims(conn, c))
+                run_ask(g["question"], hits, generate, refine=lambda c: pinpoint_claims(conn, c),
+                        library_titles=library_titles(conn))
             except Exception as e:  # record, keep profiling
                 failures.append((g["id"], type(e).__name__, str(e)[:60]))
             t["attempts"].append(len(t["generate"]) - before)

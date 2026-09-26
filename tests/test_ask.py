@@ -4,6 +4,7 @@ from app.ask import (
     GATE_MAX_DISTANCE,
     Retrieved,
     compose_draft,
+    library_titles,
     normalize,
     rrf,
     run_ask,
@@ -157,6 +158,24 @@ def test_statute_quoted_only_by_a_decision_is_labelled_and_flagged():
     result = run_ask("Notice under the Municipal Act?", [hit("c1", 0.2), decision], llm)
     assert result.status == "drafted" and result.draft_markdown.startswith(SECONDARY_LABEL + "\n\n")
     assert result.secondary_statute == ["Municipal Act, 2001"]
+
+
+def test_decision_quoting_a_law_we_hold_is_not_labelled():
+    decision = Retrieved("c9", CRINSON, 0.25, {"title": "Crinson v. Toronto (City)", "kind": "decision",
+                                               "citation": {"title": "Crinson v. Toronto (City)", "reference": "2010 ONCA 44 at para 6"}})
+    llm = FakeLLM([{"in_scope": True, "answer": "Under the Highway Traffic Act, notice is due within 10 days.",
+                    "claims": [claim("notice in writing of the claim is served within 10 days", chunk_id="c9")]}])
+    result = run_ask("Notice?", [hit("c1", 0.2), decision], llm, library_titles=["Highway Traffic Act"])
+    assert not result.draft_markdown.startswith(SECONDARY_LABEL) and result.secondary_statute == []
+
+
+def test_library_titles_lists_laws_not_decisions(conn):
+    conn.execute("INSERT INTO documents (sha256, kind, slug, title, short_name, citation, source) VALUES"
+                 " ('l1', 'statute', 'hta', 'Highway Traffic Act', 'HTA', 'RSO 1990, c H8', 't'),"
+                 " ('l2', 'decision', 'crinson', 'Crinson v. Toronto (City)', NULL, '2010 ONCA 44', 't')")
+    titles = library_titles(conn)
+    assert {"Highway Traffic Act", "HTA", "RSO 1990, c H8"} <= set(titles)
+    assert "Crinson v. Toronto (City)" not in titles and None not in titles
 
 
 def test_statute_sourced_answer_is_not_labelled():

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import psycopg
 
-from app.ask import pinpoint_claims, retrieve, retrieve_for_answer, run_ask
+from app.ask import library_titles, pinpoint_claims, retrieve, retrieve_for_answer, run_ask
 from app.rerank import make_reranker
 from app.review import risk_reasons
 from app.search import SEARCH_TOP_K, group_by_law, suggest
@@ -57,7 +57,8 @@ def answer(m: Models, question: str) -> dict:
     """The /ask draft pipeline, exactly as the background drafter runs it."""
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         hits = retrieve_for_answer(conn, question, m.embed(question), rerank=m.rerank)
-        result = run_ask(question, hits, m.generate, refine=lambda claims: pinpoint_claims(conn, claims))
+        result = run_ask(question, hits, m.generate, refine=lambda claims: pinpoint_claims(conn, claims),
+                         library_titles=library_titles(conn))
     claims = [{"text": c["text"], "quote": c["quote"], "slug": c["source"]["slug"],
                "pinpoint": c["source"]["pinpoint"], "title": c["source"]["title"], "kind": c["source"].get("kind"),
                "citation": c["source"]["citation"]["text"]} for c in result.claims]

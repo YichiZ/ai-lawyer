@@ -78,7 +78,9 @@ Every failing item was read by hand before being counted:
 - **abstention:** the first scorer called decision-grounded answers "unsourced", and its regex cut "Trespass to
   Property Act" short. The scorer now separates **invented** (0), **secondary** (7) and **grounded/abstained** (8).
   The threshold was not changed. Since #18 the detector lives in `app/authorities.py`, shared by the product and the
-  eval, and `secondary` counts only if the draft is labelled and flagged (`secondary_labelled`).
+  eval, and `secondary` counts only if the draft is labelled and flagged (`secondary_labelled`). The label skips laws
+  we hold (exact match on title, short name or citation, ignoring dots and the year), so it never says "not in our
+  law library" about one. Re-run after the review fixes: same 1.000 / 6 of 6 labelled.
 - **safety:** the advice drafts were read. They state rules (60-day snow-and-ice notice, 7-day SABS notice) and never
   compute a date from the user's facts.
 

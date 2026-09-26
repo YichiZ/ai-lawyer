@@ -22,6 +22,7 @@ from app.ask import (
     ALL_KINDS,
     GATE_MAX_DISTANCE,
     LAW_KINDS,
+    library_titles,
     pinpoint_claims,
     retrieve,
     retrieve_for_answer,
@@ -131,7 +132,8 @@ def answer_task(embed, rerank, generate):
         with psycopg.connect(DATABASE_URL) as conn:
             hits = retrieve_for_answer(conn, question, embed(question), rerank=rerank)
             t_sources = time.perf_counter()
-            result = run_ask(question, hits, generate, refine=lambda claims: pinpoint_claims(conn, claims))
+            result = run_ask(question, hits, generate, refine=lambda claims: pinpoint_claims(conn, claims),
+                             library_titles=library_titles(conn))
         return {
             "status": result.status,
             "draft": result.draft_markdown,

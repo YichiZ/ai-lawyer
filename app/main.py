@@ -224,7 +224,8 @@ def draft_answer(connect, answer_id: int, question: str, candidates: list, gener
             hits = rerank(question, candidates, ask.TOP_K) if rerank else candidates[:ask.TOP_K]
             cases = case_candidates or []
             hits += rerank(question, cases, ask.CASE_K) if rerank and cases else cases[:ask.CASE_K]
-            result = ask.run_ask(question, hits, generate, refine=lambda claims: ask.pinpoint_claims(conn, claims))
+            result = ask.run_ask(question, hits, generate, refine=lambda claims: ask.pinpoint_claims(conn, claims),
+                                 library_titles=ask.library_titles(conn))
             ask.complete_draft(conn, answer_id, result, round((time.perf_counter() - t0) * 1000), hits)
             span.update(output={"status": result.status, "claims": len(result.claims), "dropped": len(result.dropped)})
             log.info("answer %s drafted: %s in %d ms", answer_id, result.status, (time.perf_counter() - t0) * 1000)

@@ -141,9 +141,11 @@ def _not_found(hits: list[Retrieved]) -> AskResult:
 Refine = Callable[[list[dict]], list[dict]]
 
 
-def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Refine = lambda claims: claims) -> AskResult:
+def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Refine = lambda claims: claims,
+            library_titles: list[str] = ()) -> AskResult:
     """`refine` narrows each verified claim's source (e.g. to the subsection holding the quote) before composing.
-    The grounding gate looks at law hits only (its threshold was calibrated on them)."""
+    The grounding gate looks at law hits only (its threshold was calibrated on them). `library_titles` (see
+    library_titles()) keeps laws we hold from being labelled as quoted only by a decision."""
     best = min((h.distance for h in hits if h.distance is not None and h.source.get("kind") != "decision"),
                default=None)
     if best is None or best > GATE_MAX_DISTANCE:
@@ -168,7 +170,7 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
         all_dropped += dropped
         if ok:
             ok = refine([{**c, "source": sources[c["chunk_id"]]} for c in ok])
-            secondary = secondary_statutes(out["answer"], [c["source"] for c in ok])
+            secondary = secondary_statutes(out["answer"], [c["source"] for c in ok], library_titles)
             draft = compose_draft(out["answer"], ok)
             return AskResult("drafted", f"{SECONDARY_LABEL}\n\n{draft}" if secondary else draft, ok, all_dropped,
                              retried=attempt > 0, secondary_statute=secondary)
@@ -247,6 +249,12 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
         }
         hits.append(Retrieved(cid, r["text"], distance.get(cid), source, score))
     return rerank(question, hits, top_k) if rerank else hits
+
+
+def library_titles(conn: psycopg.Connection) -> list[str]:
+    """Titles, short names and citations of the laws we hold (every non-decision document)."""
+    return [v for row in conn.execute("SELECT title, short_name, citation FROM documents WHERE kind <> 'decision'")
+            for v in row if v]
 
 
 def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None, hits: list[Retrieved],
