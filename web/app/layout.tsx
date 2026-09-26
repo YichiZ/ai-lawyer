@@ -32,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav aria-label="Main" className="flex flex-wrap items-center gap-4">
               <Link href="/laws">Law library</Link>
               <Link href="/ask">Ask</Link>
+              <Link href="/glossary">Glossary</Link>
               <Link href="/review">Review</Link>
               <RoleSwitch role={role} />
             </nav>

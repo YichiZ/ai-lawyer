@@ -36,11 +36,18 @@ export interface SectionRef {
   heading: string | null;
 }
 
+export interface GlossaryEntry {
+  term: string;
+  definition: string;
+  source: { url: string; display: string } | null;
+}
+
 export interface Section extends SectionRef {
   text: string;
   lines: { text: string; level: number }[];
   full_text: boolean;
   plain_summary: string | null;
+  glossary: GlossaryEntry[];
   citation: { title: string; reference: string; text: string };
   breadcrumb: SectionRef[];
   children: (SectionRef & { text: string })[];
@@ -167,6 +174,7 @@ export interface SearchGroup {
   hits: { pinpoint: string; display: string; citation: Source["citation"]; snippet: string; url: string }[];
 }
 
+export const getGlossary = () => get<GlossaryEntry[]>("/glossary");
 export const suggest = (q: string) => get<Suggestion[]>(`/suggest?q=${encodeURIComponent(q)}`);
 
 export async function search(q: string): Promise<{ groups: SearchGroup[]; askThis: boolean }> {

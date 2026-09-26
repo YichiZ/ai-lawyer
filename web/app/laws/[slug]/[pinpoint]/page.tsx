@@ -86,6 +86,21 @@ export default async function SectionPage({ params }: Props) {
         </div>
       )}
 
+      {s.glossary.length > 0 && (
+        <section aria-labelledby="terms-heading" className="mt-6 max-w-[68ch]">
+          <h2 id="terms-heading" className="text-sm font-semibold">Terms used here</h2>
+          <dl className="mt-2 space-y-2 text-sm">
+            {s.glossary.map((g) => (
+              <div key={g.term}>
+                <dt className="font-semibold">{g.term}</dt>
+                <dd className="text-muted">{g.definition}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-sm"><Link href="/glossary">All terms</Link></p>
+        </section>
+      )}
+
       <CopyCitation title={s.citation.title} reference={s.citation.reference} text={s.citation.text} />
 
       <nav aria-label="Previous and next" className="mt-10 flex justify-between border-t border-rule pt-4 text-sm">

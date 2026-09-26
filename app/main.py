@@ -218,3 +218,9 @@ def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Con
     hits = ask.retrieve(conn, q.strip(), ai.embed_query(q.strip()), top_k=search.SEARCH_TOP_K)
     groups = search.group_by_law(hits)
     return envelope(groups, meta={"total": len(hits), "ask_this": search.is_question(q)})
+
+
+@app.get("/glossary")
+def get_glossary(conn: Conn):
+    items = laws.glossary(conn)
+    return envelope(items, meta={"total": len(items)})

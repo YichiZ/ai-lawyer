@@ -3,6 +3,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from app.format import indent_lines, mcgill_citation
+from app.glossary import find_terms
 from ingest.statutes import display_pinpoint
 
 EXCERPT_CHARS = 300  # documents with reproduction='excerpt' (City copyright) never return more than this
@@ -78,6 +79,7 @@ def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | No
         "lines": indent_lines(shown(s["text"])),
         "full_text": full,
         "plain_summary": s["plain_summary"],  # our own words, so shown even for excerpt-only by-laws
+        "glossary": glossary_for(conn, shown(s["text"])),
         "citation": mcgill_citation(doc, s["pinpoint"]),
         "breadcrumb": [{**b, "display": display_pinpoint(b["pinpoint"])} for b in breadcrumb],
         "children": [{**c, "display": display_pinpoint(c["pinpoint"]), "text": shown(c["text"])} for c in children],
@@ -85,3 +87,19 @@ def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | No
         "next": nxt["pinpoint"] if nxt else None,
         "document": document,
     }
+
+
+def glossary(conn: psycopg.Connection) -> list[dict]:
+    rows = conn.cursor(row_factory=dict_row).execute(
+        "SELECT term, plain_definition, source_slug, source_pinpoint FROM glossary_terms ORDER BY lower(term)"
+    ).fetchall()
+    return [{"term": r["term"], "definition": r["plain_definition"],
+             "source": {"url": f"/laws/{r['source_slug']}/{r['source_pinpoint']}",
+                        "display": display_pinpoint(r["source_pinpoint"])} if r["source_slug"] else None}
+            for r in rows]
+
+
+def glossary_for(conn: psycopg.Connection, text: str) -> list[dict]:
+    """Glossary entries whose term appears in `text` (whole words), in order of first appearance."""
+    entries = {g["term"].lower(): g for g in glossary(conn)}
+    return [entries[term.lower()] for _, _, term in find_terms(text, list(entries))]

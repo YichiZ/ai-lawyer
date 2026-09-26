@@ -101,3 +101,13 @@ INSERT INTO users (name, role) VALUES ('Demo Researcher', 'researcher'), ('Demo 
 
 -- 3.5: LLM "situating" sentences per chunk (embedding input only; keyword tsv unchanged).
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS situating text;
+
+-- 4.3: glossary (definitions written from the defining statutory text where one exists).
+CREATE TABLE IF NOT EXISTS glossary_terms (
+    id               bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    term             text NOT NULL UNIQUE,
+    plain_definition text NOT NULL,
+    source_slug      text,
+    source_pinpoint  text,
+    created_at       timestamptz NOT NULL DEFAULT now()
+);
