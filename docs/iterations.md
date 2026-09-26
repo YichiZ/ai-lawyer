@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.9 Review workflow API
+
+- **What:** seeded users "Demo Researcher" / "Demo Reviewer" (schema, idempotent); role from the `X-Demo-User` header (demo only, default researcher, unknown → 422). `app/review.py` + routes: `GET /review/queue` (reviewer only; risky first — refusals, dropped claims, retries — then oldest), `POST /answers/{id}/review` (approve; edit needs `final_markdown` + note; reject needs a reason from wrong_law | missing_authority | unsupported_claim | out_of_scope; one atomic `UPDATE … WHERE status = 'pending_review'`, else 409 or 404), `GET /answers/{id}` (researcher: sources + "Awaiting review" while pending, final text + claims + "reviewed by" after approval, reason after rejection; reviewer: everything). The draft is never overwritten; edits go to `final_markdown`. `/ask` now records `asked_by`.
+- **Validated:** tests red first (13/14 failing) → 14 review tests, 156 total. curl walkthrough on the real API: ask "neighbour's dog bit me in Toronto — who is liable?" → researcher view `Awaiting review` with 8 sources and no draft; researcher → queue 403; reviewer queue lists the BC refusal first (risk `out_of_scope`); draft cites Dog Owners' Liability Act s. 2 with 3/3 verified quotes; approve → `approved`; approve again → 409 `conflict`; researcher view → final text, "Demo Reviewer", 3 claims.
+- **Numbers:** the first reviewed answer with verified quotes exists (answer 4) — Phase 1 exit half 2 is met at the API level.
+- **Next:** 1.10 — Ask and Review pages + browser flow.
+
 ## 2026-09-25 · Phase 1 · 1.8 `POST /ask` drafts
 
 - **What:** `app/ask.py`: keyword (terms OR'ed, `ts_rank_cd`) + vector top 50 each, RRF (k = 60), top 8; grounding gate on best cosine distance (`GATE_MAX_DISTANCE = 0.35`, no model call above it); gemini-3.7-flash (low thinking, JSON schema) returns `in_scope`, `answer`, `claims[{text, chunk_id, quote}]`; code keeps a claim only if its chunk was retrieved and its quote (≥ 12 chars) is a substring after normalizing whitespace and curly → straight quotes; zero verified → one retry with feedback → `unverified` refusal. Draft markdown is composed in code (answer + "What the law says" quotes with McGill citations). `POST /ask` returns sources + answer id + `pending_review` only; the draft, claims, dropped claims, sources, distances and timings are stored on `answers`.

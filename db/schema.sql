@@ -93,3 +93,8 @@ ALTER TABLE sections ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'sectio
 -- 1.5: 'excerpt' = source copyright forbids republishing (Toronto Municipal Code): UI shows excerpts + link only.
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS reproduction text NOT NULL DEFAULT 'full'
     CHECK (reproduction IN ('full', 'excerpt'));
+
+-- 1.9: two seeded demo users (no real auth; the role comes from the X-Demo-User header).
+CREATE UNIQUE INDEX IF NOT EXISTS users_name_key ON users (name);
+INSERT INTO users (name, role) VALUES ('Demo Researcher', 'researcher'), ('Demo Reviewer', 'reviewer')
+    ON CONFLICT (name) DO NOTHING;

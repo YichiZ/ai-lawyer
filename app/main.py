@@ -6,17 +6,17 @@ import logging
 import os
 import time
 from functools import lru_cache
-from typing import Annotated, Iterator
+from typing import Annotated, Iterator, Literal
 
 import psycopg
-from fastapi import Depends, FastAPI, Path, Request
+from fastapi import Depends, FastAPI, Header, Path, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
-from app import ask, laws
+from app import ask, laws, review
 from ingest import vertex
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
@@ -48,6 +48,24 @@ def get_ai() -> VertexAI:
 
 Conn = Annotated[psycopg.Connection, Depends(get_conn)]
 AI = Annotated[VertexAI, Depends(get_ai)]
+
+
+def current_user(conn: Conn, x_demo_user: Annotated[Literal["researcher", "reviewer"], Header()] = "researcher") -> dict:
+    """Demo only: the role comes from the X-Demo-User header (default researcher). No real authentication."""
+    uid, name = conn.execute("SELECT id, name FROM users WHERE role = %s ORDER BY id LIMIT 1", (x_demo_user,)).fetchone()
+    return {"id": uid, "name": name, "role": x_demo_user}
+
+
+User = Annotated[dict, Depends(current_user)]
+
+
+def require_reviewer(user: User) -> dict:
+    if user["role"] != "reviewer":
+        raise HTTPException(status_code=403, detail="Reviewers only")
+    return user
+
+
+Reviewer = Annotated[dict, Depends(require_reviewer)]
 Slug = Annotated[str, Path(pattern=SLUG, max_length=100)]
 Pinpoint = Annotated[str, Path(pattern=SLUG, max_length=100)]
 
@@ -61,9 +79,11 @@ class NotFound(HTTPException):
         super().__init__(status_code=404, detail=message)
 
 
+
+
 @app.exception_handler(HTTPException)
 async def http_error(_: Request, exc: HTTPException):
-    code = "not_found" if exc.status_code == 404 else "http_error"
+    code = {403: "forbidden", 404: "not_found", 409: "conflict"}.get(exc.status_code, "http_error")
     return envelope(error={"code": code, "message": str(exc.detail)}, status=exc.status_code)
 
 
@@ -110,7 +130,7 @@ class AskRequest(BaseModel):
 
 
 @app.post("/ask")
-def post_ask(body: AskRequest, conn: Conn, ai: AI):
+def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User):
     """Sources right away; the drafted answer is stored pending_review and never returned here."""
     question = body.question.strip()
     t0 = time.perf_counter()
@@ -118,8 +138,48 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI):
     t_sources = time.perf_counter()
     result = ask.run_ask(question, hits, ai.generate)
     timings = {"sources": round((t_sources - t0) * 1000), "total": round((time.perf_counter() - t0) * 1000)}
-    answer_id = ask.store_answer(conn, question, None, result, hits, timings)
+    answer_id = ask.store_answer(conn, question, user["id"], result, hits, timings)
     log.info("ask %s: %s, %d claims, %d dropped, %s", answer_id, result.status, len(result.claims),
              len(result.dropped), timings)
     return envelope({"answer_id": answer_id, "status": "pending_review", "sources": [h.source for h in hits]},
                     meta={"timings_ms": timings})
+
+
+class ReviewRequest(BaseModel):
+    decision: Literal["approve", "edit", "reject"]
+    final_markdown: str | None = Field(default=None, max_length=20_000)
+    note: str | None = Field(default=None, max_length=2_000)
+    reason: Literal["wrong_law", "missing_authority", "unsupported_claim", "out_of_scope"] | None = None
+
+    @model_validator(mode="after")
+    def required_fields(self):
+        if self.decision == "edit" and not ((self.final_markdown or "").strip() and (self.note or "").strip()):
+            raise ValueError("edit needs final_markdown and a note")
+        if self.decision == "reject" and not self.reason:
+            raise ValueError("reject needs a reason")
+        return self
+
+
+@app.get("/review/queue")
+def review_queue(conn: Conn, _: Reviewer):
+    items = review.queue(conn)
+    return envelope(items, meta={"total": len(items)})
+
+
+@app.post("/answers/{answer_id}/review")
+def review_answer(answer_id: int, body: ReviewRequest, conn: Conn, reviewer: Reviewer):
+    status = review.decide(conn, answer_id, reviewer["id"], body.decision, body.final_markdown, body.note, body.reason)
+    if status is None:
+        if not review.exists(conn, answer_id):
+            raise NotFound(f"No answer {answer_id}")
+        raise HTTPException(status_code=409, detail=f"Answer {answer_id} was already reviewed")
+    log.info("answer %s %s by %s", answer_id, status, reviewer["name"])
+    return envelope({"id": answer_id, "status": status})
+
+
+@app.get("/answers/{answer_id}")
+def get_answer(answer_id: int, conn: Conn, user: User):
+    view = review.get_answer(conn, answer_id, user["role"])
+    if not view:
+        raise NotFound(f"No answer {answer_id}")
+    return envelope(view)
