@@ -53,3 +53,13 @@ def test_flatten_picks_quality_metrics():
 def test_judge_metrics_have_wider_tolerance():
     assert compare(report(citation=0.92), report())[0]  # -4 points on a judge metric: within 5
     assert not compare(report(citation=0.90), report())[0]  # -6 points: fails
+
+
+def test_flatten_adds_summary_metrics_when_given():
+    from evals.baseline import SUMMARY_METRICS
+    retrieval = {"summary": {"all": {"n": 62, "recall@8": 0.9, "mrr": 0.6}}}
+    answers = {"summary": {"in_scope": {"n": 62, **{m.split(".")[-1]: 0.5 for m in QUALITY_METRICS if m.startswith("answers.in_scope")}},
+                           "out_of_scope": {"n": 15, "refusal_correct": 1.0}}}
+    summaries = {"summary": {"faithful": 0.96, "no_advice": 1.0, "grade_le_10": 0.8}}
+    flat = flatten(retrieval, answers, summaries)
+    assert set(SUMMARY_METRICS) <= set(flat) and flat["summaries.faithful"] == 0.96

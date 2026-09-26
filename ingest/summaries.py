@@ -11,11 +11,11 @@ import psycopg
 
 from ingest.statutes import display_pinpoint
 
-PROMPT_VERSION = 1
+PROMPT_VERSION = 3  # v2: no glosses/outside facts (glossary defines terms); v3: shorter sentences, short words (grade <= 10)
 MIN_CHARS = 60
 PLACEHOLDERS = ("[blank]", "Repealed", "Omitted", "Revoked")
 FLUSH_EVERY = 25
-PROMPT = """Explain this provision of Ontario law in plain language for a paralegal or law student.
+PROMPT = """Rewrite this provision of Ontario law in plain language for a paralegal or law student.
 
 {title}, {display}{heading}
 <official_text>
@@ -23,10 +23,11 @@ PROMPT = """Explain this provision of Ontario law in plain language for a parale
 </official_text>
 
 Rules:
-- 2-4 short sentences at about a grade 10 reading level.
-- State what the rule is and who it applies to. Keep legal terms (e.g. "limitation period", "occupier") and explain
-  each briefly the first time.
-- Use only what the text says; if it refers to another section, say so rather than guessing its content.
+- At most 3 sentences, each under 14 words. Prefer short, everyday words; aim for a grade 8 reading level.
+- Say what the rule is and who it applies to. Keep a legal term only if the rule needs it, and do not define it
+  (a glossary does that).
+- Use only what the text says: no outside facts, no examples, no definitions, no section numbers the text does not
+  mention. If the text points to another section, just say "another section".
 - This is not legal advice: never say whether someone has a case, predict outcomes, value a claim, or calculate a date.
 Reply with the summary only."""
 

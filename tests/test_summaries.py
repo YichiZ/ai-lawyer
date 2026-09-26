@@ -22,7 +22,7 @@ def test_parts_and_subsections_not_eligible():
 
 def test_prompt_has_rules_and_text():
     p = build_prompt("Limitations Act, 2002", "s. 4", "Basic limitation period", "Unless this Act provides otherwise...")
-    assert "grade 10" in p and "not legal advice" in p.lower() and "Unless this Act provides otherwise..." in p
+    assert "grade 8" in p and "not legal advice" in p.lower() and "Unless this Act provides otherwise..." in p
 
 
 def test_hash_depends_on_text_and_prompt_version():

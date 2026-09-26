@@ -1,6 +1,6 @@
 """Run Langfuse experiments on the gold set.
 
-Run: uv run --env-file .env scripts/eval.py retrieval | answers | gate | record [--from-latest]
+Run: uv run --env-file .env scripts/eval.py retrieval | answers | summaries | gate | record [--from-latest]
   gate    run both experiments and compare with evals/baseline.json (exit 1 on regression) — `make eval`
   record  run both and write evals/baseline.json; --from-latest uses the newest saved runs instead
 Needs LANGFUSE_* keys (Langfuse Cloud) and Vertex ADC. Each run is also saved to evals/runs/ (gitignored).
@@ -23,6 +23,9 @@ from app.ask import GATE_MAX_DISTANCE, pinpoint_claims, retrieve, run_ask  # noq
 from evals.answers import JUDGE_MODEL, facts_covered, gate_tradeoff, judge_answer, refusal_correct, verified_rate  # noqa: E402
 from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash  # noqa: E402
 from evals.gold import GOLD_PATH, load_gold  # noqa: E402
+from evals.readability import fk_grade  # noqa: E402
+from evals.summaries import judge_summary, summarize_scores  # noqa: E402
+from ingest.statutes import display_pinpoint  # noqa: E402
 from evals.langfuse_io import DATASET, upsert_dataset  # noqa: E402
 from evals.metrics import chunk_covers, mrr, recall_at_k, summarize  # noqa: E402
 from app.rerank import RERANK_CANDIDATES, make_reranker  # noqa: E402
@@ -182,16 +185,48 @@ def run_answers(lf: Langfuse) -> dict:
             "summary": summary, "gate_tradeoff": gate, "judge_spot_check": spot, "items": rows}
 
 
-def combined(retrieval: dict, answers: dict) -> dict:
+SUMMARY_SAMPLE = 50
+
+
+def run_summaries(lf: Langfuse) -> dict:
+    """50 sections with summaries (fixed sample): Flash-Lite judge vs the official text + reading grade."""
+    with psycopg.connect(DATABASE_URL) as conn:
+        rows = conn.execute(
+            "SELECT d.slug, s.pinpoint, s.text, s.plain_summary, d.title FROM sections s JOIN documents d ON d.id = s.document_id"
+            " WHERE s.plain_summary IS NOT NULL ORDER BY md5(d.slug || s.pinpoint) LIMIT %s", (SUMMARY_SAMPLE,),
+        ).fetchall()
+    judge = json_generator(eval_client(), model=JUDGE_MODEL)
+    data = [{"input": {"slug": r[0], "pinpoint": r[1], "text": r[2], "summary": r[3],
+                       "where": f"{r[4]}, {display_pinpoint(r[1])}"}} for r in rows]
+
+    def task(*, item, **_):
+        i = item["input"] if isinstance(item, dict) else item.input
+        return {**judge_summary(i["text"], i["summary"], judge, i["where"]), "grade": fk_grade(i["summary"])}
+
+    def evaluator(*, output, **_):
+        return [Evaluation(name=k, value=output[k]) for k in ("faithful", "no_advice", "grade") if output[k] is not None]
+
+    result = lf.run_experiment(name="summaries", description=f"{SUMMARY_SAMPLE} section summaries: judge + grade",
+                               data=data, task=task, evaluators=[evaluator], max_concurrency=CONCURRENCY,
+                               metadata={"judge_model": JUDGE_MODEL})
+    if len(result.item_results) != len(data) or any(r.output is None for r in result.item_results):
+        raise SystemExit("summaries: some items failed — rerun")
+    items = [{**r.item["input"], **r.output} for r in result.item_results]
+    return {"experiment": "summaries", "run_name": result.run_name, "url": result.dataset_run_url,
+            "summary": summarize_scores(items), "items": items}
+
+
+def combined(retrieval: dict, answers: dict, summaries: dict | None = None) -> dict:
     with psycopg.connect(DATABASE_URL) as conn:
         corpus = corpus_hash(conn)
     return {"recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "corpus_hash": corpus, "gold_hash": gold_hash(GOLD_PATH),
             "models": {"answer": ANSWER_MODEL, "judge": JUDGE_MODEL, "embedding": "gemini-embedding-2"},
             "gate_max_distance": GATE_MAX_DISTANCE,
-            "runs": {"retrieval": retrieval["url"], "answers": answers["url"]},
+            "runs": {"retrieval": retrieval["url"], "answers": answers["url"],
+                     **({"summaries": summaries["url"] or summaries["run_name"]} if summaries else {})},
             "latency_ms": answers["summary"]["latency_ms"],
-            "metrics": {k: round(v, 4) for k, v in flatten(retrieval, answers).items()}}
+            "metrics": {k: round(v, 4) for k, v in flatten(retrieval, answers, summaries).items()}}
 
 
 def latest(kind: str) -> dict:
@@ -208,11 +243,12 @@ def save(kind: str, report: dict) -> Path:
 def gate_or_record(lf: Langfuse | None, mode: str, from_latest: bool) -> int:
     if from_latest:
         retrieval, answers = latest("retrieval"), latest("answers")
+        summaries = latest("summaries") if list(RUNS.glob("*-summaries.json")) else None
     else:
-        retrieval, answers = run_retrieval(lf), run_answers(lf)
-        save("retrieval", retrieval), save("answers", answers)
+        retrieval, answers, summaries = run_retrieval(lf), run_answers(lf), run_summaries(lf)
+        save("retrieval", retrieval), save("answers", answers), save("summaries", summaries)
         lf.flush()
-    current = combined(retrieval, answers)
+    current = combined(retrieval, answers, summaries)
     if mode == "record":
         BASELINE_PATH.write_text(json.dumps(current, indent=2) + "\n")
         print(f"recorded {BASELINE_PATH.relative_to(ROOT)}")
@@ -232,7 +268,7 @@ def main() -> int:
     lf = Langfuse()
     if not lf.auth_check():
         sys.exit("Langfuse auth failed: check LANGFUSE_* in .env (run with uv run --env-file .env)")
-    report = {"retrieval": run_retrieval, "answers": run_answers}[kind](lf)
+    report = {"retrieval": run_retrieval, "answers": run_answers, "summaries": run_summaries}[kind](lf)
     lf.flush()
     path = save(kind, report)
     print(f"{kind}: {report['url'] or report['run_name']}\nsaved {path.relative_to(ROOT)}")
