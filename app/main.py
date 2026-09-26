@@ -4,6 +4,8 @@ Run: make api   (http://localhost:8000/docs)
 """
 import logging
 import os
+import time
+from functools import lru_cache
 from typing import Annotated, Iterator
 
 import psycopg
@@ -11,9 +13,11 @@ from fastapi import Depends, FastAPI, Path, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException
 
-from app import laws
+from app import ask, laws
+from ingest import vertex
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 SLUG = r"^[a-z0-9][a-z0-9.\-]*$"
@@ -28,7 +32,22 @@ def get_conn() -> Iterator[psycopg.Connection]:
         yield conn
 
 
+class VertexAI:
+    """The two model calls /ask needs; replaced by a fake in tests."""
+
+    def __init__(self):
+        client = vertex.make_client()
+        self.embed_query = vertex.embedder(client, task_type="RETRIEVAL_QUERY")
+        self.generate = vertex.json_generator(client)
+
+
+@lru_cache(maxsize=1)
+def get_ai() -> VertexAI:
+    return VertexAI()
+
+
 Conn = Annotated[psycopg.Connection, Depends(get_conn)]
+AI = Annotated[VertexAI, Depends(get_ai)]
 Slug = Annotated[str, Path(pattern=SLUG, max_length=100)]
 Pinpoint = Annotated[str, Path(pattern=SLUG, max_length=100)]
 
@@ -84,3 +103,23 @@ def get_section(slug: Slug, pinpoint: Pinpoint, conn: Conn):
     if not section:
         raise NotFound(f"No section '{pinpoint}' in '{slug}'")
     return envelope(section)
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=5, max_length=1000)
+
+
+@app.post("/ask")
+def post_ask(body: AskRequest, conn: Conn, ai: AI):
+    """Sources right away; the drafted answer is stored pending_review and never returned here."""
+    question = body.question.strip()
+    t0 = time.perf_counter()
+    hits = ask.retrieve(conn, question, ai.embed_query(question))
+    t_sources = time.perf_counter()
+    result = ask.run_ask(question, hits, ai.generate)
+    timings = {"sources": round((t_sources - t0) * 1000), "total": round((time.perf_counter() - t0) * 1000)}
+    answer_id = ask.store_answer(conn, question, None, result, hits, timings)
+    log.info("ask %s: %s, %d claims, %d dropped, %s", answer_id, result.status, len(result.claims),
+             len(result.dropped), timings)
+    return envelope({"answer_id": answer_id, "status": "pending_review", "sources": [h.source for h in hits]},
+                    meta={"timings_ms": timings})

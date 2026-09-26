@@ -2,6 +2,14 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.8 `POST /ask` drafts
+
+- **What:** `app/ask.py`: keyword (terms OR'ed, `ts_rank_cd`) + vector top 50 each, RRF (k = 60), top 8; grounding gate on best cosine distance (`GATE_MAX_DISTANCE = 0.35`, no model call above it); gemini-3.7-flash (low thinking, JSON schema) returns `in_scope`, `answer`, `claims[{text, chunk_id, quote}]`; code keeps a claim only if its chunk was retrieved and its quote (≥ 12 chars) is a substring after normalizing whitespace and curly → straight quotes; zero verified → one retry with feedback → `unverified` refusal. Draft markdown is composed in code (answer + "What the law says" quotes with McGill citations). `POST /ask` returns sources + answer id + `pending_review` only; the draft, claims, dropped claims, sources, distances and timings are stored on `answers`.
+- **Validated:** tests red first → 15 unit + 4 endpoint tests (142 total). Real Vertex, 3 questions: (1) "How long do I have to sue after an injury in Ontario?" → drafted, 2 verified quotes (LA s. 15, OLA s. 6.1), but the answer says the general period was not in the passages; (2) "icy sidewalk in Toronto … who, how soon?" → drafted, 3/3 verified: COTA s. 42 (clerk, 10 days) + OLA s. 6.1 (occupier/contractor, 60 days) — correct; (3) "appeal a speeding ticket in BC" → `out_of_scope` (model; best distance 0.299 passed the gate).
+- **Numbers:** sources 317–1,117 ms (first call cold), total 2.1–4.5 s (targets < 2 s / < 8 s). 0 dropped claims across 5 verified. Best distances: in scope 0.189–0.251, out of scope 0.299.
+- **Baseline gap (for Phase 2/3):** Limitations Act s. 4 is vector rank 4 but absent from keyword results ("sue" ≠ "proceeding"/"claim"), so RRF pushes it out of the top 8 → the design's synonym expansion and reranker; measure with the gold set.
+- **Next:** 1.9 — review workflow API (seeded users, queue, approve/edit/reject).
+
 ## 2026-09-25 · Phase 1 · 1.7 Law library frontend
 
 - **What:** Next.js 16.3.6 (App Router, TS, Tailwind 4) in `web/`: `/laws` (grouped library with citations, section counts, as-of dates), `/laws/[slug]` (Part → section tree), `/laws/[slug]/[pinpoint]` (official text with legislative hanging indents, breadcrumb, source line "Unofficial copy … as of … · Source … · Official version", McGill copy-citation button, prev/next; excerpt-only notice + toronto.ca link for City chapters), not-found and error pages, skip link, print styles. Design-doc palette as light/dark tokens; Source Serif 4 / Sans 3 / Code Pro via `next/font` (self-hosted). API gained `lines` (indent levels) and `citation` (McGill) from `app/format.py`. Bylaw parser v2 rejoins PDF-wrapped lines into paragraphs (found in the browser: excerpt showed broken lines).

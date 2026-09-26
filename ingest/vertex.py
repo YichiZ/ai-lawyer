@@ -34,3 +34,21 @@ def embedder(client: genai.Client, task_type: str = "RETRIEVAL_DOCUMENT"):
         return values
 
     return embed
+
+
+LOW_THINKING = types.ThinkingConfig(thinking_level="low")  # default thinking made grounding loop until timeout
+
+
+def json_generator(client: genai.Client, model: str = ANSWER_MODEL):
+    """(prompt, JSON schema) -> parsed JSON from the model, low thinking."""
+    import json
+
+    def generate(prompt: str, schema: dict) -> dict:
+        r = client.models.generate_content(
+            model=model, contents=prompt,
+            config=types.GenerateContentConfig(
+                thinking_config=LOW_THINKING, response_mime_type="application/json", response_schema=schema),
+        )
+        return json.loads(r.text)
+
+    return generate

@@ -1,0 +1,210 @@
+"""POST /ask: hybrid retrieval -> grounding gate -> Gemini claims -> quote verification in code -> pending_review draft.
+
+Code, not the model, decides which citations survive: a quote must be an exact (normalized) substring of the chunk it
+names, and that chunk must be one we retrieved.
+"""
+import json
+from dataclasses import dataclass, field
+from typing import Callable
+
+import psycopg
+from pgvector import HalfVector
+from pgvector.psycopg import register_vector
+from psycopg.rows import dict_row
+
+from app.format import mcgill_citation
+from app.laws import excerpt
+from ingest.statutes import display_pinpoint
+
+RRF_K = 60
+CANDIDATES = 50  # per retriever
+TOP_K = 8
+# Cosine distance of the best vector hit above which we answer "not found" without a model call.
+# ponytail: a vector-distance gate until the Phase 3 reranker gives a better relevance score.
+GATE_MAX_DISTANCE = 0.35
+MIN_QUOTE_CHARS = 12
+NOT_FOUND_SOURCES = 3
+
+Generate = Callable[[str, dict], dict]  # (prompt, response JSON schema) -> parsed JSON
+
+CLAIMS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "in_scope": {"type": "boolean"},
+        "scope_note": {"type": "string"},
+        "answer": {"type": "string"},
+        "claims": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"text": {"type": "string"}, "chunk_id": {"type": "string"}, "quote": {"type": "string"}},
+            "required": ["text", "chunk_id", "quote"],
+        }},
+    },
+    "required": ["in_scope", "answer", "claims"],
+}
+
+PROMPT = """You are a research assistant for paralegals and law students studying Ontario personal-injury law.
+Answer the research question using ONLY the numbered passages below. They are from Ontario statutes, regulations and
+Toronto by-laws.
+
+Rules:
+- If the question is not about Ontario personal-injury law (or the related Toronto by-laws), set in_scope=false and
+  put a short description of the topic in scope_note. Do not answer it.
+- "answer": 2-3 plain sentences a law student can follow. State rules, not advice: never say whether someone has a
+  case, never predict an outcome, never value a claim, never compute a specific deadline date.
+- "claims": each claim is one statement from your answer, the id of the passage that supports it (e.g. "c12"), and a
+  quote copied EXACTLY, word for word, from that passage (one sentence or clause, at least a few words).
+  Never paraphrase inside a quote. Use only passage ids listed below.
+- If the passages do not answer the question, return an empty claims list and say so in "answer".
+{feedback}
+Question: {question}
+
+Passages:
+{passages}
+"""
+
+
+@dataclass
+class Retrieved:
+    chunk_id: str
+    text: str
+    distance: float | None  # cosine distance from the vector retriever (None if keyword-only)
+    source: dict
+    score: float = 0.0
+
+
+@dataclass
+class AskResult:
+    status: str  # drafted | not_found | out_of_scope | unverified
+    draft_markdown: str
+    claims: list[dict] = field(default_factory=list)
+    dropped: list[dict] = field(default_factory=list)
+    retried: bool = False
+
+
+def normalize(s: str) -> str:
+    s = s.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+    return " ".join(s.split())
+
+
+def rrf(rankings: list[list[str]], k: int = RRF_K) -> list[tuple[str, float]]:
+    """Reciprocal rank fusion: score = sum 1/(k + rank). Ties keep first-seen order."""
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, cid in enumerate(ranking, start=1):
+            scores[cid] = scores.get(cid, 0.0) + 1 / (k + rank)
+    return sorted(scores.items(), key=lambda kv: -kv[1])
+
+
+def verify_claims(claims: list[dict], chunks: dict[str, str]) -> tuple[list[dict], list[dict]]:
+    ok, dropped = [], []
+    for c in claims:
+        quote = normalize(c.get("quote", ""))
+        if c.get("chunk_id") not in chunks:
+            dropped.append({**c, "reason": "chunk_not_retrieved"})
+        elif len(quote) < MIN_QUOTE_CHARS:
+            dropped.append({**c, "reason": "quote_too_short"})
+        elif quote not in normalize(chunks[c["chunk_id"]]):
+            dropped.append({**c, "reason": "quote_not_in_chunk"})
+        else:
+            ok.append(c)
+    return ok, dropped
+
+
+def _cite(source: dict) -> str:
+    c = source["citation"]
+    return f"*{c['title']}*, {c['reference']}" if c["title"] else c["reference"]
+
+
+def compose_draft(answer: str, claims: list[dict], sources: dict[str, dict]) -> str:
+    parts = [answer.strip(), "", "**What the law says**", ""]
+    for c in claims:
+        parts += [f"> {normalize(c['quote'])}", f"> — {_cite(sources[c['chunk_id']])}", ""]
+    return "\n".join(parts).strip()
+
+
+def _not_found(hits: list[Retrieved]) -> AskResult:
+    closest = sorted((h for h in hits if h.distance is not None), key=lambda h: h.distance)[:NOT_FOUND_SOURCES]
+    lines = ["This was not found in the laws we cover. The closest passages were:", ""]
+    lines += [f"- {_cite(h.source)}" for h in closest]
+    return AskResult(status="not_found", draft_markdown="\n".join(lines))
+
+
+def run_ask(question: str, hits: list[Retrieved], generate: Generate) -> AskResult:
+    best = min((h.distance for h in hits if h.distance is not None), default=None)
+    if best is None or best > GATE_MAX_DISTANCE:
+        return _not_found(hits)
+
+    chunks = {h.chunk_id: h.text for h in hits}
+    sources = {h.chunk_id: h.source for h in hits}
+    passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}\n{h.text}" for h in hits)
+    all_dropped, feedback = [], ""
+    for attempt in range(2):
+        out = generate(PROMPT.format(question=question, passages=passages, feedback=feedback), CLAIMS_SCHEMA)
+        if not out.get("in_scope", True):
+            note = out.get("scope_note") or "that topic"
+            return AskResult(status="out_of_scope", draft_markdown=(
+                f"This guide covers Ontario personal-injury law only; the question is about {note}."))
+        ok, dropped = verify_claims(out.get("claims", []), chunks)
+        all_dropped += dropped
+        if ok:
+            return AskResult("drafted", compose_draft(out["answer"], ok, sources), ok, all_dropped, retried=attempt > 0)
+        feedback = ("\nYour previous quotes were not exact copies of the passages. Copy each quote character for "
+                    "character from the passage you cite.\n")
+    return AskResult(status="unverified", draft_markdown="No statement could be verified against the passages.",
+                     dropped=all_dropped, retried=True)
+
+
+# --- database side ---
+
+def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float]) -> list[Retrieved]:
+    """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with RRF; returns the TOP_K best."""
+    register_vector(conn)
+    cur = conn.cursor(row_factory=dict_row)
+    keyword = cur.execute(
+        "WITH t AS (SELECT replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery AS q)"
+        " SELECT c.id FROM chunks c, t WHERE t.q::text <> '' AND c.tsv @@ t.q"
+        " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s",
+        (question, CANDIDATES),
+    ).fetchall()
+    vec = HalfVector(query_vector)
+    vector = cur.execute(
+        "SELECT id, embedding <=> %s AS distance FROM chunks WHERE embedding IS NOT NULL"
+        " ORDER BY embedding <=> %s LIMIT %s",
+        (vec, vec, CANDIDATES),
+    ).fetchall()
+    distance = {f"c{r['id']}": float(r["distance"]) for r in vector}
+    fused = rrf([[f"c{r['id']}" for r in keyword], [f"c{r['id']}" for r in vector]])[:TOP_K]
+    ids = [int(cid[1:]) for cid, _ in fused]
+    rows = {r["id"]: r for r in cur.execute(
+        "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction"
+        " FROM chunks c JOIN documents d ON d.id = c.document_id WHERE c.id = ANY(%s)", (ids,),
+    ).fetchall()}
+    hits = []
+    for cid, score in fused:
+        r = rows[int(cid[1:])]
+        pin = r["pinpoint"]
+        source = {
+            "chunk_id": cid, "slug": r["slug"], "title": r["title"], "pinpoint": pin,
+            "display": display_pinpoint(pin), "citation": mcgill_citation(r, pin),
+            "snippet": excerpt(r["text"]), "url": f"/laws/{r['slug']}/{pin}",
+        }
+        hits.append(Retrieved(cid, r["text"], distance.get(cid), source, score))
+    return hits
+
+
+def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, result: AskResult,
+                 hits: list[Retrieved], timings: dict) -> int:
+    flags = {
+        "status": result.status,
+        "retried": result.retried,
+        "dropped_claims": result.dropped,
+        "best_distance": min((h.distance for h in hits if h.distance is not None), default=None),
+        "sources": [{**h.source, "score": h.score, "distance": h.distance} for h in hits],
+        "timings_ms": timings,
+    }
+    claims = [{**c, "source": next(h.source for h in hits if h.chunk_id == c["chunk_id"])} for c in result.claims]
+    with conn.transaction():
+        return conn.execute(
+            "INSERT INTO answers (asked_by, question, draft_markdown, claims, flags) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (asked_by, question, result.draft_markdown, json.dumps(claims), json.dumps(flags)),
+        ).fetchone()[0]

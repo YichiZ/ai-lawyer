@@ -94,3 +94,64 @@ def test_section_has_indented_lines_and_citation(client):
     body = client.get("/laws/test-act/s-15-2").json()["data"]
     assert [l["level"] for l in body["lines"]] == [1, 2, 3]
     assert body["citation"]["text"] == "Test Act, SO 2002, c 24, Sched B, s 15(2)"
+
+
+# --- POST /ask ---
+
+import re as _re
+
+from app.main import get_ai
+from ingest.chunks import embed_pending, plan_chunks, sync_chunks
+
+
+class FakeAI:
+    """Embeds everything to the same vector (distance 0) and quotes s. 4 from whichever chunk id holds it."""
+
+    def __init__(self):
+        self.prompts = []
+
+    def embed_query(self, text):
+        return [0.01] * 1536
+
+    def generate(self, prompt, schema):
+        self.prompts.append(prompt)
+        cid = _re.search(r"\[(c\d+)\][^\n]*\n(Unless this Act)", prompt).group(1)
+        return {"in_scope": True, "answer": "Generally two years from discovery.",
+                "claims": [{"text": "Two years.", "chunk_id": cid, "quote": "a proceeding shall not be commenced after the second anniversary"}]}
+
+
+@pytest.fixture
+def ask_client(client, conn):
+    doc_id = conn.execute("SELECT id FROM documents WHERE slug = 'test-act'").fetchone()[0]
+    rows = conn.execute(
+        "SELECT s.id, s.pinpoint, s.kind, s.heading, s.text, p.pinpoint FROM sections s LEFT JOIN sections p ON p.id = s.parent_id"
+        " WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,)).fetchall()
+    sections = [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]
+    sync_chunks(conn, doc_id, plan_chunks("Test Act", sections))
+    embed_pending(conn, lambda t: [0.01] * 1536, model="fake", workers=1)
+    fake = FakeAI()
+    app.dependency_overrides[get_ai] = lambda: fake
+    yield client, fake
+
+
+def test_ask_returns_sources_and_pending_answer_without_draft(ask_client, conn):
+    client, fake = ask_client
+    r = client.post("/ask", json={"question": "How long do I have to sue after an injury?"})
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["status"] == "pending_review"
+    assert "draft_markdown" not in data and "claims" not in data  # researcher never sees the draft before review
+    assert 1 <= len(data["sources"]) <= 8
+    assert {"slug", "pinpoint", "display", "citation", "snippet", "url"} <= set(data["sources"][0])
+    status, claims, flags = conn.execute(
+        "SELECT status, claims, flags FROM answers WHERE id = %s", (data["answer_id"],)).fetchone()
+    assert status == "pending_review" and len(claims) == 1 and flags["status"] == "drafted"
+    assert len(fake.prompts) == 1
+
+
+@pytest.mark.parametrize("body", [{"question": "hi"}, {"question": "x" * 1001}, {}])
+def test_ask_validates_question(ask_client, body):
+    client, fake = ask_client
+    r = client.post("/ask", json=body)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
+    assert fake.prompts == []
