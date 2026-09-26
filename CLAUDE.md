@@ -26,7 +26,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 
 ## Stack (decided — see design doc for why)
 
-Python 3.13 + uv · FastAPI · Postgres 18 + pgvector + tsvector + pg_trgm · Redis 8 Streams (job dispatch; job state in Postgres `ingest_jobs`) · Docling · Vertex AI via ADC with `google-genai` · Langfuse (self-hosted) · Next.js + Tailwind · Docker Compose.
+Python 3.13 + uv · FastAPI · Postgres 18 + pgvector + tsvector + pg_trgm · Redis 8 Streams (job dispatch; job state in Postgres `ingest_jobs`) · Docling · Vertex AI via ADC with `google-genai` · Langfuse Cloud (managed) · Next.js + Tailwind · Docker Compose.
 
 Models: answers/summaries `gemini-3.7-flash` · rerank/context/decomposition `gemini-3.5-flash-lite` · embeddings `gemini-embedding-2` at 1536 dims · location `global`.
 
@@ -37,7 +37,7 @@ Models: answers/summaries `gemini-3.7-flash` · rerank/context/decomposition `ge
 - Citations are checked in code: a quote must be an exact (whitespace-normalized) substring of its chunk, or the claim is dropped.
 - No answer reaches a researcher without reviewer approval.
 - No legal advice: no "you have a case", outcome predictions, claim values or computed deadlines.
-- Secrets: none in code or `.env` — ADC only.
+- Secrets: none in code or git. Vertex AI uses ADC only (no Google keys anywhere). The only keys are Langfuse Cloud's (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`): local `.env` (gitignored) and CI secrets only.
 
 ## Lessons learned
 

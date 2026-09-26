@@ -77,10 +77,10 @@ When no chunk clears the relevance threshold, the answer comes from the web inst
 | Chunk context | gemini-3.5-flash-lite + context caching | Cheapest per-chunk summaries |
 | Answers + plain summaries | gemini-3.7-flash (low thinking) + verified quotes | Reliable 1–3 s on Vertex global; citations checked in code |
 | Web fallback | Grounding with Google Search | Built into Gemini |
-| Evals + tracing | Langfuse, self-hosted | Datasets, experiments, LLM judges and traces in one place |
+| Evals + tracing | Langfuse Cloud (managed) | Datasets, experiments, LLM judges and traces in one place; nothing to run or upgrade |
 | Deploy | Docker Compose | `docker compose up` runs everything |
 
-**Google Cloud access.** All Gemini calls go through Vertex AI (Google Cloud credits), authenticated with Application Default Credentials — no API keys in code or `.env`.
+**Google Cloud access.** All Gemini calls go through Vertex AI (Google Cloud credits), authenticated with Application Default Credentials — no Google API keys anywhere. The only keys in the project are Langfuse Cloud's public/secret pair, read from the environment (local `.env`, gitignored; CI secrets), never committed. Traces hold questions and public law text only — no personal data is sent.
 
 - One client everywhere: `google-genai` with `genai.Client(vertexai=True, project=GOOGLE_CLOUD_PROJECT, location="global")`.
 - Local: `gcloud auth application-default login` + `gcloud auth application-default set-quota-project <project>`. CI/deploy: attached service account or Workload Identity Federation — never a key file.
@@ -253,7 +253,7 @@ Indexes: HNSW on `embedding`, GIN on `tsv`, GIN trigram on titles/headings/terms
 
 ## Evals
 
-Langfuse (self-hosted) is the eval and tracing layer: gold set = Dataset, eval run = Experiment, every `/ask` = trace. No retrieval or prompt change merges without matching or beating the main-branch baseline.
+Langfuse Cloud is the eval and tracing layer: gold set = Dataset, eval run = Experiment, every `/ask` = trace. No retrieval or prompt change merges without matching or beating the main-branch baseline.
 
 **Gold set** `ontario-injury-gold` (~100): ~60 statute questions with fixed answers; ~25 case-law questions (not expert-checked: reported separately as "unverified", not a CI gate); ~15 out-of-scope questions that must be refused. **Summary evals:** 50 sampled summaries — LLM-judge faithfulness, code-scored reading grade ≤ 10.
 
