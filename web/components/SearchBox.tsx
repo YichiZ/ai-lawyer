@@ -87,7 +87,7 @@ export default function SearchBox() {
         aria-autocomplete="list"
         aria-activedescendant={expanded && active >= 0 ? `${listId}-${active}` : undefined}
         autoComplete="off"
-        placeholder="Search laws or type s. 4  ( / )"
+        placeholder="Search, or type s. 4 or 2024 ONCA 123  ( / )"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={onKeyDown}
@@ -111,6 +111,11 @@ export default function SearchBox() {
             >
               {s.type === "law" ? (
                 <span className="font-semibold">{s.title}</span>
+              ) : s.type === "case" ? (
+                <>
+                  <span className="pinpoint mr-2 text-primary">{s.display}</span>
+                  <span className="italic">{s.title}</span>
+                </>
               ) : (
                 <>
                   <span className="pinpoint mr-2 text-primary">{s.display}</span>

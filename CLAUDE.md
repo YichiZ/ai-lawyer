@@ -88,4 +88,5 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-26 — google-genai sends the client timeout to Vertex as a server deadline: a tight one (1.6 s) makes most calls 504 immediately → measure fallback rate before cutting timeouts.
 - 2026-09-26 — gemini-3.7-flash has a long latency tail (p95 ~70 s with retries) and 429s even sequentially → keep generation off the researcher's path (background drafting); profile stages before optimizing.
 - 2026-09-26 — Batch scripts on a default psycopg connection kept one transaction open for the whole run: "commit every 25" flushes were savepoints (a crash loses everything) and the held locks blocked `make db` → batch scripts use `autocommit=True`; never apply schema while a batch job runs.
+- 2026-09-26 — `pkill -f next-server` killed the user's dev server too, and a leaked `next start` served a stale build → kill test servers by their exact port pattern (`next start --port 3002`), never generic names.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

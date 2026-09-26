@@ -18,6 +18,7 @@ CITATION = re.compile(
     r"(?P<subs>(?:\(\w{1,4}\))*)\s*$",
     re.IGNORECASE,
 )
+NEUTRAL = re.compile(r"^\s*(\d{4})\s+(ONCA|SCC)\s+(\d+)(?:\s+at\s+para\.?\s*(\d+))?\s*$", re.IGNORECASE)
 QUESTION_WORDS = ("how", "what", "when", "where", "who", "why", "which", "can", "could", "do", "does", "did", "is",
                   "are", "am", "should", "if", "will", "may", "must")
 ABBREVIATIONS = {
@@ -67,6 +68,15 @@ def _section(r: dict) -> dict:
 
 def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> list[dict]:
     cur = conn.cursor(row_factory=dict_row)
+    if m := NEUTRAL.match(q):  # "2024 ONCA 123 [at para 45]" jumps to the decision (or paragraph)
+        citation = f"{m.group(1)} {m.group(2).upper()} {m.group(3)}"
+        r = cur.execute("SELECT slug, title FROM documents WHERE neutral_citation = %s", (citation,)).fetchone()
+        if not r:
+            return []
+        para = m.group(4)
+        return [{"type": "case", "slug": r["slug"], "title": r["title"],
+                 "display": citation + (f" at para {para}" if para else ""), "heading": None,
+                 "url": f"/cases/{r['slug']}" + (f"#para-{para}" if para else "")}]
     if (citation := parse_citation(q)) is not None:
         hint, pinpoint = citation
         slugs = _law_slugs(conn, hint)

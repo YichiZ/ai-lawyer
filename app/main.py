@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
-from app import ask, guides, laws, review, search, tracing
+from app import ask, cases, guides, laws, review, search, tracing
 from app.rerank import RERANK_CANDIDATES, make_reranker
 from ingest import vertex
 
@@ -266,3 +266,11 @@ def get_guide(slug: Slug, conn: Conn):
     if not guide:
         raise NotFound(f"No guide '{slug}'")
     return envelope(guide)
+
+
+@app.get("/cases/{slug}")
+def get_case(slug: Slug, conn: Conn):
+    case = cases.get_case(conn, slug)
+    if not case:
+        raise NotFound(f"No decision '{slug}'")
+    return envelope(case)

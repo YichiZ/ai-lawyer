@@ -20,7 +20,8 @@ def list_laws(conn: psycopg.Connection) -> list[dict]:
     rows = conn.cursor(row_factory=dict_row).execute(
         "SELECT d.kind, d.slug, d.title, d.short_name, d.citation, d.in_force_from, d.reproduction,"
         " count(s.id) FILTER (WHERE s.kind = 'section') AS section_count"
-        " FROM documents d LEFT JOIN sections s ON s.document_id = d.id GROUP BY d.id ORDER BY d.title"
+        " FROM documents d LEFT JOIN sections s ON s.document_id = d.id WHERE d.kind <> 'decision'"
+        " GROUP BY d.id ORDER BY d.title"
     ).fetchall()
     groups = {k: [] for k in KIND_ORDER}
     for r in rows:
@@ -80,6 +81,7 @@ def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | No
         "full_text": full,
         "plain_summary": s["plain_summary"],  # our own words, so shown even for excerpt-only by-laws
         "glossary": glossary_for(conn, shown(s["text"])),
+        "cited_by": cited_by(conn, s["id"]),
         "citation": mcgill_citation(doc, s["pinpoint"]),
         "breadcrumb": [{**b, "display": display_pinpoint(b["pinpoint"])} for b in breadcrumb],
         "children": [{**c, "display": display_pinpoint(c["pinpoint"]), "text": shown(c["text"])} for c in children],
@@ -103,3 +105,15 @@ def glossary_for(conn: psycopg.Connection, text: str) -> list[dict]:
     """Glossary entries whose term appears in `text` (whole words), in order of first appearance."""
     entries = {g["term"].lower(): g for g in glossary(conn)}
     return [entries[term.lower()] for _, _, term in find_terms(text, list(entries))]
+
+
+def cited_by(conn: psycopg.Connection, section_id: int, limit: int = 20) -> dict:
+    """Decisions citing this section or any of its subsections (newest first)."""
+    rows = conn.cursor(row_factory=dict_row).execute(
+        "SELECT d.title, d.neutral_citation, d.slug, d.date, array_agg(DISTINCT s.pinpoint) AS pins"
+        " FROM citations c JOIN sections s ON s.id = c.cited_section_id JOIN documents d ON d.id = c.citing_document_id"
+        " WHERE s.id = %s OR s.parent_id = %s GROUP BY d.id ORDER BY d.date DESC NULLS LAST", (section_id, section_id),
+    ).fetchall()
+    return {"total": len(rows), "decisions": [
+        {"title": r["title"], "citation": r["neutral_citation"], "url": f"/cases/{r['slug']}",
+         "pinpoints": [display_pinpoint(p) for p in sorted(r["pins"])]} for r in rows[:limit]]}

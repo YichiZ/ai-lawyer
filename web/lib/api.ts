@@ -48,6 +48,7 @@ export interface Section extends SectionRef {
   full_text: boolean;
   plain_summary: string | null;
   glossary: GlossaryEntry[];
+  cited_by: { total: number; decisions: { title: string; citation: string; url: string; pinpoints: string[] }[] };
   citation: { title: string; reference: string; text: string };
   breadcrumb: SectionRef[];
   children: (SectionRef & { text: string })[];
@@ -160,7 +161,7 @@ export const reviewAnswer = (id: number, body: Record<string, string>, role: Rol
   post<{ id: number; status: string }>(`/answers/${id}/review`, body, role);
 
 export interface Suggestion {
-  type: "law" | "section";
+  type: "law" | "section" | "case";
   slug: string;
   title: string;
   display: string | null;
@@ -194,6 +195,22 @@ export interface GuideSection {
   edited?: boolean;
 }
 
+export interface Case {
+  slug: string;
+  title: string;
+  court: string;
+  date: string;
+  url: string | null;
+  upstream_license: string | null;
+  plain_summary: string | null;
+  citation: { title: string; reference: string; text: string };
+  intro: string | null;
+  paragraphs: { pinpoint: string; display: string; lines: { text: string; level: number }[] }[];
+  cites: { statutes: { label: string; url: string }[]; cases: { citation: string; title: string | null; url: string | null }[] };
+  cited_by: { citation: string; title: string; url: string }[];
+}
+
+export const getCase = (slug: string) => get<Case>(`/cases/${encodeURIComponent(slug)}`);
 export const listGuides = () => get<GuideSummary[]>("/guides");
 export const getGuide = (slug: string) =>
   get<{ slug: string; title: string; intro: string; sections: GuideSection[] }>(`/guides/${encodeURIComponent(slug)}`);

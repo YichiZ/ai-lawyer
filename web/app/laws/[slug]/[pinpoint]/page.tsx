@@ -101,6 +101,25 @@ export default async function SectionPage({ params }: Props) {
         </section>
       )}
 
+      {s.cited_by.total > 0 && (
+        <section aria-labelledby="cited-heading" className="mt-6 max-w-[68ch]">
+          <h2 id="cited-heading" className="text-sm font-semibold">
+            Cited by {s.cited_by.total} decision{s.cited_by.total === 1 ? "" : "s"} (Court of Appeal and Supreme Court)
+          </h2>
+          <ul className="mt-2 space-y-1 text-sm">
+            {s.cited_by.decisions.map((d) => (
+              <li key={d.citation}>
+                <Link href={d.url}><cite className="italic">{d.title}</cite>, {d.citation}</Link>
+                <span className="text-muted"> — {d.pinpoints.join(", ")}</span>
+              </li>
+            ))}
+          </ul>
+          {s.cited_by.total > s.cited_by.decisions.length && (
+            <p className="mt-1 text-xs text-muted">Showing the {s.cited_by.decisions.length} most recent.</p>
+          )}
+        </section>
+      )}
+
       <CopyCitation title={s.citation.title} reference={s.citation.reference} text={s.citation.text} />
 
       <nav aria-label="Previous and next" className="mt-10 flex justify-between border-t border-rule pt-4 text-sm">

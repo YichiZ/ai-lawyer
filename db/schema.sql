@@ -128,3 +128,23 @@ CREATE TABLE IF NOT EXISTS guide_sections (
     sort_order integer NOT NULL,
     UNIQUE (guide_slug, heading)
 );
+
+-- 5.4: citation graph. A decision cites a decision (A2AJ lists; cited_document_id when it is in the corpus) or a
+-- statute section (regex; cited_section_id when the pinpoint resolves).
+CREATE TABLE IF NOT EXISTS citations (
+    id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    citing_document_id bigint NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+    kind               text NOT NULL CHECK (kind IN ('case', 'statute')),
+    cited_citation     text,
+    cited_document_id  bigint REFERENCES documents (id) ON DELETE SET NULL,
+    cited_slug         text,
+    cited_pinpoint     text,
+    cited_section_id   bigint REFERENCES sections (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS citations_citing ON citations (citing_document_id);
+CREATE INDEX IF NOT EXISTS citations_cited_doc ON citations (cited_document_id);
+CREATE INDEX IF NOT EXISTS citations_cited_section ON citations (cited_section_id);
+
+-- 5.5: plain-language decision summaries (facts, outcome, why it matters).
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS plain_summary text;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS summary_source_hash text;
