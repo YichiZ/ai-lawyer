@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Fix · Web fallback stored a vertexaisearch redirect
+
+- **What:** answer 393's `web_sources` kept a `grounding-api-redirect` URL (title "dronemap.com", domain `vertexaisearch.cloud.google.com`). Cause: `_head` let urllib follow the redirect to the target site, dronemap.com answered HEAD with 405, and `resolve_url` fell back to the redirect URL. Now `_head` reads the redirector's `Location` header without contacting the target, and `resolve_url` returns `None` on any failure (or a result that is still a redirect), so `search_web` drops that source instead of storing it.
+- **Validated:** tests red first (2 failed) → green; full suite 386 passed. The 393 redirect now resolves to `https://dronemap.com/ca/on/mississauga/places/toronto-pearson-international-airport/rules`. Live grounding call on the same question: 6 sources, all real URLs, none from vertexaisearch.
+- **Numbers:** 1 Vertex call; 1 HEAD per source, to Google's redirector only.
+- **Data:** answer 393 (dev DB, pending review) re-resolved in place: the dronemap.com entry in `web_sources` and its draft line (URL and `(domain)`) now point to the real page; no answer in the dev DB contains `vertexaisearch`.
+
 ## 2026-09-26 · Repo presentation · User flows tried end to end, documented in README
 
 - **What:** README "User flows" section: browse, search/citation jump, ask → review → release, web fallback, add to library, guides/glossary.
