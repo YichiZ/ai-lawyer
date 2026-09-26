@@ -44,3 +44,22 @@ def test_failure_mid_document_leaves_no_rows(conn):
     with pytest.raises(KeyError):
         load_document(conn, parsed)
     assert counts(conn) == (0, 0)
+
+
+def test_claims_get_the_subsection_pinpoint_that_holds_the_quote(conn):
+    from app.ask import pinpoint_claims
+
+    load_document(conn, parse_law(row(), LAW))
+    source = {"slug": "test-act", "pinpoint": "s-15", "display": "s. 15", "url": "/laws/test-act/s-15",
+              "citation": {"title": "Test Act", "reference": "SO 2002, c 24, Sched B, s 15", "text": "x"}}
+    claims = [
+        {"text": "a", "chunk_id": "c1", "quote": "No proceeding after the 15th anniversary", "source": source},
+        {"text": "b", "chunk_id": "c1", "quote": "Despite subsection (2), none.", "source": source},
+        {"text": "c", "chunk_id": "c1", "quote": "no proceeding.\n(2) No proceeding after", "source": source},  # spans two
+    ]
+    out = pinpoint_claims(conn, claims)
+    assert [c["source"]["pinpoint"] for c in out] == ["s-15-2", "s-15-2.1", "s-15"]
+    assert out[0]["source"]["display"] == "s. 15(2)"
+    assert out[0]["source"]["citation"]["reference"] == "SO 2002, c 24, Sched B, s 15(2)"
+    assert out[0]["source"]["url"] == "/laws/test-act/s-15-2"
+    assert claims[0]["source"]["pinpoint"] == "s-15"  # input not mutated

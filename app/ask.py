@@ -115,10 +115,11 @@ def _cite(source: dict) -> str:
     return f"*{c['title']}*, {c['reference']}" if c["title"] else c["reference"]
 
 
-def compose_draft(answer: str, claims: list[dict], sources: dict[str, dict]) -> str:
+def compose_draft(answer: str, claims: list[dict]) -> str:
+    """claims carry their "source" (see run_ask), so each quote is cited at its most precise pinpoint."""
     parts = [answer.strip(), "", "**What the law says**", ""]
     for c in claims:
-        parts += [f"> {normalize(c['quote'])}", f"> — {_cite(sources[c['chunk_id']])}", ""]
+        parts += [f"> {normalize(c['quote'])}", f"> — {_cite(c['source'])}", ""]
     return "\n".join(parts).strip()
 
 
@@ -129,7 +130,11 @@ def _not_found(hits: list[Retrieved]) -> AskResult:
     return AskResult(status="not_found", draft_markdown="\n".join(lines))
 
 
-def run_ask(question: str, hits: list[Retrieved], generate: Generate) -> AskResult:
+Refine = Callable[[list[dict]], list[dict]]
+
+
+def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Refine = lambda claims: claims) -> AskResult:
+    """`refine` narrows each verified claim's source (e.g. to the subsection holding the quote) before composing."""
     best = min((h.distance for h in hits if h.distance is not None), default=None)
     if best is None or best > GATE_MAX_DISTANCE:
         return _not_found(hits)
@@ -147,7 +152,8 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate) -> AskResu
         ok, dropped = verify_claims(out.get("claims", []), chunks)
         all_dropped += dropped
         if ok:
-            return AskResult("drafted", compose_draft(out["answer"], ok, sources), ok, all_dropped, retried=attempt > 0)
+            ok = refine([{**c, "source": sources[c["chunk_id"]]} for c in ok])
+            return AskResult("drafted", compose_draft(out["answer"], ok), ok, all_dropped, retried=attempt > 0)
         feedback = ("\nYour previous quotes were not exact copies of the passages. Copy each quote character for "
                     "character from the passage you cite.\n")
     return AskResult(status="unverified", draft_markdown="No statement could be verified against the passages.",
@@ -202,9 +208,33 @@ def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, 
         "sources": [{**h.source, "score": h.score, "distance": h.distance} for h in hits],
         "timings_ms": timings,
     }
-    claims = [{**c, "source": next(h.source for h in hits if h.chunk_id == c["chunk_id"])} for c in result.claims]
+    claims = result.claims
     with conn.transaction():
         return conn.execute(
             "INSERT INTO answers (asked_by, question, draft_markdown, claims, flags) VALUES (%s, %s, %s, %s, %s) RETURNING id",
             (asked_by, question, result.draft_markdown, json.dumps(claims), json.dumps(flags)),
         ).fetchone()[0]
+
+
+def pinpoint_claims(conn: psycopg.Connection, claims: list[dict]) -> list[dict]:
+    """Point each claim at the one subsection whose text contains its quote (s 42 -> s 42(6)); else keep the section."""
+    cur = conn.cursor(row_factory=dict_row)
+    out = []
+    for c in claims:
+        src = c["source"]
+        subs = cur.execute(
+            "SELECT s.pinpoint, s.text, d.title, d.citation, d.kind FROM sections s"
+            " JOIN sections p ON p.id = s.parent_id JOIN documents d ON d.id = s.document_id"
+            " WHERE d.slug = %s AND p.pinpoint = %s AND s.kind = 'subsection'",
+            (src["slug"], src["pinpoint"]),
+        ).fetchall()
+        quote = normalize(c["quote"])
+        holding = [r for r in subs if quote in normalize(r["text"])]
+        if len(holding) != 1:
+            out.append(c)
+            continue
+        r = holding[0]
+        pin = r["pinpoint"]
+        out.append({**c, "source": {**src, "pinpoint": pin, "display": display_pinpoint(pin),
+                                    "citation": mcgill_citation(r, pin), "url": f"/laws/{src['slug']}/{pin}"}})
+    return out

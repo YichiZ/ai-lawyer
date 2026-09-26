@@ -138,3 +138,33 @@ appurtenant to the building.
         "[Added 1999-11-25 by By-law No. 776-1999]",
         "BUILDING - Includes the land appurtenant to the building.",
     ]
+
+
+LAYOUT_743_44 = """                                                TORONTO MUNICIPAL CODE
+                                     CHAPTER 743, STREETS AND SIDEWALKS, USE OF
+
+§ 743-44. Notification and cost recovery.
+
+A.        An officer who is satisfied that a person is in contravention of this chapter
+          shall give written notice, within 14 days of the date indicated on the notice:
+
+          (1)        The person shall pay the survey and inspection fee as prescribed by Chapter 441,
+                     Fees and Charges; and
+
+B.        If a person fails to comply with a notice
+          issued under § 743-44A, then the General Manager may:
+
+C.        Where a person does not reimburse the City within 14 days, the City may recover the costs.
+
+                                                     743-40                                  October 9, 2025
+"""
+
+
+def test_layout_text_keeps_labels_with_their_paragraphs():
+    [s] = parse_chapter(LAYOUT_743_44, chapter="743", title="Streets", pdf_sha256="d" * 64, url="u", license="l").sections
+    assert s["text"].split("\n") == [
+        "A. An officer who is satisfied that a person is in contravention of this chapter shall give written notice, within 14 days of the date indicated on the notice:",
+        "(1) The person shall pay the survey and inspection fee as prescribed by Chapter 441, Fees and Charges; and",
+        "B. If a person fails to comply with a notice issued under § 743-44A, then the General Manager may:",
+        "C. Where a person does not reimburse the City within 14 days, the City may recover the costs.",
+    ]

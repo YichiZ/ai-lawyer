@@ -10,7 +10,7 @@ SOURCE = {"chunk_id": "c1", "slug": "test-act", "title": "Test Act", "pinpoint":
           "citation": {"title": "Test Act", "reference": "SO 2002, c 24, Sched B, s 4", "text": "Test Act, SO 2002, c 24, Sched B, s 4"},
           "snippet": "Unless this Act provides otherwise...", "url": "/laws/test-act/s-4"}
 HIT = Retrieved("c1", "Unless this Act provides otherwise, a proceeding shall not be commenced.", 0.2, SOURCE, 0.03)
-CLAIM = {"text": "Two years.", "chunk_id": "c1", "quote": "a proceeding shall not be commenced"}
+CLAIM = {"text": "Two years.", "chunk_id": "c1", "quote": "a proceeding shall not be commenced", "source": SOURCE}
 
 
 def make_answer(conn, status="drafted", dropped=(), question="How long to sue?"):

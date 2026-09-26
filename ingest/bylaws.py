@@ -12,9 +12,9 @@ from pathlib import Path
 
 from ingest.statutes import ParsedLaw
 
-PARSER_VERSION = 2  # 2: rejoin PDF-wrapped lines into paragraphs
-MONTH_DATE = re.compile(
-    r"^(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}$")
+PARSER_VERSION = 3  # 2: rejoin PDF-wrapped lines; 3: pdftotext -layout keeps labels beside their paragraphs
+MONTH = r"(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}"
+MONTH_DATE = re.compile(rf"^{MONTH}$")
 ARTICLE = re.compile(r"^ARTICLE ([IVXLC]+)$")
 LABEL = re.compile(r"^(?:[A-Z]{1,2}\.|\(\w{1,4}\))$")  # "A." or "(1)" alone on a line
 # A line starts a new paragraph at a label ("A. ", "(1) "), a defined term ("SIDEWALK - ") or a "[history]" note;
@@ -23,17 +23,26 @@ PARAGRAPH_START = re.compile(r"^(?:(?:[A-Z]{1,2}\.|\(\w{1,4}\))\s|[A-Z][A-Z0-9 ,
 
 
 def pdf_text(path: Path) -> str:
-    """Extract text with poppler's pdftotext (system tool: brew install poppler)."""
-    return subprocess.run(["pdftotext", str(path), "-"], capture_output=True, text=True, check=True).stdout
+    """Extract text with poppler's pdftotext (system tool: brew install poppler).
+
+    -layout matters: the default reading order emits a column of labels ("A.", "B.", "C.") and then the paragraphs,
+    losing which label goes with which paragraph.
+    """
+    return subprocess.run(["pdftotext", "-layout", str(path), "-"], capture_output=True, text=True, check=True).stdout
+
+
+def footer_re(chapter: str) -> re.Pattern:
+    page = rf"{re.escape(chapter)}-\d+(?:\.\d+)?"
+    return re.compile(rf"^(?:{page})?\s*(?:{MONTH})?\s*(?:{page})?$")
 
 
 def clean_lines(raw: str, chapter: str) -> list[str]:
-    page_number = re.compile(rf"^{re.escape(chapter)}-\d+(?:\.\d+)?$")
+    footer = footer_re(chapter)
     out = []
     for line in raw.replace("\f", "\n").split("\n"):
-        line = line.strip()
+        line = " ".join(line.split())  # -layout pads with alignment spaces
         if (not line or line == "TORONTO MUNICIPAL CODE" or line.startswith(f"CHAPTER {chapter},")
-                or page_number.match(line) or MONTH_DATE.match(line) or re.fullmatch(r"\d{1,3}", line)):
+                or footer.match(line) or re.fullmatch(r"\d{1,3}", line)):
             continue  # ponytail: footnote TEXT at page bottoms stays in; only bare footnote markers are dropped
         out.append(line)
     return out
@@ -101,7 +110,10 @@ def parse_chapter(raw: str, chapter: str, title: str, pdf_sha256: str, url: str,
     if not any(s["kind"] == "section" for s in sections):
         raise ValueError(f"chapter {chapter}: no sections found")
 
-    dates = [datetime.strptime(l.strip(), "%B %d, %Y").date() for l in raw.split("\n") if MONTH_DATE.match(l.strip())]
+    footer = footer_re(chapter)
+    footers = [" ".join(l.split()) for l in raw.split("\n")]
+    dates = [datetime.strptime(d, "%B %d, %Y").date()
+             for l in footers if l and footer.match(l) for d in re.findall(MONTH, l)]
     document = {
         "sha256": hashlib.sha256(f"{pdf_sha256}:{PARSER_VERSION}".encode()).hexdigest(),
         "kind": "bylaw",

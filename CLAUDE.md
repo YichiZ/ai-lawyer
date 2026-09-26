@@ -12,6 +12,8 @@ Every change is one small iteration, in this order. Never skip a step.
 4. **Validate** — prove it works end to end: run the app or script and show the output. For retrieval/answer changes, run `make eval` and compare to the last baseline.
 5. **Record** — append an entry to `docs/iterations.md` (what, result, numbers) and update **Lessons learned** below if anything surprised you.
 
+**Phase plans:** before starting a phase, write `docs/phase-N-plan.md` (iterations with Accept / Tests / Validate / Stop if, like `docs/phase-1-plan.md`) and get the user's OK. Plan one phase at a time — later phases are defined against earlier baselines — and write tests inside each iteration, not ahead of it.
+
 **Subagents:** use them for independent work that can run in parallel or would flood the main context — web/source research (e.g. finding Toronto Municipal Code chapters), codebase exploration, a code review after Implement, a second opinion on a design choice. The main session owns the loop: it states the exit criterion, checks subagent output before using it, runs Validate itself, and writes the Record. Subagents follow the same rules (no new dependency, download or stack change without the user's OK).
 
 Stop and ask before: changing the stack, adding a dependency, any download from the web, or anything in "Rules" below.
@@ -25,6 +27,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
 - `make api` — FastAPI on :8000 (`/docs`). `uv run scripts/crawl_api.py` — request every section, report status + p50/p95.
 - `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run scripts/crawl_api.py --web http://localhost:3000` — crawl every rendered section page.
+- `make e2e` — Playwright UI tests; starts its own API (`AI_FAKE=1`, :8001) and web (:3001), so it runs beside `make api`/`make web`.
 - Frontend logic that needs tests (indent levels, citations) lives in the API (`app/format.py`, pytest), so the web app has no test runner yet.
 - Add commands here as they are created (`make eval`).
 
@@ -70,4 +73,7 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — Postgres rejects `func(...)::type alias` in FROM → compute casts in a CTE.
 - 2026-09-25 — Screenshots fail when the Browser pane is hidden, and clipboard writes fail in background tabs → verify with `get_page_text`/`javascript_exec`; use a background tab so the user's tab isn't disturbed.
 - 2026-09-25 — Timestamps from the API are UTC → format user-facing dates in America/Toronto.
+- 2026-09-25 — pdftotext's default reading order separated labels ("A. B. C.") from their paragraphs → always extract Municipal Code PDFs with `-layout`.
+- 2026-09-25 — Next allows one dev server per build dir ("Another next dev server is already running") → e2e uses `NEXT_DIST_DIR=.next-e2e`.
+- 2026-09-25 — Clipboard can't be verified in the built-in browser (pane hidden → `visibilityState: hidden`) → Playwright with granted clipboard permissions.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

@@ -43,6 +43,11 @@ class VertexAI:
 
 @lru_cache(maxsize=1)
 def get_ai() -> VertexAI:
+    if os.environ.get("AI_FAKE") == "1":  # end-to-end UI tests only: deterministic, no Vertex calls
+        from app.fake_ai import FakeAI
+
+        log.warning("AI_FAKE=1: using the deterministic fake model (tests only)")
+        return FakeAI(lambda: psycopg.connect(DATABASE_URL, autocommit=True), close_after=True)
     return VertexAI()
 
 
@@ -136,7 +141,7 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User):
     t0 = time.perf_counter()
     hits = ask.retrieve(conn, question, ai.embed_query(question))
     t_sources = time.perf_counter()
-    result = ask.run_ask(question, hits, ai.generate)
+    result = ask.run_ask(question, hits, ai.generate, refine=lambda claims: ask.pinpoint_claims(conn, claims))
     timings = {"sources": round((t_sources - t0) * 1000), "total": round((time.perf_counter() - t0) * 1000)}
     answer_id = ask.store_answer(conn, question, user["id"], result, hits, timings)
     log.info("ask %s: %s, %d claims, %d dropped, %s", answer_id, result.status, len(result.claims),

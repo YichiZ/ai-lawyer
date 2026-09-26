@@ -64,8 +64,8 @@ def test_verify_drops_bad_claims(bad, reason):
 
 
 def test_compose_draft_uses_verified_quotes_only():
-    sources = {"c1": {"citation": {"title": "Limitations Act, 2002", "reference": "SO 2002, c 24, Sched B, s 4"}}}
-    md = compose_draft("You generally have two years.", [claim("a proceeding shall not be commenced")], sources)
+    source = {"citation": {"title": "Limitations Act, 2002", "reference": "SO 2002, c 24, Sched B, s 4"}}
+    md = compose_draft("You generally have two years.", [{**claim("a proceeding shall not be commenced"), "source": source}])
     assert md.startswith("You generally have two years.")
     assert "**What the law says**" in md
     assert "> a proceeding shall not be commenced" in md
@@ -121,3 +121,10 @@ def test_out_of_scope_refusal():
     result = run_ask("BC speeding ticket appeal?", [hit("c1", 0.2)], llm)
     assert result.status == "out_of_scope" and len(llm.prompts) == 1
     assert "British Columbia traffic law" in result.draft_markdown
+
+
+def test_refine_runs_on_verified_claims_before_composing():
+    llm = FakeLLM([{"in_scope": True, "answer": "Two years.", "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
+    refine = lambda cs: [{**c, "source": {**c["source"], "citation": {"title": "T", "reference": "R(6)"}}} for c in cs]
+    result = run_ask("How long to sue?", [hit("c1", 0.2)], llm, refine)
+    assert "— *T*, R(6)" in result.draft_markdown and result.claims[0]["source"]["citation"]["reference"] == "R(6)"

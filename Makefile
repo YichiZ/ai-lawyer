@@ -1,4 +1,4 @@
-.PHONY: up db test psql api web
+.PHONY: up db test psql api web e2e
 
 up:  ## start Postgres and wait until healthy
 	docker compose up -d --wait db
@@ -17,3 +17,6 @@ api: up  ## run the API with reload on http://localhost:8000
 
 web:  ## run the Next.js app on http://localhost:3000 (needs `make api`)
 	npm --prefix web run dev
+
+e2e: up  ## Playwright UI tests (starts its own API with AI_FAKE=1 on :8001 and web on :3001)
+	npm --prefix web run e2e
