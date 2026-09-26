@@ -31,7 +31,7 @@ One entry per iteration, newest first. Format: date · milestone · what changed
 ## 2026-09-25 · Phase 2 · 2.1 Gold set v1
 
 - **What:** a subagent drafted 77 items from DB text (62 in scope across 6 topics, 15 out of scope incl. look-alikes: Alberta/BC/Quebec/US versions of in-scope questions, family property, rent, a 401 speeding ticket). `evals/gold.py` validates: required fields, unique ids, topics, expected pinpoints exist, every fact appears in an expected section's text (normalized), out-of-scope items have no pinpoints and `must_refuse`. Redundant parent pinpoints dropped (115 → 68) since metrics treat a section and its subsections as matching.
-- **Validated:** validator tests (13) → `check_gold.py` → 77/77 valid (city 10, dog 10, limitations 10, motor-vehicle 11, procedure 11, slip 10, out-of-scope 15). Random 10 checked by the main session against the section text; **user spot-check pending**.
+- **Validated:** validator tests (13) → `check_gold.py` → 77/77 valid (city 10, dog 10, limitations 10, motor-vehicle 11, procedure 11, slip 10, out-of-scope 15). Random 10 verified online at the user's request against official e-Laws text (current to 2026-09-23; read via the ontario.ca legislation API the e-Laws page itself uses): 9/10 valid with exact quotes; changed mv-01 (+ Insurance Act s. 267.5(7), the deductible) and proc-06 (+ WSIA s. 28(2), Schedule 2 employers). Still 77/77 valid. 2.3/2.4 numbers predate these two edits; 2.5 reruns both before recording the baseline.
 
 ## 2026-09-25 · Phase 2 · 2.2 Langfuse tracing on `/ask`
 
