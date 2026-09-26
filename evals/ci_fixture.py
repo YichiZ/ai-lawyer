@@ -1,11 +1,14 @@
 """A small committed corpus for CI (no downloads, no Vertex): exported from the dev DB, loaded with COPY.
 
 Contents: the laws the Playwright specs use, with chunks + embeddings for the two statutes (the fake model
-embeds a question as its best keyword match, so retrieval runs for real) and sections only for Toronto ch. 743.
+embeds a question as its best keyword match, so retrieval runs for real) and sections only for Toronto ch. 743
+(cut to excerpts: City copyright).
 """
 from pathlib import Path
 
 import psycopg
+
+from app.laws import EXCERPT_CHARS
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "corpus"
 WITH_CHUNKS = ("limitations-act-2002", "dog-owners-liability-act", "2016-onca-585")  # + Galota (cites LA s. 4, 5(1))
@@ -33,9 +36,13 @@ def export_fixture(conn: psycopg.Connection, out: Path = FIXTURE_DIR) -> dict[st
                       " ON d.id = s.document_id WHERE d.slug = ANY(%(all)s)))"
                       " AND (cited_document_id IS NULL OR cited_document_id IN (SELECT id FROM documents WHERE slug = ANY(%(all)s)))"),
     }
+    # excerpt-only documents (City copyright) are cut to what the app may show, so the repo never holds full text
+    select = {**TABLES, "sections": TABLES["sections"].replace(
+        "text,", f"CASE WHEN document_id IN (SELECT id FROM documents WHERE reproduction = 'excerpt')"
+                 f" THEN left(text, {EXCERPT_CHARS}) ELSE text END AS text,")}
     counts = {}
-    for table, cols in TABLES.items():
-        query = psycopg.ClientCursor(conn).mogrify(f"SELECT {cols} FROM {table} WHERE {where[table]} ORDER BY id",
+    for table in TABLES:
+        query = psycopg.ClientCursor(conn).mogrify(f"SELECT {select[table]} FROM {table} WHERE {where[table]} ORDER BY id",
                                       {"all": slugs, "chunked": list(WITH_CHUNKS)})
         with (out / f"{table}.csv").open("wb") as f, conn.cursor().copy(f"COPY ({query}) TO STDOUT WITH CSV HEADER") as cp:
             for block in cp:

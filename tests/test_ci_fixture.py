@@ -1,5 +1,6 @@
-from pathlib import Path
+import csv
 
+from app.laws import EXCERPT_CHARS
 from evals.ci_fixture import FIXTURE_DIR, load_fixture
 
 CSV = ["documents.csv", "sections.csv", "chunks.csv", "citations.csv"]
@@ -25,3 +26,14 @@ def test_load_fixture_into_empty_db(conn):
     assert missing == 0
     # identity sequences moved past the loaded ids, so new rows don't collide
     conn.execute("INSERT INTO documents (sha256, kind, slug, title, source) VALUES ('z', 'statute', 'new-act', 'New', 't')")
+
+
+def test_excerpt_only_documents_never_ship_full_text():
+    """City-copyright by-laws are excerpt-only: the committed fixture must not hold more than the app may show."""
+    csv.field_size_limit(1 << 30)
+    with (FIXTURE_DIR / "documents.csv").open() as f:
+        excerpt_ids = {r["id"] for r in csv.DictReader(f) if r["reproduction"] == "excerpt"}
+    with (FIXTURE_DIR / "sections.csv").open() as f:
+        too_long = [r["pinpoint"] for r in csv.DictReader(f)
+                    if r["document_id"] in excerpt_ids and len(r["text"]) > EXCERPT_CHARS]
+    assert excerpt_ids and not too_long
