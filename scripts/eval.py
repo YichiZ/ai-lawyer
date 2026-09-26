@@ -24,7 +24,7 @@ from evals.answers import JUDGE_MODEL, facts_covered, gate_tradeoff, judge_answe
 from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash  # noqa: E402
 from evals.gold import GOLD_PATH, load_gold  # noqa: E402
 from evals.langfuse_io import DATASET, upsert_dataset  # noqa: E402
-from evals.metrics import mrr, recall_at_k, summarize  # noqa: E402
+from evals.metrics import chunk_covers, mrr, recall_at_k, summarize  # noqa: E402
 from ingest.vertex import ANSWER_MODEL, embedder, json_generator, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
@@ -51,8 +51,9 @@ def retrieval_task(embed):
         t0 = time.perf_counter()
         with psycopg.connect(DATABASE_URL) as conn:
             hits = retrieve(conn, question, embed(question))
+            covers = chunk_covers(conn, [int(h.chunk_id[1:]) for h in hits])
         return {
-            "ranked": [[h.source["slug"], h.source["pinpoint"]] for h in hits],
+            "ranked": [[h.source["slug"], h.source["pinpoint"], covers[int(h.chunk_id[1:])]] for h in hits],
             "citations": [h.source["citation"]["text"] for h in hits],
             "best_distance": min((h.distance for h in hits if h.distance is not None), default=None),
             "latency_ms": round((time.perf_counter() - t0) * 1000),
@@ -63,7 +64,7 @@ def retrieval_task(embed):
 def retrieval_evaluator(*, output, expected_output, **_):
     if expected_output["must_refuse"]:
         return []
-    ranked = [tuple(h) for h in output["ranked"]]
+    ranked = [tuple(h) for h in output["ranked"]]  # (slug, label pinpoint, covered pinpoints)
     return [Evaluation(name=f"recall@{K}", value=recall_at_k(ranked, expected_output["expected"], K)),
             Evaluation(name="mrr", value=mrr(ranked, expected_output["expected"]))]
 

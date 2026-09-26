@@ -1,8 +1,11 @@
 """Retrieval metrics against gold pinpoints. A hit matches an expected pinpoint in the same law when either one
-contains the other (a whole-section chunk contains its subsections; a subsection chunk sits inside its section)."""
+contains the other (a whole-section chunk contains its subsections; a subsection chunk sits inside its section).
+A split chunk is labelled by its first subsection but covers several; pass them as the hit's third element."""
 from statistics import mean
 
-Hit = tuple[str, str]  # (slug, pinpoint)
+import psycopg
+
+Hit = tuple  # (slug, pinpoint) or (slug, pinpoint, [covered pinpoints])
 
 
 def _contains(outer: str, inner: str) -> bool:
@@ -10,8 +13,22 @@ def _contains(outer: str, inner: str) -> bool:
 
 
 def matches(hit: Hit, expected: list[dict]) -> bool:
-    slug, pin = hit
-    return any(e["slug"] == slug and (_contains(pin, e["pinpoint"]) or _contains(e["pinpoint"], pin)) for e in expected)
+    slug, pins = hit[0], (hit[2] if len(hit) > 2 and hit[2] else [hit[1]])
+    return any(e["slug"] == slug and (_contains(p, e["pinpoint"]) or _contains(e["pinpoint"], p))
+               for e in expected for p in pins)
+
+
+def chunk_covers(conn: psycopg.Connection, chunk_ids: list[int]) -> dict[int, list[str]]:
+    """Pinpoints each chunk covers: its subsections when it holds some (the parent id rides along in every piece of a
+    split section, so it is left out), else its section."""
+    rows = conn.execute(
+        "SELECT c.id, s.pinpoint, s.kind FROM chunks c JOIN sections s ON s.id = ANY(c.section_ids)"
+        " WHERE c.id = ANY(%s) ORDER BY c.id, s.sort_order", (chunk_ids,),
+    ).fetchall()
+    by_chunk: dict[int, list[tuple[str, str]]] = {cid: [] for cid in chunk_ids}
+    for cid, pin, kind in rows:
+        by_chunk[cid].append((pin, kind))
+    return {cid: ([p for p, k in ps if k == "subsection"] or [p for p, _ in ps]) for cid, ps in by_chunk.items()}
 
 
 def recall_at_k(ranked: list[Hit], expected: list[dict], k: int = 8) -> float:

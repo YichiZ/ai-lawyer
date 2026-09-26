@@ -2,6 +2,28 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 3 · 3.1 Miss analysis (+ metric fix)
+
+- **What:** `retrieve` split into `keyword_ranking` / `vector_ranking` (results identical: 0.855 / 0.601). `scripts/diagnose_retrieval.py` prints each miss's rank in the keyword, vector and fused lists (depth 200) with the query terms.
+- **Findings (9 misses):**
+
+  | id | keyword | vector | fused | cause |
+  |---|---|---|---|---|
+  | lim-02 | 54 | **1** | 14 | fusion buries a vector #1 |
+  | lim-03 | 101 | **1** | 10 | fusion |
+  | lim-07 | — | **1** | 12 | fusion |
+  | lim-09 | — | **1** | 9 | fusion |
+  | proc-02 | 158 | **1** | 15 | fusion |
+  | proc-07 | 67 | 4 | 15 | fusion |
+  | mv-11 | — | 5 | 16 | fusion + vocabulary |
+  | mv-01 | — | 5 | 17 | vocabulary (and metric, below) |
+  | dog-09 | — | — | — | **metric bug** |
+
+  The OR'ed keyword query ("limit", "act", "claim", …) matches broadly; chunks in both lists at middling ranks outscore a vector-only #1 under RRF.
+- **Metric bug fixed:** split chunks are labelled by their first subsection but contain several; recall now credits every subsection a chunk covers (`chunk_covers`, from `section_ids`, parent id excluded). dog-09 is a fused #1; mv-01 was also a hidden hit. Same system, corrected measurement: **recall@8 0.855 → 0.887, MRR 0.602 → 0.626**; baseline re-recorded (answers unchanged).
+- **Plan change:** fusion (3.3) before synonyms (3.2) — it targets 7 of the remaining 7 misses.
+- **Next:** 3.3 fusion tuning.
+
 ## 2026-09-26 · Phase 2 · 2.5 Baseline + CI — Phase 2 complete
 
 - **What:** `evals/baseline.py` (corpus hash = sorted document sha256s, gold hash = file sha256; `compare` fails on a drop > 2 points, > 5 for the two judge metrics, a missing metric or a hash change). `scripts/eval.py gate | record [--from-latest]`; `make eval`, `make eval-baseline`. Eval runs: concurrency 2, 8 retries up to 60 s backoff, 60 s timeout, and any failed item fails the run. `GATE_MAX_DISTANCE` 0.35 → **0.30** (user-approved). CI fixture corpus (`tests/fixtures/corpus`, 3 documents / 275 sections / 52 chunks with embeddings, `make ci-fixture`) + GitHub Actions: `test` (pytest, Postgres 18 + pgvector service) and `e2e` (fixture corpus, Playwright, fake model). Evals stay local (user decision; no Workload Identity Federation).

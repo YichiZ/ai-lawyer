@@ -169,24 +169,34 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
 # --- database side ---
 
+def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES) -> list[int]:
+    """Chunk ids by ts_rank_cd for the question's terms OR'ed together."""
+    return [r[0] for r in conn.execute(
+        "WITH t AS (SELECT replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery AS q)"
+        " SELECT c.id FROM chunks c, t WHERE t.q::text <> '' AND c.tsv @@ t.q"
+        " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s",
+        (question, limit),
+    )]
+
+
+def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: int = CANDIDATES) -> list[tuple[int, float]]:
+    """(chunk id, cosine distance), nearest first."""
+    register_vector(conn)
+    vec = HalfVector(query_vector)
+    return [(r[0], float(r[1])) for r in conn.execute(
+        "SELECT id, embedding <=> %s FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> %s LIMIT %s",
+        (vec, vec, limit),
+    )]
+
+
 def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float]) -> list[Retrieved]:
     """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with RRF; returns the TOP_K best."""
     register_vector(conn)
     cur = conn.cursor(row_factory=dict_row)
-    keyword = cur.execute(
-        "WITH t AS (SELECT replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery AS q)"
-        " SELECT c.id FROM chunks c, t WHERE t.q::text <> '' AND c.tsv @@ t.q"
-        " ORDER BY ts_rank_cd(c.tsv, t.q) DESC LIMIT %s",
-        (question, CANDIDATES),
-    ).fetchall()
-    vec = HalfVector(query_vector)
-    vector = cur.execute(
-        "SELECT id, embedding <=> %s AS distance FROM chunks WHERE embedding IS NOT NULL"
-        " ORDER BY embedding <=> %s LIMIT %s",
-        (vec, vec, CANDIDATES),
-    ).fetchall()
-    distance = {f"c{r['id']}": float(r["distance"]) for r in vector}
-    fused = rrf([[f"c{r['id']}" for r in keyword], [f"c{r['id']}" for r in vector]])[:TOP_K]
+    keyword = keyword_ranking(conn, question)
+    vector = vector_ranking(conn, query_vector)
+    distance = {f"c{cid}": d for cid, d in vector}
+    fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]])[:TOP_K]
     ids = [int(cid[1:]) for cid, _ in fused]
     rows = {r["id"]: r for r in cur.execute(
         "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction"

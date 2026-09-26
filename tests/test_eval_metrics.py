@@ -57,3 +57,33 @@ def test_upsert_dataset_is_keyed_by_gold_id():
     name, inp, exp, meta = lf.items["lim-01"]
     assert name == DATASET and inp == {"question": "q?"}
     assert exp == {"expected": E, "facts": ["f"], "must_refuse": False} and meta == {"topic": "limitations"}
+
+
+def test_hit_covering_several_subsections_matches_any_of_them():
+    dog = [{"slug": "dog-owners-liability-act", "pinpoint": "s-4-3"}]
+    packed = ("dog-owners-liability-act", "s-4-1", ["s-4-1", "s-4-2", "s-4-3", "s-4-4"])  # chunk labelled by its first
+    other = ("dog-owners-liability-act", "s-4-5", ["s-4-5", "s-4-6"])
+    assert matches(packed, dog) and not matches(other, dog)
+    assert recall_at_k([other, packed], dog, k=2) == 1.0 and mrr([other, packed], dog) == 0.5
+
+
+def test_chunk_covers_uses_subsections_not_the_parent(conn):
+    from evals.metrics import chunk_covers
+    from ingest.chunks import CHUNK_CHAR_LIMIT
+    from ingest.statutes import load_document, parse_law
+    from test_statutes import LAW, row
+    import json as _json
+
+    long_subs = {f"({i})": f"({i}) " + ("word " * 200).strip() + "." for i in range(1, 7)}
+    sections = {"4": "\n".join(long_subs.values()), "5": "Short section."}
+    load_document(conn, parse_law(row(unofficial_sections_en=_json.dumps(sections)), LAW))
+    doc_id = conn.execute("SELECT id FROM documents WHERE slug = 'test-act'").fetchone()[0]
+    from ingest.chunks import plan_chunks, sync_chunks
+    rows = conn.execute("SELECT s.id, s.pinpoint, s.kind, s.heading, s.text, p.pinpoint FROM sections s LEFT JOIN sections p"
+                        " ON p.id = s.parent_id WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,)).fetchall()
+    sync_chunks(conn, doc_id, plan_chunks("Test Act", [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]))
+    covers = chunk_covers(conn, [cid for (cid,) in conn.execute("SELECT id FROM chunks WHERE document_id = %s ORDER BY id", (doc_id,))])
+    pieces = list(covers.values())
+    assert len(sections["4"]) > CHUNK_CHAR_LIMIT and len(pieces) >= 3  # s. 4 split into several chunks
+    assert pieces[0][0] == "s-4-1" and "s-4" not in pieces[0]            # subsections, not the whole section
+    assert pieces[-1] == ["s-5"]                                          # unsplit section covers itself
