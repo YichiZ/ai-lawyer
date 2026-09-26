@@ -42,6 +42,8 @@ def section_pinpoint(key: str, prefix: str) -> str:
 
 def display_pinpoint(pinpoint: str) -> str:
     """s-4-1 -> s. 4(1); r-1.06-2 -> r. 1.06(2); ss-25-49 -> ss. 25-49; part-iii.1 -> Part III.1."""
+    if re.fullmatch(r"\d+-\d+(?:\.\d+)*", pinpoint):  # Toronto Municipal Code: 743-9 -> § 743-9
+        return f"§ {pinpoint}"
     head, _, rest = pinpoint.partition("-")
     if head in ("s", "r"):
         num, _, sub = rest.partition("-")
@@ -167,12 +169,13 @@ def parse_law(row: dict, law: V0Law) -> ParsedLaw:
         "url": human_url(row["source_url_en"]),
         "source": "a2aj-laws",
         "upstream_license": row["upstream_license"],
+        "reproduction": "full",
     }
     return ParsedLaw(document, sections)
 
 
 DOC_COLUMNS = ("sha256", "kind", "slug", "title", "short_name", "citation", "jurisdiction", "in_force_from", "url",
-               "source", "upstream_license")
+               "source", "upstream_license", "reproduction")
 
 
 def load_document(conn: psycopg.Connection, parsed: ParsedLaw) -> str:

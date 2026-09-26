@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-25 · Phase 1 · 1.5 Toronto Municipal Code layer
+
+- **What:** a research subagent found the chapters (ch. 719 Snow and Ice Removal, 743 Streets and Sidewalks, 629 Property Standards), robots.txt (allowed) and toronto.ca's copyright notice (no copying without permission). User chose: download for local indexing only; UI shows excerpts + link. `scripts/fetch_toronto.py` (≤ 1 req/s, Last-Modified skip, manifest lines with the licence note); `ingest/bylaws.py` parses `pdftotext` output (skips the TOC, drops page headers/numbers/dates, Articles → parts, `§ 743-9` → pinpoint `743-9`); `scripts/load_toronto.py`; new `documents.reproduction` ('full' | 'excerpt').
+- **Validated:** tests red first → 97 passed. Fetch 2.56 MB, 3 manifest lines; rerun 0 MB. Load: 719 → 9, 743 → 59, 629 → 58 sections, each equal to the chapter's own TOC; rerun unchanged. Embed: 187 new chunks, 187 calls, 8.8 s; statutes untouched (0 calls). § 719-2 stored text matches the PDF text (whitespace-normalized). Search: "clear snow from the sidewalk in Toronto" → § 719-2 #1; "icy sidewalk … who do I notify" → COTA s. 42 #1 then § 719-2.
+- **Numbers:** 15 documents, 3,446 chunks. City of Toronto Act s. 42(6) confirmed locally: written notice to the clerk within 10 days.
+- **Next:** 1.6 — law library API (FastAPI).
+
 ## 2026-09-25 · Phase 1 · 1.4 Chunk, index, embed
 
 - **What:** `ingest/chunks.py`: one chunk per section; sections over 3,200 chars (~800 tokens) split at subsection boundaries (else at line boundaries), packed greedily; parts and `[blank]` placeholders skipped. Each chunk keeps its section text verbatim, `section_ids`, a first pinpoint, and a deterministic `context` ("Limitations Act, 2002 — s. 4 — Basic limitation period") that feeds `tsv` and the embedding input. `sync_chunks` replaces a document's chunks only when the (pinpoint, hash) list changes and reuses embeddings by hash; `embed_pending` embeds missing/other-model chunks with an 8-thread pool, committing every 25. `ingest/vertex.py` is the shared client (30 s timeout, 5 attempts on 429/5xx). `scripts/embed_chunks.py` runs it all.

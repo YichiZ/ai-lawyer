@@ -89,3 +89,7 @@ CREATE INDEX IF NOT EXISTS answers_status_created ON answers (status, created_at
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS citation text;
 ALTER TABLE sections ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'section'
     CHECK (kind IN ('part', 'section', 'subsection'));
+
+-- 1.5: 'excerpt' = source copyright forbids republishing (Toronto Municipal Code): UI shows excerpts + link only.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS reproduction text NOT NULL DEFAULT 'full'
+    CHECK (reproduction IN ('full', 'excerpt'));
