@@ -61,3 +61,8 @@ def test_mcgill_citation_for_decisions():
     doc = {"kind": "decision", "title": "Smith v. Jones", "citation": "2023 ONCA 9"}
     assert mcgill_citation(doc, "para-45") == {"title": "Smith v. Jones", "reference": "2023 ONCA 9 at para 45",
                                                "text": "Smith v. Jones, 2023 ONCA 9 at para 45"}
+
+
+def test_mcgill_citation_for_web_pages():
+    doc = {"kind": "web", "title": "Slips and falls", "citation": "online: ontario.ca <https://www.ontario.ca/page/x>"}
+    assert mcgill_citation(doc, "sec-2")["text"] == "“Slips and falls” (Sec 2), online: ontario.ca <https://www.ontario.ca/page/x>"

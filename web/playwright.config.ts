@@ -18,7 +18,7 @@ export default defineConfig({
       command: "uv run uvicorn app.main:app --port 8001",
       cwd: "..",
       url: "http://localhost:8001/laws",
-      env: { AI_FAKE: "1" },
+      env: { AI_FAKE: "1", REDIS_URL: "redis://localhost:6379/1" }, // db 1: never the dev worker's stream
       reuseExistingServer: false,
       timeout: 60_000,
     },

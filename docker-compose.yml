@@ -16,5 +16,21 @@ services:
       timeout: 3s
       retries: 15
 
+  redis:
+    image: redis:8
+    # Job dispatch only (docs/design.md → Job queue): AOF on, never evict — a full Redis rejects enqueues loudly.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "256mb",
+              "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
 volumes:
   pgdata:
+  redisdata:

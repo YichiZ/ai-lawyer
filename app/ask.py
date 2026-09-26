@@ -175,7 +175,7 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
 # --- database side ---
 
-LAW_KINDS = ["statute", "regulation", "bylaw"]  # decisions join retrieval only once measured on the gold set (5.5)
+LAW_KINDS = ["statute", "regulation", "bylaw", "web"]  # web: official pages a reviewer added (6.2); decisions separately
 
 
 def retrieve_for_answer(conn: psycopg.Connection, question: str, query_vector: list[float],

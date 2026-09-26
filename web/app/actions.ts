@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ApiError, ask, askWeb, getSection, reviewAnswer, suggest, type Suggestion } from "@/lib/api";
+import { ApiError, ask, askWeb, getIngestJob, getSection, ingestUrl, reviewAnswer, suggest, type IngestJob, type Suggestion } from "@/lib/api";
 import { ROLE_COOKIE, currentRole } from "@/lib/role";
 
 export type FormState = { error?: string };
@@ -84,4 +84,16 @@ export async function askWebAction(question: string, _: FormState): Promise<Form
     return { error: err instanceof ApiError ? err.message : "The web search could not be started. Please try again." };
   }
   redirect(`/answers/${answerId}`);
+}
+
+export type IngestState = { error?: string; job?: IngestJob };
+
+export async function ingestAction(url: string, prev: IngestState): Promise<IngestState> {
+  // First submit queues the page; later submits refresh the job's status.
+  try {
+    const job = prev.job ? await getIngestJob(prev.job.id) : await ingestUrl(url, await currentRole());
+    return job ? { job } : { error: "The page could not be queued." };
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "The page could not be queued. Please try again." };
+  }
 }

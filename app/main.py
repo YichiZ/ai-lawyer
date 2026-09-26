@@ -16,11 +16,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
-from app import ask, cases, guides, laws, review, search, tracing, web_fallback
+from app import ask, cases, guides, jobs, laws, review, search, tracing, web_fallback
 from app.rerank import RERANK_CANDIDATES, make_reranker
-from ingest import vertex
+from ingest import vertex, web
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 SLUG = r"^[a-z0-9][a-z0-9.\-]*$"
 RERANK_TIMEOUT_MS = 2_500  # sent to Vertex as a deadline: 1.6 s made 24/30 calls 504; 2.5 s: 0/30, rerank p95 1.5 s
 
@@ -62,9 +63,19 @@ def get_connect() -> Callable[[], ContextManager[psycopg.Connection]]:
     return lambda: psycopg.connect(DATABASE_URL, autocommit=True)
 
 
+@lru_cache(maxsize=1)
+def get_queue() -> jobs.Queue:
+    import redis
+
+    queue = jobs.Queue(redis.Redis.from_url(REDIS_URL, decode_responses=True))
+    queue.ensure_group()
+    return queue
+
+
 Conn = Annotated[psycopg.Connection, Depends(get_conn)]
 Connect = Annotated[Callable[[], ContextManager[psycopg.Connection]], Depends(get_connect)]
 AI = Annotated[VertexAI, Depends(get_ai)]
+JobQueue = Annotated[jobs.Queue, Depends(get_queue)]
 
 
 def current_user(conn: Conn, x_demo_user: Annotated[Literal["researcher", "reviewer"], Header()] = "researcher") -> dict:
@@ -308,3 +319,27 @@ def get_case(slug: Slug, conn: Conn):
     if not case:
         raise NotFound(f"No decision '{slug}'")
     return envelope(case)
+
+
+class IngestRequest(BaseModel):
+    url: str = Field(min_length=10, max_length=2000)
+
+
+@app.post("/ingest")
+def post_ingest(body: IngestRequest, conn: Conn, queue: JobQueue, reviewer: Reviewer):
+    """Reviewer adds an official web page to the library; a worker fetches, loads, chunks and embeds it."""
+    url = body.url.strip()
+    if web.site_of(url) is None:
+        raise HTTPException(status_code=422, detail=f"Only https pages on {', '.join(web.ALLOWED_DOMAINS)} can be "
+                                                    "added to the library")
+    job_id = queue.enqueue(conn, "web_page", url)
+    log.info("ingest %s queued by %s: %s", job_id, reviewer["name"], url)
+    return envelope(jobs.get_job(conn, job_id), status=202)
+
+
+@app.get("/ingest/{job_id}")
+def get_ingest(job_id: Annotated[str, Path(pattern=r"^[0-9a-f]{32}$")], conn: Conn):
+    job = jobs.get_job(conn, job_id)
+    if not job:
+        raise NotFound(f"No ingest job '{job_id}'")
+    return envelope(job)

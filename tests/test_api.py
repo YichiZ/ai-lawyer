@@ -254,3 +254,29 @@ def test_ask_reports_library_match(ask_client):
     client, _ = ask_client
     meta = client.post("/ask", json={"question": "How long do I have to sue after an injury?"}).json()["meta"]
     assert meta["library_match"] is True  # fake vectors are identical: distance 0
+
+
+@pytest.fixture
+def queue():
+    import redis
+
+    from app.jobs import Queue
+    from app.main import get_queue
+    q = Queue(redis.Redis(decode_responses=True), stream="test-ingest-api")
+    q.ensure_group()
+    app.dependency_overrides[get_queue] = lambda: q
+    yield q
+    q.redis.delete(q.stream)
+
+
+def test_ingest_reviewer_only_allowed_domains_and_status(client, queue):
+    url = "https://www.ontario.ca/page/api-ingest-fixture"
+    assert client.post("/ingest", json={"url": url}).status_code == 403
+    refused = client.post("/ingest", json={"url": "https://www.canlii.org/en/on/x"}, headers={"X-Demo-User": "reviewer"})
+    assert refused.status_code == 422 and "ontario.ca" in refused.json()["error"]["message"]
+    r = client.post("/ingest", json={"url": url}, headers={"X-Demo-User": "reviewer"})
+    assert r.status_code == 202
+    job = r.json()["data"]
+    assert (job["status"], job["url"]) == ("queued", url)
+    assert client.get(f"/ingest/{job['id']}").json()["data"]["status"] == "queued"
+    assert client.get(f"/ingest/{'0' * 32}").status_code == 404

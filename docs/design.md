@@ -132,13 +132,15 @@ Chunks follow the law's own structure — Act > Part > section > subsection for 
 
 Redis dispatches work; Postgres remembers it. This follows the Hello Interview guidance on Redis queues and Slack's lesson that Redis should hold dispatch state, not the durable backlog.
 
-1. **Enqueue** — insert an `ingest_jobs` row (`queued`) in Postgres, then `XADD` its id to the `ingest` stream. The job id is derived from `(kind, sha256)`, so a duplicate enqueue is a no-op.
+1. **Enqueue** — insert an `ingest_jobs` row (`queued`) in Postgres, then `XADD` its id to the `ingest` stream. The job id is derived from `(kind, url)`, so a duplicate enqueue is a no-op (the page's sha256 is only known after the fetch; loading is keyed on it).
 2. **Dispatch** — workers read with `XREADGROUP` in one consumer group; each entry stays in the pending list until the worker `XACK`s it after the data commits.
 3. **Recover** — a sweeper calls `XAUTOCLAIM` for entries idle > 5 min (dead or stuck worker). A reconciler re-adds any `queued` rows older than 5 min that Redis lost, so a Redis crash or flush loses no work.
 4. **Retry / dead-letter** — failures increment `attempts` with backoff (1, 4, 16 min); after 3, status `dead` with `error` and `stage`, and the entry moves to an `ingest:dead` stream for inspection.
 5. **Idempotent jobs** — delivery is at-least-once; every stage checks `sha256` / text hash before writing, so re-running a job adds no rows and no embeddings.
 
-**Redis config:** AOF on (`appendfsync everysec`), `maxmemory` with `noeviction` so a full Redis rejects enqueues loudly instead of dropping jobs; stream capped with `XADD MAXLEN ~ 100000`. Queue depth, pending count and oldest-pending age are exported as metrics.
+**Redis config:** AOF on (`appendfsync everysec`), `maxmemory` with `noeviction` so a full Redis rejects enqueues loudly instead of dropping jobs; stream capped with `XADD MAXLEN ~ 100000`. Queue depth, pending count and oldest-pending age are readable with `XLEN` / `XPENDING` and the `ingest_jobs` table (not exported as metrics in the demo).
+
+**Add-to-corpus (6.2).** A reviewer adds an official page from a web-fallback answer: https on ontario.ca, canada.ca, ontariocourts.ca, scc-csc.ca or toronto.ca only (redirects checked too), robots.txt obeyed, ≤ 1 request/s per host. Stages `fetch → parse → load → chunk → embed`; the file is kept in `input/web/` with a manifest line; HTML is split on h2/h3 headings (menus and link-only blocks dropped), PDFs by page; toronto.ca stays excerpt-only. Refusals (domain, robots.txt, 4xx, unsupported type) are permanent: `dead` at once, no retries. Added pages are kind `web` and join law retrieval.
 
 ## Retrieval
 

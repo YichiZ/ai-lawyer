@@ -148,3 +148,20 @@ CREATE INDEX IF NOT EXISTS citations_cited_section ON citations (cited_section_i
 -- 5.5: plain-language decision summaries (facts, outcome, why it matters).
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS plain_summary text;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS summary_source_hash text;
+
+-- 6.2: durable job records (Redis Streams only dispatch; see docs/design.md → Job queue).
+CREATE TABLE IF NOT EXISTS ingest_jobs (
+    id              text PRIMARY KEY,               -- sha256 of kind + url: a duplicate enqueue is a no-op
+    kind            text NOT NULL,
+    url             text NOT NULL,
+    status          text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'done', 'dead')),
+    stage           text,
+    attempts        integer NOT NULL DEFAULT 0,
+    error           text,
+    document_slug   text,
+    next_attempt_at timestamptz NOT NULL DEFAULT now(),
+    enqueued_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
+ALTER TABLE documents ADD CONSTRAINT documents_kind_check CHECK (kind IN ('statute', 'regulation', 'bylaw', 'decision', 'web'));

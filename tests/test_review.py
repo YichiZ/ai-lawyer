@@ -191,3 +191,13 @@ def test_edit_and_reject_become_gold_candidates_once(scored, conn):
     assert lines[0]["final_markdown"] == "Two years from the day of discovery." and lines[1]["review_reason"] == "wrong_law"
     reasons = [value for kind, name, value in fake.log if kind == "score" and name == "review_reason"]
     assert reasons == ["wrong_law"]
+
+
+def test_queue_marks_web_sources_addable_only_on_allowed_domains(client, conn):
+    answer_id = make_answer(conn)
+    sources = [{"url": "https://www.ontario.ca/page/x", "title": "X", "domain": "ontario.ca"},
+               {"url": "https://www.somelawfirm.com/y", "title": "Y", "domain": "somelawfirm.com"}]
+    conn.execute("UPDATE answers SET flags = flags || %s::jsonb WHERE id = %s",
+                 (json.dumps({"web_fallback": True, "web_sources": sources}), answer_id))
+    [item] = [i for i in client.get("/review/queue", headers=REVIEWER).json()["data"] if i["id"] == answer_id]
+    assert [s["addable"] for s in item["web_sources"]] == [True, False]

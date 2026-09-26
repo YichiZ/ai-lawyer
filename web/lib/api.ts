@@ -1,7 +1,7 @@
 // Typed client for the FastAPI backend. Server-side only (called from Server Components).
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
-export type Kind = "statute" | "regulation" | "bylaw" | "decision";
+export type Kind = "statute" | "regulation" | "bylaw" | "decision" | "web";
 
 export interface DocumentSummary {
   slug: string;
@@ -152,13 +152,25 @@ export interface QueueItem {
   draft_status: string;
   dropped_claims: Claim[];
   sources: Source[];
+  web_sources: { url: string; title: string; domain: string; addable: boolean }[];
   trace_url: string | null;
+}
+
+export interface IngestJob {
+  id: string;
+  url: string;
+  status: "queued" | "running" | "done" | "dead";
+  stage: string | null;
+  error: string | null;
+  document_slug: string | null;
 }
 
 export const ask = (question: string, role: Role) =>
   post<{ answer_id: number; status: string; sources: Source[] }>("/ask", { question }, role);
 export const askWeb = (question: string, role: Role) =>
   post<{ answer_id: number; status: string }>("/ask/web", { question }, role);
+export const ingestUrl = (url: string, role: Role) => post<IngestJob>("/ingest", { url }, role);
+export const getIngestJob = (id: string) => get<IngestJob>(`/ingest/${id}`, "reviewer");
 export const getAnswer = (id: number, role: Role) => get<Answer>(`/answers/${id}`, role);
 export const getQueue = (role: Role) => get<QueueItem[]>("/review/queue", role);
 export const reviewAnswer = (id: number, body: Record<string, string>, role: Role) =>
@@ -244,6 +256,7 @@ export const KIND_LABELS: Record<Kind, string> = {
   regulation: "Regulations",
   bylaw: "Toronto by-laws",
   decision: "Decisions",
+  web: "Official web pages",
 };
 
 export function formatDate(iso: string | null): string {

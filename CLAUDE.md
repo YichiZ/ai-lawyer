@@ -22,7 +22,8 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 
 - `uv run scripts/check_vertex.py` — Vertex AI smoke test (6 checks). Run first in every session; if it fails, fix auth/models before anything else.
 - Local auth: `gcloud auth application-default login` then `gcloud auth application-default set-quota-project long-indexer-507414-n0`
-- `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432, dev only) / apply `db/schema.sql` (idempotent).
+- `make up` / `make db` — start Postgres 18 + pgvector (localhost:5432) and Redis 8 (localhost:6379), dev only / apply `db/schema.sql` (idempotent).
+- `make worker` — ingest worker for add-to-corpus jobs (Redis stream `ingest`; job state in `ingest_jobs`). Reviewer enqueues with `POST /ingest {url}`; `GET /ingest/{id}` shows status and stage.
 - `uv run scripts/fetch_a2aj.py` — download Ontario A2AJ Parquet + manifest (idempotent). `uv run scripts/match_v0.py` — v0 match report. `uv run scripts/load_statutes.py` — load the 12 laws (idempotent). `uv run scripts/fetch_toronto.py` / `load_toronto.py` — Toronto Municipal Code ch. 719, 743, 629 (needs `pdftotext`: `brew install poppler`). `uv run scripts/embed_chunks.py` — chunk + embed changed sections (idempotent, resumable).
 - `make test` — pytest against a fresh `ai_lawyer_test` database. `make psql` — shell into the dev DB.
 - `make api` — FastAPI on :8000 (`/docs`), loads `.env` (Langfuse tracing on when keys are present). `uv run scripts/crawl_api.py` — request every section, report status + p50/p95.
@@ -88,5 +89,7 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-26 — google-genai sends the client timeout to Vertex as a server deadline: a tight one (1.6 s) makes most calls 504 immediately → measure fallback rate before cutting timeouts.
 - 2026-09-26 — gemini-3.7-flash has a long latency tail (p95 ~70 s with retries) and 429s even sequentially → keep generation off the researcher's path (background drafting); profile stages before optimizing.
 - 2026-09-26 — Batch scripts on a default psycopg connection kept one transaction open for the whole run: "commit every 25" flushes were savepoints (a crash loses everything) and the held locks blocked `make db` → batch scripts use `autocommit=True`; never apply schema while a batch job runs.
+- 2026-09-26 — redis-py 8 defaults `socket_timeout` to 5 s, so a 5 s `XREADGROUP` block crashed the worker with TimeoutError → set `socket_timeout` above the block time and catch `RedisError` in worker loops.
+- 2026-09-26 — A guessed official URL 404'd and was retried with backoff; real pages carry menus inside `<main>` → treat 4xx as permanent (dead at once) and drop link-only blocks when parsing HTML; always try a parser on one real page before trusting fixture tests.
 - 2026-09-26 — `pkill -f next-server` killed the user's dev server too, and a leaked `next start` served a stale build → kill test servers by their exact port pattern (`next start --port 3002`), never generic names.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

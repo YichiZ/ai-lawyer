@@ -7,7 +7,7 @@ from app.glossary import find_terms
 from ingest.statutes import display_pinpoint
 
 EXCERPT_CHARS = 300  # documents with reproduction='excerpt' (City copyright) never return more than this
-KIND_ORDER = ("statute", "regulation", "bylaw", "decision")
+KIND_ORDER = ("statute", "regulation", "bylaw", "web", "decision")
 DOC_FIELDS = ("slug, title, short_name, citation, kind, jurisdiction, in_force_from, url, source, "
               "upstream_license, reproduction")
 

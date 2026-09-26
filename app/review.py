@@ -8,6 +8,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from app import tracing
+from ingest.web import site_of
 
 REJECT_REASONS = ("wrong_law", "missing_authority", "unsupported_claim", "out_of_scope")
 REFUSAL_STATUSES = ("not_found", "out_of_scope", "unverified")
@@ -44,6 +45,7 @@ def queue(conn: psycopg.Connection) -> list[dict]:
         risk = risk_reasons(flags)
         items.append({**r, "risk": risk, "draft_status": flags.get("status"),
                       "dropped_claims": flags.get("dropped_claims", []), "sources": flags.get("sources", []),
+                      "web_sources": [{**w, "addable": site_of(w["url"]) is not None} for w in flags.get("web_sources", [])],
                       "timings_ms": flags.get("timings_ms"), "trace_url": tracing.trace_url(trace_id)})
     return sorted(items, key=lambda i: (not i["risk"],))  # stable: risky first, then oldest first
 

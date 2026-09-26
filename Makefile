@@ -1,7 +1,7 @@
-.PHONY: up db test psql api web e2e e2e-ci lighthouse eval eval-baseline ci-fixture
+.PHONY: up db test psql api worker web e2e e2e-ci lighthouse eval eval-baseline ci-fixture
 
-up:  ## start Postgres and wait until healthy
-	docker compose up -d --wait db
+up:  ## start Postgres + Redis and wait until healthy
+	docker compose up -d --wait db redis
 
 db: up  ## apply db/schema.sql (idempotent)
 	docker compose exec -T db psql -U postgres -d ai_lawyer -v ON_ERROR_STOP=1 -q < db/schema.sql
@@ -14,6 +14,9 @@ psql:
 
 api: up  ## run the API with reload on http://localhost:8000
 	uv run --env-file .env uvicorn app.main:app --reload --port 8000
+
+worker: up  ## run the ingest worker (add-to-corpus jobs from Redis)
+	uv run --env-file .env scripts/worker.py
 
 web:  ## run the Next.js app on http://localhost:3000 (needs `make api`)
 	npm --prefix web run dev
