@@ -45,6 +45,16 @@ def run_batched(conn: psycopg.Connection, fn: Callable, jobs, write: Callable, w
     return calls
 
 
+def load_sections(conn: psycopg.Connection, document_id: int) -> list[dict]:
+    """A document's sections in reading order, each with its parent's pinpoint: the input plan_chunks expects."""
+    rows = conn.execute(
+        "SELECT s.id, s.pinpoint, s.kind, s.heading, s.text, p.pinpoint FROM sections s"
+        " LEFT JOIN sections p ON p.id = s.parent_id WHERE s.document_id = %s ORDER BY s.sort_order",
+        (document_id,),
+    ).fetchall()
+    return [dict(zip(("id", "pinpoint", "kind", "heading", "text", "parent"), r)) for r in rows]
+
+
 def embed_input(context: str, text: str, situating: str | None = None) -> str:
     """What gets embedded: the deterministic header, the LLM situating sentences (3.5) if any, then the chunk text."""
     return f"{context}\n{situating}\n\n{text}" if situating else f"{context}\n\n{text}"

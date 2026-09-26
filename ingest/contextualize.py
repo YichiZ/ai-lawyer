@@ -9,7 +9,7 @@ from typing import Callable
 
 import psycopg
 
-from ingest.chunks import run_batched
+from ingest.chunks import load_sections, run_batched
 from ingest.statutes import display_pinpoint
 
 MAX_OUTLINE_LINES = 60
@@ -51,9 +51,7 @@ def contextualize_pending(conn: psycopg.Connection, generate: Callable[[str], st
     jobs = []
     for cid, doc_id, title, pin, text in rows:
         if doc_id not in sections_by_doc:
-            sections_by_doc[doc_id] = [dict(zip(("pinpoint", "kind", "heading", "parent"), r)) for r in conn.execute(
-                "SELECT s.pinpoint, s.kind, s.heading, p.pinpoint FROM sections s LEFT JOIN sections p ON p.id = s.parent_id"
-                " WHERE s.document_id = %s ORDER BY s.sort_order", (doc_id,))]
+            sections_by_doc[doc_id] = load_sections(conn, doc_id)
         key = (doc_id, pin)
         if key not in outlines:
             outlines[key] = part_outline(sections_by_doc[doc_id], pin)

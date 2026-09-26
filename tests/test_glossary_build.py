@@ -1,4 +1,3 @@
-from pathlib import Path
 
 from ingest.glossary_build import build_prompt, load_terms, resolve_source, upsert_definitions
 from ingest.statutes import load_document, parse_law
