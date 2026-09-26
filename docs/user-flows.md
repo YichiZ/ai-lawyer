@@ -51,7 +51,7 @@ Switch to reviewer → Review queue → decide.
 ## 6. Not found → web fallback (R → V)
 Ask something the library does not cover.
 - The gate says the library has no close match and offers "Search the web instead" (opt-in, never automatic).
-- The web draft is labelled "From the web, not our law library", lists its sources with domains, and goes to review
+- The web draft is labelled "Web search answer — not from our law library", lists its sources with domains, and goes to review
   flagged `web_fallback`.
 - Out-of-scope questions (criminal, family, other provinces) are refused, not answered from the web by default.
 - *Automated:* `web-fallback.spec.ts`.

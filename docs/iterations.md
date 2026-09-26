@@ -2,6 +2,10 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Repo presentation · README: three user flows with examples
+
+- **What:** the README's 6 user flows became 3 major ones (find the law; ask → review → read; web fallback and adding official pages), each with a concrete example and the guarantee behind it; links to docs/user-flows.md for all 10. Validated: every example (`LA s. 4`, `2024 SCC 32 at para 3`, "slip and fall on ice", LA s. 4 and COTA s. 42 quotes, 103 citing decisions) checked against the running API with read-only GETs; the secondary-statute label is copied from `app/authorities.py`, and the web-fallback example is the drone question from an earlier real run. docs/user-flows.md flow 6 now uses the app's web label.
+
 ## 2026-09-26 · Fix · Statutes quoted only through decisions are labelled and flagged (#18)
 
 - **What:** the abstention eval's detector (`authorities_named`, `unsourced_authorities`, `prose_of`) moved to `app/authorities.py`; `evals/suite.py` imports it. `run_ask` checks each draft: if its prose names a statute/regulation none of its cited sources is, and every claim is from a decision, the draft opens with "**Statute quoted in a court decision — not in our law library.** …" and `AskResult.secondary_statute` lists the names. `complete_draft` stores it in `flags`; `risk_reasons` puts `secondary_statute` first; the review UI labels it "Statute only quoted in a decision". The eval's `abstain_or_grounded` now counts a `secondary` answer only if it is labelled and flagged; new metric `secondary_labelled`.
