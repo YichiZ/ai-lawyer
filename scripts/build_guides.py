@@ -3,19 +3,17 @@ generate, verify) and lands in the review queue; the guide shows a section only 
 Idempotent: existing sections are skipped. --retry-failed re-drafts sections whose draft failed (Vertex 504/429)
 and removes the failed placeholder answer (never reviewed; the builder created it).
 
-Run: uv run --env-file .env scripts/build_guides.py [--retry-failed]
+Run: uv run --env-file .env -m scripts.build_guides [--retry-failed]
 """
 import os
 import sys
-from pathlib import Path
 
 import psycopg
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from app import ask  # noqa: E402
-from app.main import VertexAI, draft_answer  # noqa: E402
-from app.rerank import RERANK_CANDIDATES  # noqa: E402
-from ingest.vertex import json_generator, make_client  # noqa: E402
+from app import ask
+from app.main import VertexAI, draft_answer
+from app.rerank import RERANK_CANDIDATES
+from ingest.vertex import batch_client, json_generator
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 GUIDES = [  # slug, title, intro, [(heading, question)] — deadlines first, stated as rules
@@ -64,7 +62,7 @@ def status_of(conn, answer_id: int) -> str:
 def main() -> int:
     ai = VertexAI()
     # batch job: patient generation client (the app's interactive one gives up after 30 s)
-    generate = json_generator(make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000))
+    generate = json_generator(batch_client())
     connect = lambda: psycopg.connect(DATABASE_URL, autocommit=True)
     created = 0
     with connect() as conn:

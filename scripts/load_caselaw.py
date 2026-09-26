@@ -1,6 +1,6 @@
 """Phase 5.3: load injury-relevant ONCA + SCC decisions into documents + sections (numbered paragraphs). Idempotent.
 
-Run: uv run scripts/load_caselaw.py   (then scripts/embed_chunks.py)
+Run: uv run -m scripts.load_caselaw   (then scripts/embed_chunks.py)
 """
 import os
 import sys
@@ -11,10 +11,10 @@ from pathlib import Path
 import psycopg
 import pyarrow.parquet as pq
 
+from ingest.caselaw import is_injury_case, parse_decision
+from ingest.statutes import load_document
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from ingest.caselaw import is_injury_case, parse_decision  # noqa: E402
-from ingest.statutes import load_document  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 COLUMNS = ["dataset", "citation_en", "name_en", "document_date_en", "url_en", "unofficial_text_en", "upstream_license"]

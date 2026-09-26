@@ -1,6 +1,6 @@
 """Validate a gold-set file against the loaded corpus. Exit 1 on any error.
 
-Run: uv run scripts/check_gold.py [path]   (default evals/gold.jsonl)
+Run: uv run -m scripts.check_gold [path]   (default evals/gold.jsonl)
 """
 import os
 import sys
@@ -9,8 +9,7 @@ from pathlib import Path
 
 import psycopg
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from evals.gold import GOLD_PATH, load_gold, validate_gold  # noqa: E402
+from evals.gold import GOLD_PATH, load_gold, validate_gold
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 

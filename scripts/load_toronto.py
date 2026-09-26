@@ -1,6 +1,6 @@
 """Load the downloaded Toronto Municipal Code chapters (see fetch_toronto.py) into documents + sections. Idempotent.
 
-Run: uv run scripts/load_toronto.py   (then scripts/embed_chunks.py)
+Run: uv run -m scripts.load_toronto   (then scripts/embed_chunks.py)
 """
 import os
 import re
@@ -9,11 +9,11 @@ from pathlib import Path
 
 import psycopg
 
+from ingest.bylaws import clean_lines, parse_chapter, pdf_text
+from ingest.manifest import read_manifest
+from ingest.statutes import load_document
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from ingest.bylaws import clean_lines, parse_chapter, pdf_text  # noqa: E402
-from ingest.manifest import read_manifest  # noqa: E402
-from ingest.statutes import load_document  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 

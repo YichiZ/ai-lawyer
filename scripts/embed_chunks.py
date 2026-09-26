@@ -1,17 +1,15 @@
 """Build chunks for every loaded document and embed the ones that changed. Idempotent and resumable.
 
-Run: uv run scripts/embed_chunks.py
+Run: uv run -m scripts.embed_chunks
 """
 import os
 import sys
 import time
-from pathlib import Path
 
 import psycopg
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingest.chunks import embed_pending, plan_chunks, plan_decision_chunks, sync_chunks  # noqa: E402
-from ingest.vertex import EMBED_MODEL, embedder, make_client  # noqa: E402
+from ingest.chunks import embed_pending, plan_chunks, plan_decision_chunks, sync_chunks
+from ingest.vertex import EMBED_MODEL, embedder, make_client
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 WORKERS = 8

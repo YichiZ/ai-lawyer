@@ -16,7 +16,7 @@ api: up  ## run the API with reload on http://localhost:8000
 	uv run --env-file .env uvicorn app.main:app --reload --port 8000
 
 worker: up  ## run the ingest worker (add-to-corpus jobs from Redis)
-	uv run --env-file .env scripts/worker.py
+	uv run --env-file .env -m scripts.worker
 
 web:  ## run the Next.js app on http://localhost:3000 (needs `make api`)
 	npm --prefix web run dev
@@ -25,10 +25,10 @@ e2e: up  ## Playwright UI tests (starts its own API with AI_FAKE=1 on :8001 and 
 	npm --prefix web run e2e
 
 eval: up  ## gold-set experiments in Langfuse; fails on a > 2-point drop vs evals/baseline.json (local only)
-	uv run --env-file .env scripts/eval.py gate
+	uv run --env-file .env -m scripts.eval gate
 
 eval-baseline: up  ## run the experiments and record evals/baseline.json (deliberate; commit the result)
-	uv run --env-file .env scripts/eval.py record
+	uv run --env-file .env -m scripts.eval record
 
 ci-fixture: up  ## re-export the small CI corpus (tests/fixtures/corpus) from the dev DB
 	uv run python -c "import psycopg; from evals.ci_fixture import export_fixture; print(export_fixture(psycopg.connect('postgresql://postgres:dev@localhost:5432/ai_lawyer')))"

@@ -1,6 +1,6 @@
 """Download the Ontario A2AJ law files into input/a2aj/ and record them in input/manifest.jsonl.
 
-Run: uv run scripts/fetch_a2aj.py [--caselaw]   (--caselaw: ONCA + SCC decisions, approved 2026-09-26)
+Run: uv run -m scripts.fetch_a2aj [--caselaw]   (--caselaw: ONCA + SCC decisions, approved 2026-09-26)
 Idempotent: a HEAD request reads the file's sha256 (Hugging Face x-linked-etag); unchanged files are skipped.
 """
 import sys
@@ -8,8 +8,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingest.manifest import append_entry, needs_download, read_manifest, sha256_file  # noqa: E402
+from ingest.manifest import append_entry, needs_download, read_manifest, sha256_file
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "input" / "manifest.jsonl"

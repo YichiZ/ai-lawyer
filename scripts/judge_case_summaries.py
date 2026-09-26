@@ -1,6 +1,6 @@
 """Faithfulness check for decision summaries (Phase 5): Flash-Lite judge vs the excerpt the summary was written from.
 
-Run: uv run --env-file .env scripts/judge_case_summaries.py [n=30]   (fixed sample; ~n cheap calls; saved to evals/runs/)
+Run: uv run --env-file .env -m scripts.judge_case_summaries [n=30]   (fixed sample; ~n cheap calls; saved to evals/runs/)
 """
 import json
 import os
@@ -11,13 +11,13 @@ from pathlib import Path
 
 import psycopg
 
+from evals.answers import JUDGE_MODEL
+from evals.readability import fk_grade
+from evals.summaries import judge_summary, summarize_scores
+from ingest.case_summaries import excerpt_for_summary
+from ingest.vertex import batch_client, json_generator
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from evals.answers import JUDGE_MODEL  # noqa: E402
-from evals.readability import fk_grade  # noqa: E402
-from evals.summaries import judge_summary, summarize_scores  # noqa: E402
-from ingest.case_summaries import excerpt_for_summary  # noqa: E402
-from ingest.vertex import json_generator, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 
@@ -34,7 +34,7 @@ def main() -> int:
             intro = next((t for k, t in rows if k == "part"), "")
             items.append({"slug": slug, "where": f"{title}, {citation} (decision excerpt)", "summary": summary,
                           "text": excerpt_for_summary(intro, [t for k, t in rows if k == "section"])})
-    judge = json_generator(make_client(attempts=8, max_delay=60, timeout_ms=60_000), model=JUDGE_MODEL)
+    judge = json_generator(batch_client(), model=JUDGE_MODEL)
     with ThreadPoolExecutor(max_workers=4) as pool:
         verdicts = list(pool.map(lambda i: judge_summary(i["text"], i["summary"], judge, i["where"]), items))
     rows = [{"slug": i["slug"], "summary": i["summary"], **v, "grade": fk_grade(i["summary"])} for i, v in zip(items, verdicts)]

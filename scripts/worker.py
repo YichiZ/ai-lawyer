@@ -1,6 +1,6 @@
 """Ingest worker: runs add-to-corpus jobs from the Redis stream (Phase 6.2). One process; Ctrl-C to stop.
 
-Run: make worker   (uv run --env-file .env scripts/worker.py)
+Run: make worker   (uv run --env-file .env -m scripts.worker)
 """
 import logging
 import os
@@ -12,11 +12,11 @@ from pathlib import Path
 import psycopg
 import redis
 
+from app.jobs import Queue
+from ingest import web
+from ingest.vertex import EMBED_MODEL, embedder, make_client
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from app.jobs import Queue  # noqa: E402
-from ingest import web  # noqa: E402
-from ingest.vertex import EMBED_MODEL, embedder, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")

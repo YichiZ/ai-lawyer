@@ -1,7 +1,7 @@
 """Request every law and every section; report status codes and latency.
 
-Run: make api, then  uv run scripts/crawl_api.py                      (API JSON)
-     with the web app: uv run scripts/crawl_api.py --web http://localhost:3000   (rendered pages)
+Run: make api, then  uv run -m scripts.crawl_api                      (API JSON)
+     with the web app: uv run -m scripts.crawl_api --web http://localhost:3000   (rendered pages)
 """
 import statistics
 import sys

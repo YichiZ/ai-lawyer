@@ -1,6 +1,6 @@
 """For gold items that retrieval misses: where do the expected pinpoints rank in keyword, vector and fused lists?
 
-Run: uv run --env-file .env scripts/diagnose_retrieval.py [id ...]   (default: misses in the latest retrieval run)
+Run: uv run --env-file .env -m scripts.diagnose_retrieval [id ...]   (default: misses in the latest retrieval run)
 """
 import glob
 import json
@@ -10,12 +10,12 @@ from pathlib import Path
 
 import psycopg
 
+from app.ask import CANDIDATES, TOP_K, keyword_ranking, rrf, vector_ranking
+from evals.gold import load_gold
+from evals.metrics import chunk_covers, matches
+from ingest.vertex import embedder, make_client
+
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from app.ask import CANDIDATES, TOP_K, keyword_ranking, rrf, vector_ranking  # noqa: E402
-from evals.gold import load_gold  # noqa: E402
-from evals.metrics import chunk_covers, matches  # noqa: E402
-from ingest.vertex import embedder, make_client  # noqa: E402
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
 DEPTH = 200
