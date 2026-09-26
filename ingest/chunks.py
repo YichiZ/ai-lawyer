@@ -11,9 +11,38 @@ from ingest.statutes import display_pinpoint
 
 # ponytail: ~800 tokens at ~4 chars/token; switch to count_tokens if a model limit gets tight.
 CHUNK_CHAR_LIMIT = 3200
-SKIP_TEXTS = {"[blank]"}
-DECISION_CHUNK_CHARS = 2000  # ~500 tokens of whole paragraphs (design: decision windows)  # A2AJ placeholders for sections covered by a range entry ("25-49 Omitted ...")
+SKIP_TEXTS = {"[blank]"}  # A2AJ placeholders for sections covered by a range entry ("25-49 Omitted ...")
+DECISION_CHUNK_CHARS = 2000  # ~500 tokens of whole paragraphs (design: decision windows)
 FLUSH_EVERY = 25
+
+
+def run_batched(conn: psycopg.Connection, fn: Callable, jobs, write: Callable, workers: int = 8) -> int:
+    """fn(arg) for each (key, arg) in jobs on worker threads; write(key, result) on this thread only.
+
+    Commits every FLUSH_EVERY results and again on failure, so a crash keeps finished work. Returns the calls made.
+    """
+    done: list = []
+
+    def flush():
+        if done:
+            with conn.transaction():
+                for key, result in done:
+                    write(key, result)
+            done.clear()
+
+    calls = 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(fn, arg): key for key, arg in jobs}
+        try:
+            for fut in as_completed(futures):
+                done.append((futures[fut], fut.result()))
+                calls += 1
+                if len(done) >= FLUSH_EVERY:
+                    flush()
+        finally:
+            flush()
+            pool.shutdown(cancel_futures=True)
+    return calls
 
 
 def embed_input(context: str, text: str, situating: str | None = None) -> str:
@@ -138,28 +167,8 @@ def embed_pending(conn: psycopg.Connection, embed: Callable[[str], list[float]],
         " ORDER BY id",
         (model,),
     ).fetchall()
-    done: list[tuple[int, list[float]]] = []
-
-    def flush():
-        if done:
-            with conn.transaction():
-                for chunk_id, values in done:
-                    conn.execute(
-                        "UPDATE chunks SET embedding = %s, embedding_model = %s WHERE id = %s",
-                        (HalfVector(values), model, chunk_id),
-                    )
-            done.clear()
-
-    calls = 0
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(embed, embed_input(ctx or "", text, sit)): cid for cid, ctx, text, sit in pending}
-        try:
-            for fut in as_completed(futures):
-                done.append((futures[fut], fut.result()))
-                calls += 1
-                if len(done) >= FLUSH_EVERY:
-                    flush()
-        finally:
-            flush()  # keep finished work even when a call fails
-            pool.shutdown(cancel_futures=True)
-    return calls
+    return run_batched(
+        conn, embed, ((cid, embed_input(ctx or "", text, sit)) for cid, ctx, text, sit in pending),
+        lambda cid, values: conn.execute("UPDATE chunks SET embedding = %s, embedding_model = %s WHERE id = %s",
+                                         (HalfVector(values), model, cid)),
+        workers)

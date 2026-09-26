@@ -27,7 +27,7 @@ def make_client(attempts: int = 5, initial_delay: float = 1.0, max_delay: float 
 
 
 def batch_client() -> genai.Client:
-    """Bulk jobs (ingest, evals, sweeps): more retries, longer backoff and timeout so quota 429s and long answers recover."""
+    """Bulk jobs (ingest, evals, sweeps): more retries, longer backoff and timeout, so 429s and long answers recover."""
     return make_client(attempts=8, initial_delay=2.0, max_delay=60.0, timeout_ms=60_000)
 
 

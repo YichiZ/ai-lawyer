@@ -1,10 +1,11 @@
 """Plain-language decision summaries (Phase 5.5) by gemini-3.5-flash-lite from an excerpt (headnote + opening and
 closing paragraphs, capped) to stay within budget; keyed on the document sha256 + prompt version."""
 import hashlib
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 import psycopg
+
+from ingest.chunks import run_batched
 
 PROMPT_VERSION = 1
 MAX_CHARS = 24_000  # ~6k tokens per decision
@@ -52,12 +53,8 @@ def summarize_cases(conn: psycopg.Connection, generate: Callable[[str], str], wo
         intro = next((t for k, t in rows if k == "part"), "")
         paras = [t for k, t in rows if k == "section"]
         jobs.append((doc_id, _hash(sha), PROMPT.format(title=title, citation=citation, text=excerpt_for_summary(intro, paras))))
-    calls = 0
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(generate, p): (doc_id, h) for doc_id, h, p in jobs}
-        for fut in as_completed(futures):
-            doc_id, h = futures[fut]
-            conn.execute("UPDATE documents SET plain_summary = %s, summary_source_hash = %s WHERE id = %s",
-                         (" ".join(fut.result().split()), h, doc_id))
-            calls += 1
-    return calls
+    return run_batched(
+        conn, generate, (((doc_id, h), p) for doc_id, h, p in jobs),
+        lambda key, out: conn.execute("UPDATE documents SET plain_summary = %s, summary_source_hash = %s WHERE id = %s",
+                                      (" ".join(out.split()), key[1], key[0])),
+        workers)
