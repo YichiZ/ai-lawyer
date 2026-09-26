@@ -22,7 +22,8 @@ One entry per iteration, newest first. Format: date · milestone · what changed
   | | | draft (background) | 6.1 s | **11.4 s** (max 12.8 s) | 0 failed drafts | < 8 s ❌ |
 
   **Vertex ceiling observed:** no 429s at 0.19 asks/s; earlier the eval's sequential gemini-3.7-flash calls did hit 429, so the per-minute quota on 3.7 Flash is the first ceiling, not the API. **Recommendations:** (1) ask for a gemini-3.7-flash quota increase or provisioned throughput — the draft tail is Vertex time (generate), not our code; (2) stream the draft to the reviewer so a slow draft still shows progress; (3) add `psycopg_pool` before scaling out (one connection per request today; fine at 25 req/s); (4) run `uvicorn --workers N` in deploy (dev `make api` is one reloading process).
-- **Next:** Phase 6 exit check (CI green), final docs.
+- **Phase 6 exit:** web fallback labelled and reviewed ✅ · add-to-corpus ingests an allowed page end to end ✅ · load-test table recorded ✅ · baseline re-recorded, gate no regression, CI green (test, e2e, lighthouse on e8eb8c7) ✅. Hosted design doc synced. **All phases in docs/design.md are built.**
+- **Open for the user:** draft p95 11.4 s vs 8 s (Vertex quota/provisioned throughput); Lighthouse LCP ~2.5 s / JS ~140 KB vs 1.5 s / 100 KB; 16 guide sections await human review; decision-summary reading grade 13.4 (~$3.50 re-run); rotate the Langfuse secret that was pasted in chat.
 
 ## 2026-09-26 · Phase 6 · 6.1 Web fallback (opt-in, reviewed)
 
