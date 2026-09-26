@@ -26,6 +26,8 @@ def risk_reasons(flags: dict) -> list[str]:
         reasons.append("retried")
     if flags.get("status") == "failed":
         reasons.append("failed")
+    if flags.get("web_fallback"):
+        reasons.append("web_fallback")
     return reasons
 
 
@@ -78,8 +80,12 @@ def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | No
     ).fetchone()
     if not a:
         return None
+    law = [x["distance"] for x in a["flags"].get("sources", []) if x.get("kind") != "decision" and x.get("distance") is not None]
+    from app.ask import GATE_MAX_DISTANCE
+
     view = {"id": a["id"], "question": a["question"], "status": a["status"], "created_at": a["created_at"],
-            "sources": a["flags"].get("sources", [])}
+            "sources": a["flags"].get("sources", []), "web_fallback": bool(a["flags"].get("web_fallback")),
+            "library_match": bool(law) and min(law) <= GATE_MAX_DISTANCE}
     if a["status"] == "pending_review":
         view["message"] = "Awaiting review"
     elif a["status"] in ("approved", "edited"):

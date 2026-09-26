@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import CitationChips from "@/components/CitationChips";
 import Markdown from "@/components/Markdown";
 import SourceList from "@/components/SourceList";
+import WebFallback from "./WebFallback";
 import { REJECT_REASONS, formatTimestamp, getAnswer } from "@/lib/api";
 import { currentRole } from "@/lib/role";
 
@@ -31,6 +32,8 @@ export default async function AnswerPage({ params }: Props) {
             <Link href={`/answers/${a.id}`}>Refresh</Link>
           </p>
         )}
+        {a.status === "pending_review" && !a.library_match && !a.web_fallback && <WebFallback question={a.question} />}
+        {a.web_fallback && <p className="mt-2 text-sm font-semibold text-accent">Web search answer — not from our law library.</p>}
         {released && (
           <>
             <div className="mt-3">

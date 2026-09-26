@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-26 · Phase 6 · 6.1 Web fallback (opt-in, reviewed)
+
+- **What:** `app/web_fallback.py` (gemini-3.7-flash + Google Search grounding, low thinking; Vertex redirect URIs resolved to real URLs by a HEAD request, original kept on failure; no grounding sources → `not_found`); `POST /ask/web` creates an answer flagged `web_fallback`, drafted in the background, labelled "From the web, not our law library" with a source list, reviewed like any answer (`web_fallback` risk sorts it first). `/ask` returns `meta.library_match` (best law distance ≤ gate) and the answer view carries it; the answer page offers "Search the web instead" only when the library has no close match. Fake model gets a canned web result for e2e.
+- **Validated:** tests red first → 356 passed; `make e2e-ci` 30/30 incl. unmatched question → opt-in → labelled web answer → flagged in the reviewer queue. Real run ("limitation period for suing a municipality outside Toronto for a pothole"): status `web`, 6 sources, all redirects resolved; the draft correctly cites Municipal Act, 2001 s. 44(10) (10-day notice) and s. 44(12) (reasonable excuse) — a statute outside our corpus, which is the point of the fallback.
+- **Observed:** despite the prompt, all 6 sources were law-firm pages, not official sites → the reviewer sees domains; 6.2 will only ingest official domains.
+- **Next:** 6.2 add-to-corpus via the Redis Streams job queue; 6.3 load test.
+
 ## 2026-09-26 · Phase 5 · Case law (5.1–5.6)
 
 - **5.1 Fetch:** A2AJ `ONCA/train.parquet` (183.5 MB, 24,131 decisions) + `SCC/train.parquet` (365.3 MB, 10,893) via `scripts/fetch_a2aj.py --caselaw`; sha256 verified; rerun 0 bytes. Columns include `cases_cited_en` / `cases_citing_en` lists and a per-row licence ("non-commercial use and other restrictions" — fine for a non-commercial demo, shown on case pages). No statute-citation data; no Superior Court decisions (gap shown on every case page).

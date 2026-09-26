@@ -227,3 +227,30 @@ def test_rerank_runs_in_background_and_updates_sources(ask_client, conn):
     stored = [s["chunk_id"] for s in conn.execute("SELECT flags FROM answers WHERE id = %s", (body["answer_id"],)).fetchone()[0]["sources"]]
     assert seen["candidates"] >= len(shown)  # reranked the wider candidate list, after responding
     assert stored != shown and stored[0] == shown[-1] or len(shown) == 1
+
+
+def test_web_fallback_creates_a_flagged_answer_for_review(ask_client, conn):
+    client, fake = ask_client
+    fake.search_web = lambda q: ("Ontario sets a two-year limit.", [{"url": "https://www.ontario.ca/a", "title": "Limits", "domain": "ontario.ca"}])
+    r = client.post("/ask/web", json={"question": "How long do I have to sue in Ontario?"})
+    assert r.status_code == 200 and r.json()["data"]["status"] == "pending_review"
+    aid = r.json()["data"]["answer_id"]
+    draft, flags = conn.execute("SELECT draft_markdown, flags FROM answers WHERE id = %s", (aid,)).fetchone()
+    assert draft.startswith("**From the web, not our law library.**") and flags["web_fallback"] is True
+    assert flags["status"] == "web" and flags["web_sources"][0]["domain"] == "ontario.ca"
+    queue = client.get("/review/queue", headers={"X-Demo-User": "reviewer"}).json()["data"]
+    assert "web_fallback" in next(i for i in queue if i["id"] == aid)["risk"]
+
+
+def test_web_fallback_without_sources_is_not_found(ask_client, conn):
+    client, fake = ask_client
+    fake.search_web = lambda q: ("I could not find anything.", [])
+    aid = client.post("/ask/web", json={"question": "Obscure question?"}).json()["data"]["answer_id"]
+    flags = conn.execute("SELECT flags FROM answers WHERE id = %s", (aid,)).fetchone()[0]
+    assert flags["status"] == "not_found" and flags["web_sources"] == []
+
+
+def test_ask_reports_library_match(ask_client):
+    client, _ = ask_client
+    meta = client.post("/ask", json={"question": "How long do I have to sue after an injury?"}).json()["meta"]
+    assert meta["library_match"] is True  # fake vectors are identical: distance 0

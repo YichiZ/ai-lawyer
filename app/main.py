@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException
 
-from app import ask, cases, guides, laws, review, search, tracing
+from app import ask, cases, guides, laws, review, search, tracing, web_fallback
 from app.rerank import RERANK_CANDIDATES, make_reranker
 from ingest import vertex
 
@@ -44,6 +44,7 @@ class VertexAI:
         # Interactive rerank fails fast (one 3 s attempt) and falls back to fused order; evals use a patient client.
         fast = vertex.make_client(attempts=1, timeout_ms=RERANK_TIMEOUT_MS)
         self.rerank = make_reranker(vertex.json_generator(fast, model=vertex.CHEAP_MODEL))
+        self.search_web = lambda q: web_fallback.search_web(q, client, vertex.ANSWER_MODEL)
 
 
 @lru_cache(maxsize=1)
@@ -168,8 +169,38 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: Backg
     background.add_task(draft_answer, connect, answer_id, question, candidates, ai.generate, trace_id,
                         getattr(ai, "rerank", None), case_candidates)
     log.info("ask %s: sources in %s ms, drafting in background", answer_id, timings["sources"])
+    best = min((h.distance for h in candidates if h.distance is not None), default=None)
+    library_match = best is not None and best <= ask.GATE_MAX_DISTANCE  # False → the UI offers the web fallback
     return envelope({"answer_id": answer_id, "status": "pending_review", "sources": [h.source for h in hits]},
-                    meta={"timings_ms": timings})
+                    meta={"timings_ms": timings, "library_match": library_match})
+
+
+@app.post("/ask/web")
+def post_ask_web(body: AskRequest, conn: Conn, ai: AI, user: User, background: BackgroundTasks, connect: Connect):
+    """Opt-in web fallback: a labelled draft from Google Search grounding, reviewed like any answer."""
+    question = body.question.strip()
+    with tracing.observe("ask_web", input={"question": question}) as root:
+        answer_id = ask.create_pending(conn, question, user["id"], [], {"sources": 0}, tracing.current_trace_id())
+        conn.execute("UPDATE answers SET flags = flags || '{\"web_fallback\": true}'::jsonb WHERE id = %s", (answer_id,))
+        root.update(output={"answer_id": answer_id})
+    background.add_task(draft_web_answer, connect, answer_id, question, ai.search_web)
+    return envelope({"answer_id": answer_id, "status": "pending_review", "sources": []})
+
+
+def draft_web_answer(connect, answer_id: int, question: str, search_web) -> None:
+    import json
+
+    with tracing.observe("draft_web", input={"answer_id": answer_id}) as span, connect() as conn:
+        try:
+            text, sources = search_web(question)
+            status = "web" if sources else "not_found"
+            conn.execute("UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb WHERE id = %s",
+                         (web_fallback.compose_web_draft(text, sources),
+                          json.dumps({"status": status, "web_sources": sources}), answer_id))
+            span.update(output={"status": status, "sources": len(sources)})
+        except Exception as e:
+            log.exception("web fallback for answer %s failed", answer_id)
+            ask.fail_draft(conn, answer_id, f"{type(e).__name__}: {e}")
 
 
 def draft_answer(connect, answer_id: int, question: str, candidates: list, generate, trace_id: str | None,

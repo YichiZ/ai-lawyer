@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ApiError, ask, getSection, reviewAnswer, suggest, type Suggestion } from "@/lib/api";
+import { ApiError, ask, askWeb, getSection, reviewAnswer, suggest, type Suggestion } from "@/lib/api";
 import { ROLE_COOKIE, currentRole } from "@/lib/role";
 
 export type FormState = { error?: string };
@@ -72,4 +72,16 @@ export async function suggestAction(q: string): Promise<Suggestion[]> {
   } catch {
     return []; // typeahead failing must not break typing; the full search page reports errors
   }
+}
+
+export async function askWebAction(question: string, _: FormState): Promise<FormState> {
+  let answerId: number;
+  try {
+    const res = await askWeb(question, await currentRole());
+    if (!res) return { error: "The web search could not be started." };
+    answerId = res.answer_id;
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "The web search could not be started. Please try again." };
+  }
+  redirect(`/answers/${answerId}`);
 }

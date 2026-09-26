@@ -126,6 +126,8 @@ export interface Answer {
   status: "pending_review" | "approved" | "edited" | "rejected";
   created_at: string;
   sources: Source[];
+  web_fallback: boolean;
+  library_match: boolean;
   message?: string;
   final_markdown?: string;
   claims?: Claim[];
@@ -155,6 +157,8 @@ export interface QueueItem {
 
 export const ask = (question: string, role: Role) =>
   post<{ answer_id: number; status: string; sources: Source[] }>("/ask", { question }, role);
+export const askWeb = (question: string, role: Role) =>
+  post<{ answer_id: number; status: string }>("/ask/web", { question }, role);
 export const getAnswer = (id: number, role: Role) => get<Answer>(`/answers/${id}`, role);
 export const getQueue = (role: Role) => get<QueueItem[]>("/review/queue", role);
 export const reviewAnswer = (id: number, body: Record<string, string>, role: Role) =>
