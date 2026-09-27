@@ -39,3 +39,11 @@ def test_summarize_pending_is_idempotent_and_redoes_changed_text(conn):
     conn.execute("UPDATE sections SET text = text || ' Changed.' WHERE pinpoint = 's-4'")
     assert summarize_pending(conn, lambda p: "New summary.", workers=1) == 1
     assert conn.execute("SELECT plain_summary FROM sections WHERE pinpoint = 's-4'").fetchone()[0] == "New summary."
+
+
+def test_decision_paragraphs_are_not_summarized(conn):
+    doc = conn.execute("INSERT INTO documents (sha256, kind, slug, title, source) VALUES ('d', 'decision', 'c', 'R v X', 't')"
+                       " RETURNING id").fetchone()[0]
+    conn.execute("INSERT INTO sections (document_id, pinpoint, kind, text, sort_order) VALUES (%s, 'para-1', 'section', %s, 1)",
+                 (doc, "The appeal is allowed. " * 20))
+    assert summarize_pending(conn, lambda p: "x", workers=1) == 0

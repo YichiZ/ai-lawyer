@@ -13,6 +13,7 @@ from ingest.statutes import display_pinpoint
 
 PROMPT_VERSION = 3  # v2: no glosses/outside facts (glossary defines terms); v3: shorter sentences, short words (grade <= 10)
 MIN_CHARS = 60
+KINDS = ["statute", "regulation", "bylaw"]  # decisions get whole-case summaries (ingest/case_summaries.py)
 PLACEHOLDERS = ("[blank]", "Repealed", "Omitted", "Revoked")
 PROMPT = """Rewrite this provision of Ontario law in plain language for a paralegal or law student.
 
@@ -48,7 +49,7 @@ def summarize_pending(conn: psycopg.Connection, generate: Callable[[str], str], 
     """Summarize eligible sections whose text or prompt changed since their last summary. Returns model calls."""
     rows = conn.execute(
         "SELECT s.id, s.kind, s.pinpoint, s.heading, s.text, s.summary_source_hash, d.title FROM sections s"
-        " JOIN documents d ON d.id = s.document_id WHERE s.kind = 'section' ORDER BY s.id"
+        " JOIN documents d ON d.id = s.document_id WHERE s.kind = 'section' AND d.kind = ANY(%s) ORDER BY s.id", (KINDS,)
     ).fetchall()
     jobs = []
     for sid, kind, pin, heading, text, old_hash, title in rows:

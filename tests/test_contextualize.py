@@ -60,3 +60,11 @@ def test_unchanged_chunk_keeps_situating_through_sync(conn):
     sync_chunks(conn, doc, plan_chunks("Act", rows))
     got = dict(conn.execute("SELECT pinpoint, situating FROM chunks").fetchall())
     assert got == {"s-4": "Situated.", "s-5": None}
+
+
+def test_decision_chunks_are_not_situated(conn):
+    doc = conn.execute("INSERT INTO documents (sha256, kind, slug, title, source) VALUES ('d', 'decision', 'c', 'R v X', 't')"
+                       " RETURNING id").fetchone()[0]
+    rows = [{"id": 10, "pinpoint": "para-1", "kind": "section", "heading": None, "text": "The appeal is allowed.", "parent": None}]
+    sync_chunks(conn, doc, plan_chunks("R v X", rows))
+    assert contextualize_pending(conn, lambda p: "x", workers=1) == 0
