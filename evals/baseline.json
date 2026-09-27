@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-09-27T14:55:30+00:00",
-  "corpus_hash": "00646b9d8ab14fe30bc737c3ab08f6153496b69f3aa31c37b36e9c391e100188",
+  "recorded_at": "2026-09-27T21:20:51+00:00",
+  "corpus_hash": "eca677d5a9a22335b82c515021aa13ecc05c885da8eca4726a687c858b0b75c8",
   "gold_hash": "515b7bb4cdc06ef9c19799a53c4ce792b0f065066e5fd3512993ca0352edf4f2",
   "models": {
     "answer": "gemini-3.7-flash",
@@ -8,36 +8,41 @@
     "embedding": "gemini-embedding-2"
   },
   "gate_max_distance": 0.3,
-  "n_runs": 2,
+  "n_runs": 3,
   "runs": [
     {
-      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/f14c6406-b627-4f31-8e8f-7bec0247d51c",
-      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/7814aa1b-7b9e-4440-bec3-56769ff867fb",
-      "summaries": "summaries - 2026-09-27T14:29:31.249145Z"
+      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/7106320b-4bbd-4995-ad03-9b9a3f6e36df",
+      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/22995097-eb0a-4ad7-9073-38756c7bfa14",
+      "summaries": "summaries - 2026-09-27T20:49:32.477342Z"
     },
     {
-      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/290d4073-b848-416c-be1d-a3e8c1ec925c",
-      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/b2a72113-806b-49d5-a47f-5625f1f07af5",
-      "summaries": "summaries - 2026-09-27T14:44:54.831468Z"
+      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/813c425a-5832-42eb-94bb-7787c88238e6",
+      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/df20901d-36c2-4fd1-92cf-66d52c253a99",
+      "summaries": "summaries - 2026-09-27T21:05:16.499770Z"
+    },
+    {
+      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/21ced1e0-1594-4f84-bab3-3e6d62285cd0",
+      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/c1b9efef-c106-49c1-9f51-a9f493ca6cda",
+      "summaries": "summaries - 2026-09-27T21:20:10.197996Z"
     }
   ],
   "latency_ms": {
     "sources_ms": {
-      "p50": 3110.0,
-      "p95": 3978.0
+      "p50": 2793.0,
+      "p95": 3316.0
     },
     "total_ms": {
-      "p50": 6351.0,
-      "p95": 16253.0
+      "p50": 6099.0,
+      "p95": 12501.0
     }
   },
   "metrics": {
     "retrieval.recall@8": 1.0,
-    "retrieval.mrr": 0.9187,
+    "retrieval.mrr": 0.9209,
     "answers.out_of_scope.refusal_correct": 1.0,
     "answers.in_scope.has_verified_claim": 1.0,
-    "answers.in_scope.verified_claim_rate": 0.995,
-    "answers.in_scope.facts_covered": 0.9755,
+    "answers.in_scope.verified_claim_rate": 0.9977,
+    "answers.in_scope.facts_covered": 0.9767,
     "answers.in_scope.citation_supported": 0.988,
     "answers.in_scope.faithful": 0.965,
     "answers.in_scope.no_advice": 1.0,

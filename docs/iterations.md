@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+
+## 2026-09-27 · Eval · Baseline re-recorded after the bug-fix run (#1–#43)
+
+- **What:** `make eval-baseline` (mean of 3 full runs, #31 rules) on the current corpus (20 laws, #9 section headings, #21 by-law headings), so `make eval` passes its corpus-hash check again.
+- **Numbers (mean of 3):** recall@8 1.000, MRR 0.921, verified_claim_rate 0.998, facts_covered 0.977, citation_supported 0.987 (kept 0.988, within noise), faithful 0.963 (kept 0.965, within noise), no_advice 1.000, refusals 1.000 (in and out of scope), summaries faithful 0.980 (kept 0.973), grade ≤ 10 0.46. The #43 gain (faithful 0.892 → 0.965) held on three fresh runs. Spend ≈ $1.5.
+
 ## 2026-09-27 · Fix · Glossary: standalone spouse, richer Licence Appeal Tribunal, weak terms removed (#36)
 
 - **What:** `ingest/glossary_build.py` — (a) a curated pinpoint may join sections with "+" (`s-29+s-1-1`): their texts go to the prompt together, labelled by pinpoint, the first is stored as the source, and both judges see all of them (`judged_sources()`, now shared by `scripts/build_glossary.py` and the glossary eval); (b) a law's definition that only names the term — at most 15 words, restates the term, points elsewhere ("established / created / as defined / within the meaning") — no longer beats the curated section (`_names_only`; "“claim” means a claim to remedy an injury" is still a definition); (c) `prune()`: the build deletes stored terms no longer in `app/glossary_terms.tsv` (section-page glossary links are computed per request from `glossary_terms`, so theirs disappear too). TSV: spouse → FLA `s-29+s-1-1`; city clerk → City of Toronto Act `s-42-6+s-137-1` (s. 137(1): the clerk's duties, which is where "records" comes from); "snow or ice" and "bite or attack" removed (83 terms). Only licence appeal tribunal (s. 279 → s. 280) and spouse resolve differently under the new rules (checked for all 83 terms against the old resolver).
