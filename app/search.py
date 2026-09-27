@@ -113,9 +113,11 @@ def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> lis
     return ([_document(r) for r in laws] + [_section(r) for r in sections])[:limit]
 
 
-def search_hits(conn: psycopg.Connection, q: str, query_vector: list[float]) -> list:
-    """The law top SEARCH_TOP_K, then the close web pages in their own lane (as /ask retrieves them)."""
-    return retrieve(conn, q, query_vector, top_k=SEARCH_TOP_K) + retrieve_web(conn, q, query_vector)
+def search_hits(conn: psycopg.Connection, q: str, query_vector: list[float], rerank=None) -> list:
+    """The law top SEARCH_TOP_K (reordered by `rerank` when given), then the close web pages in their own lane.
+    Plain-word search needs the rerank: fused order put Limitations Act s. 4 5th for "how long to sue" (#41);
+    synonyms can't fix it (s. 4 never reaches the keyword top 50)."""
+    return retrieve(conn, q, query_vector, top_k=SEARCH_TOP_K, rerank=rerank) + retrieve_web(conn, q, query_vector)
 
 
 def group_by_law(hits: list) -> list[dict]:

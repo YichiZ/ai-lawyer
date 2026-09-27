@@ -7,7 +7,7 @@ import time
 
 import psycopg
 
-from app.ask import library_titles, pinpoint_claims, retrieve, run_ask
+from app.ask import library_titles, pinpoint_claims, retrieve_for_answer, run_ask
 from app.rerank import make_reranker
 from evals.gold import load_gold
 from ingest.vertex import CHEAP_MODEL, embedder, json_generator, make_client
@@ -45,7 +45,7 @@ def main() -> int:
             t0 = time.perf_counter()
             vec = embed(g["question"])
             t1 = time.perf_counter()
-            hits = retrieve(conn, g["question"], vec, rerank=rerank)
+            hits = retrieve_for_answer(conn, g["question"], vec, rerank=rerank)  # laws + web + cases, as drafted
             t["retrieve+rerank"].append((time.perf_counter() - t1) * 1000)
             t["sources"].append((time.perf_counter() - t0) * 1000)
             before = len(t["generate"])

@@ -16,6 +16,36 @@ test("typing a citation jumps straight to the section", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Basic limitation period" })).toBeVisible();
 });
 
+test("search shows the fused results at once, then reorders them when the rerank arrives", async ({ page, request }) => {
+  // The fake model's rerank reverses the fused order, so the reorder is visible (#41).
+  const q = "How long do I have to sue after an injury?";
+  const groups = async (rerank: boolean) => {
+    const res = await request.get(`http://localhost:8001/search?q=${encodeURIComponent(q)}&rerank=${rerank}`);
+    return (await res.json()).data as { slug: string; title: string }[];
+  };
+  const [fusedGroups, rerankedGroups] = [await groups(false), await groups(true)];
+  const [fused, reranked] = [fusedGroups.map((g) => g.title), rerankedGroups.map((g) => g.title)];
+  expect(fused.length).toBeGreaterThan(1);
+  expect(reranked).not.toEqual(fused);
+  expect([...reranked].sort()).toEqual([...fused].sort());
+
+  const html = await (await request.get(`/search?q=${encodeURIComponent(q)}`)).text();
+  const at = (slug: string) => html.indexOf(`id="g-${slug}"`);
+  expect(at(fusedGroups[1].slug)).toBeGreaterThan(at(fusedGroups[0].slug)); // server render: fused order
+  expect(at(fusedGroups[0].slug)).toBeGreaterThan(-1);
+
+  await page.goto(`/search?q=${encodeURIComponent(q)}`);
+  await expect(page.getByRole("status").filter({ hasText: "Results re-ranked" })).toHaveText("Results re-ranked by relevance.");
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText(reranked);
+  const cls = await page.evaluate(() => new Promise<number>((resolve) => {
+    type Shift = PerformanceEntry & { value: number; hadRecentInput: boolean };
+    new PerformanceObserver((list) => resolve((list.getEntries() as Shift[]).filter((e) => !e.hadRecentInput)
+      .reduce((sum, e) => sum + e.value, 0))).observe({ type: "layout-shift", buffered: true });
+    setTimeout(() => resolve(0), 1000); // no entries: no shift
+  }));
+  expect(cls).toBeLessThan(0.05); // the Lighthouse budget; moving the nodes in place measured 0.19
+});
+
 test("heading typeahead and full search with Ask this", async ({ page }) => {
   await page.goto("/");
   const box = page.getByRole("combobox", { name: /Search laws/ });

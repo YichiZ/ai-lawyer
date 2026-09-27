@@ -176,9 +176,9 @@ Measured in Phase 3 against the gold set; `docs/iterations.md` has every delta, 
 4. **Situating sentences** in the embedding input: fused MRR 0.847 → 0.895.
 5. **Rerank** — Flash-Lite orders the fused top 20 (ids + first ~120 words) in one JSON call and keeps 8; it may reorder but not drop the fused top 3; errors or the 2.5 s deadline fall back to fused order. MRR ~0.91. Runs in the background before drafting. (Top 30 was slower and no better.)
 
-`/search` runs the law lane plus close web pages, grouped by document, laws first, web pages labelled "Official web page · domain"; question-shaped queries get "Ask this". `/suggest` typeahead uses `pg_trgm` on titles and headings (and subsection notes), and jumps straight to a citation typed in either order (`LA s. 4`, `s. 7 of the Limitations Act`, `rule 76`, `2024 ONCA 123 at para 12`).
+`/search` runs the law lane plus close web pages, grouped by document, laws first, web pages labelled "Official web page · domain"; question-shaped queries get "Ask this". It is progressive: the page renders the fused results at once, then fetches `/search?rerank=true` (same hits, reranked with the same fast client and fallback; the query embedding is cached per process) and swaps the list in place. Fused order put Limitations Act s. 4 5th for "how long to sue" (#41). First results p50 0.3 s, reranked order p50 1.6 s. The swap remounts the list instead of moving nodes: moving them measured CLS 0.19, the remount 0. `/suggest` typeahead uses `pg_trgm` on titles and headings (and subsection notes), and jumps straight to a citation typed in either order (`LA s. 4`, `s. 7 of the Limitations Act`, `rule 76`, `2024 ONCA 123 at para 12`).
 
-**Tried and dropped:** a curated synonym table on the keyword side (no gain once fusion was fixed).
+**Tried and dropped:** a curated synonym table on the keyword side (no gain once fusion was fixed; re-tried for #41, it did not fix "how long to sue": `ts_rank_cd` favours long chunks, so s. 4 stayed out of the keyword top 50, and length normalization that fixed it cost fused MRR 0.864 → 0.846).
 **Not built:** in-force / jurisdiction / court / date filters (only the kind lanes filter); an authority boost for SCC/ONCA or often-cited decisions; neighbour-paragraph context expansion.
 
 ## Answering
@@ -231,7 +231,7 @@ A research guide first, chatbot second. Should feel like a well-kept law library
 | Act | `/laws/[slug]` | Part → section tree |
 | Section | `/laws/[slug]/[pinpoint]` | Official text with legislative hanging indents and marginal notes, summary, cited by N decisions, prev/next, copy citation |
 | Case | `/cases/[slug]` | Plain summary, numbered paragraphs, laws and cases cited, cited by, licence, trial-court gap note |
-| Search | `/search` | Results grouped by law, then official web pages; "Ask this" for questions |
+| Search | `/search` | Results grouped by law, then official web pages; fused order first, reranked order swapped in; "Ask this" for questions |
 | Ask / answer | `/ask`, `/answers/[id]` | Sources at once; answer when reviewed; "Search the web instead" when the library has no match |
 | Review queue | `/review` | Reviewer only: claims beside verified quotes, risk flags, guide tag, approve / edit / reject, add to library |
 | Glossary | `/glossary` | Terms linked to their defining sections |
@@ -280,7 +280,7 @@ Indexes: HNSW on `embedding`, GIN on `tsv`, GIN trigram on `documents.title` and
 | --- | --- |
 | `GET /laws`, `GET /laws/{slug}`, `GET /laws/{slug}/{pinpoint}` | Library, Act tree, section (excerpt only for `reproduction = 'excerpt'`) |
 | `GET /cases/{slug}` | One decision with its citation graph |
-| `GET /suggest?q=`, `GET /search?q=` | Typeahead with citation jumps; grouped hybrid search |
+| `GET /suggest?q=`, `GET /search?q=[&rerank=true]` | Typeahead with citation jumps; grouped hybrid search (fused, or reranked) |
 | `POST /ask`, `POST /ask/web` | Sources now + answer id in `pending_review`; opt-in web answer |
 | `GET /answers/{id}`, `GET /review/queue`, `POST /answers/{id}/review` | Review workflow |
 | `GET /guides`, `GET /guides/{slug}`, `GET /glossary` | Topic guides, glossary |
@@ -329,7 +329,7 @@ At scale: binary-quantized first pass + halfvec rescore; shard or move vectors p
 | Release | Human review of every answer | Auto-release | Mirrors supervised legal work; review data improves evals |
 | Product | Guide + library + search | Chatbot only | Browsing builds understanding and trust |
 | Chunking | Sections and paragraphs | Fixed windows | Pinpoint citations |
-| Search | Hybrid per lane + weighted RRF + LLM rerank | Pure vector; synonym table (tried, dropped) | Legal terms and everyday words both matter; lanes stop decisions and web pages crowding out the law |
+| Search | Hybrid per lane + weighted RRF + LLM rerank (progressive on `/search`) | Pure vector; synonym table (tried twice, dropped) | Legal terms and everyday words both matter; lanes stop decisions and web pages crowding out the law |
 | Store | Postgres 18 for data, vectors and job records | Pinecone | One system for search and metadata |
 | Queue | Redis Streams, job state in Postgres | Procrastinate (Postgres queue) | Faster dispatch and worker scale-out; costs a second service and non-transactional enqueue, covered by the reconciler |
 | Parsing | A2AJ + pdftotext + stdlib HTML parser | Docling (planned; superseded) | The only unstructured inputs are 3 text-layer PDFs and a few web pages |
