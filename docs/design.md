@@ -38,8 +38,8 @@ The binding targets are citation accuracy ≥ 95% and p95 answer latency under 8
 | Corpus size | Pages indexed without code changes | 1M pages (~3M chunks) | 42,891 chunks; not load-tested at 1M |
 | Freshness | Added web page searchable | < 5 min | ~2 s per page through the worker |
 | Query latency | p95 time to sources / draft answer | < 2 s / < 8 s | 0.76 s ✅ / 11.4 s ❌ (Vertex generation time) |
-| Retrieval quality | recall@8 on gold set | ≥ 0.85 | 1.000 (MRR 0.908) |
-| Citation accuracy | Cited span supports the claim (LLM judge) | ≥ 95% | 94.7% ❌ (verified-quote rate 99.5%) |
+| Retrieval quality | recall@8 on gold set | ≥ 0.85 | 1.000 (MRR 0.919) |
+| Citation accuracy | Cited span supports the claim (LLM judge) | ≥ 95% | 98.8% ✅ after #43 (verified-quote rate 99.5%) |
 | Refusal | Out-of-scope questions correctly refused | ≥ 90% | 100% (18 items) |
 | Idempotency | Re-ingesting the same file | No new rows, no new embeddings | Held on every rerun |
 | Provenance | Every chunk traces to a source URL and hash | 100% | Held |
@@ -191,6 +191,7 @@ gemini-3.7-flash answers only from the retrieved chunks, and code — not the mo
 - **Model-set flags** — `in_scope` + `scope_note` decided by legal topic, not wording (#19); `advice_seeking` for questions asking what to do (#7); both raise the draft's risk in the queue.
 - **Secondary statutes** — a law outside the library that appears only because a decision quotes it is labelled and flagged (#18).
 - **Indexed amounts** — the prompt says amounts that are indexed are indexed, citing the provision that sets them (#2).
+- **Claims stay within their quotes** — the prompt requires every detail of a claim (number, period, party, condition) to appear in that claim's own quote, one provision per claim; a detail from another provision gets its own claim and quote or is left out (#43: judge faithful 0.892 → 0.965).
 - **Canadian citations** — McGill style: *Limitations Act, 2002*, SO 2002, c 24, Sched B, s 4; *Smith v Jones*, 2024 ONCA 123 at para 45.
 - **Web fallback** — opt-in `POST /ask/web`, Google Search grounding, labelled "From the web, not our law library", reviewed like any answer; the reviewer can add an official source to the library.
 - **Guardrails** — never says whether someone has a case, predicts outcomes or values a claim; answers are research aids released only after human review.

@@ -116,6 +116,15 @@ def test_prompt_says_indexed_amounts_are_not_current():
     assert "Never calculate a current amount" in prompt
 
 
+def test_prompt_keeps_each_claim_within_its_quote():
+    """#43: a claim that adds a detail from another provision (the 7-day insurer notice) is unfaithful to its quote."""
+    llm = FakeLLM([{"in_scope": True, "answer": "x", "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
+    run_ask("What notice is needed?", [hit("c1", 0.2)], llm)
+    prompt = " ".join(llm.prompts[0].split())
+    assert "Each claim restates only what its own quote says" in prompt
+    assert "Never combine two provisions in one claim" in prompt
+
+
 def test_retry_once_then_refuse():
     bad = {"in_scope": True, "answer": "x", "claims": [claim("made up words that are not there")]}
     llm = FakeLLM([bad, bad])

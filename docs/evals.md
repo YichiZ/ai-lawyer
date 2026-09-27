@@ -9,12 +9,12 @@ Two layers:
 
 All evals run locally with Vertex AI through ADC. Results are saved to `evals/runs/`.
 
-## Current regression gate (baseline 2026-09-27, mean of 3 runs)
+## Current regression gate (baseline 2026-09-27, mean of 2 runs after #43)
 
 | Metric | Value |
 |---|---|
-| retrieval recall@8 / MRR | 1.000 / 0.908 |
-| answers: verified-claim rate · facts covered · citation supported · faithful (judge) · no advice | 0.995 · 0.970 · 0.947 · 0.892 · 1.000 |
+| retrieval recall@8 / MRR | 1.000 / 0.919 |
+| answers: verified-claim rate · facts covered · citation supported · faithful (judge) · no advice | 0.995 · 0.976 · 0.988 · 0.965 · 1.000 (before #43: citation 0.947, faithful 0.892) |
 | refusals: in-scope answered · out-of-scope refused | 1.000 · 1.000 (18 out-of-scope, #19) |
 | section summaries: faithful · grade ≤ 10 | 0.973 · 0.46 |
 | decision summaries (30-item judge) | faithful 0.967, grade 13.4 |
@@ -35,6 +35,10 @@ All evals run locally with Vertex AI through ADC. Results are saved to `evals/ru
 - **No ratchet.** `record` keeps the old value of a judge metric when the new mean is within noise (up or down), and
   refuses to write a drop beyond noise unless `--accept-drop`. Before, each re-record took one run's draw, and
   0.943 became 0.900 in #2.
+- **Claims stay within their quotes (#43).** Most judge failures were a claim adding a detail that is true but not in
+  its own quote (mv-10's 7-day insurer notice from s. 258.3(2) cited to (4); proc-06's Schedule 2 employers cited to
+  s. 28(1)). The answer prompt now requires every detail to appear in the quote of the claim that states it, one
+  provision per claim. Faithful 0.892 → 0.965, citation support 0.947 → 0.988 (2 runs, both beyond noise, recorded).
 
 ## Production suite: first run (2026-09-26)
 

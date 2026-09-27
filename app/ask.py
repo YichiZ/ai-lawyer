@@ -83,6 +83,12 @@ Rules:
 - "claims": each claim is one statement from your answer, the id of the passage that supports it (e.g. "c12"), and a
   quote copied EXACTLY, word for word, from that passage (one sentence or clause, at least a few words).
   Never paraphrase inside a quote. Use only passage ids listed below.
+- Each claim restates only what its own quote says, read on its own. Every detail in the answer and in each claim
+  (a number, period, deadline, party, category, condition or exception) must appear in the quote of the claim that
+  states it. A detail that is only in another provision or passage needs its own claim quoting it; if you cannot
+  quote it, leave it out. Never combine two provisions in one claim: a provision that refers to another ("the
+  obligation under subsection (2)") is one claim, and what the other provision says is a second claim with its own
+  quote. Do not summarize a list more broadly than the quote does, and do not leave out a condition the quote sets.
 - Indexed amounts: if a rule's dollar figure is "the greater of X and the prescribed amount", is prescribed by
   regulation, or is revised or indexed over time, never present the base or dated figure as the current amount. Say
   the amount is indexed or prescribed, quote the passage that sets or indexes it if one is listed, and say the current
