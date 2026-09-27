@@ -111,11 +111,13 @@ def test_reject_requires_known_reason(client, conn, body):
     assert client.post(f"/answers/{aid}/review", headers=REVIEWER, json=body).status_code == 422
 
 
-def test_reject_hides_draft_and_shows_reason(client, conn):
+@pytest.mark.parametrize("reason", ["unsupported_claim", "legal_advice"])
+def test_reject_hides_draft_and_shows_reason(client, conn, reason):
     aid = make_answer(conn)
-    client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "reject", "reason": "unsupported_claim"})
+    r = client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "reject", "reason": reason})
+    assert r.status_code == 200
     data = client.get(f"/answers/{aid}", headers=RESEARCHER).json()["data"]
-    assert data["status"] == "rejected" and data["review_reason"] == "unsupported_claim"
+    assert data["status"] == "rejected" and data["review_reason"] == reason
     assert "final_markdown" not in data and "draft_markdown" not in data
 
 

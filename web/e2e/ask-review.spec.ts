@@ -59,3 +59,22 @@ test("reviewer queue is hidden from researchers; edit needs a note", async ({ pa
   await item.getByRole("button", { name: "edit answer" }).click();
   await expect(item.getByRole("alert")).toContainText("needs the revised answer and a note");
 });
+
+test("reviewer rejects for legal advice → researcher sees the reason, not the draft", async ({ page }) => {
+  const question = `[e2e ${Date.now()}] Do I have a case against the city for tripping on a broken sidewalk?`;
+  await askAsResearcher(page, question);
+  const answerUrl = page.url();
+
+  await switchRole(page, "reviewer");
+  await page.goto("/review");
+  const item = page.getByRole("article").filter({ hasText: question });
+  await item.getByLabel("reject").check();
+  await item.getByLabel("Reason").selectOption({ label: "Gives legal advice" });
+  await item.getByRole("button", { name: "reject answer" }).click();
+  await expect(page.getByRole("article").filter({ hasText: question })).toHaveCount(0);
+
+  await switchRole(page, "researcher");
+  await page.goto(answerUrl);
+  await expect(page.getByText("A reviewer did not release this answer (Gives legal advice)")).toBeVisible();
+  await expect(page.getByText("[Test answer]")).toHaveCount(0);
+});

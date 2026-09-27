@@ -239,7 +239,8 @@ class ReviewRequest(BaseModel):
     decision: Literal["approve", "edit", "reject"]
     final_markdown: str | None = Field(default=None, max_length=20_000)
     note: str | None = Field(default=None, max_length=2_000)
-    reason: Literal["wrong_law", "missing_authority", "unsupported_claim", "out_of_scope"] | None = None
+    reason: Literal["wrong_law", "missing_authority", "unsupported_claim", "out_of_scope",
+                    "legal_advice"] | None = None
 
     @model_validator(mode="after")
     def required_fields(self):

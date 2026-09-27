@@ -249,6 +249,7 @@ export const REJECT_REASONS: Record<string, string> = {
   missing_authority: "Missing authority",
   unsupported_claim: "Unsupported claim",
   out_of_scope: "Out of scope",
+  legal_advice: "Gives legal advice",
 };
 
 export const KIND_LABELS: Record<Kind, string> = {
