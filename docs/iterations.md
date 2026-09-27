@@ -2,6 +2,15 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Claims stay within their quotes: faithful 0.892 → 0.965 (#43)
+
+- **Root cause:** quote verification checks each quote is verbatim in its chunk, not that the claim stays within the quote. Spot check before (3 drafts each): **mv-10** 0/3 faithful, every draft cites s. 258.3(4) ("shall inform … of the obligation under subsection (2)") for "give a copy to their insurer within seven days", a detail only in s. 258.3(2); **proc-06** 0/3, "Schedule 1 or Schedule 2 employers" cited to s. 28(1) (Schedule 1 only), "Part X" cited to s. 114(1).
+- **Fix (option 1 only, prompt):** a rule in the answer prompt: each claim restates only what its own quote says; every detail (number, period, party, category, condition, exception) must be in the quote of the claim that states it, else its own claim + quote, else left out; never combine two provisions in one claim (a provision referring to another is one claim, the other provision a second); don't broaden a list or drop a condition the quote sets. A first version without the "never combine two provisions" line fixed proc-06 (3/3) but not mv-10 (0/3: it quoted (2) and still folded the 7 days into the (4) claim); with it, mv-10 2/3 (the miss: the judge objected to "served" vs "must serve"), proc-06 3/3.
+- **Option 2 (Flash-Lite claim-vs-quote check) not built:** option 1 raised faithful 7.3 points, beyond noise; the remaining unfaithful items differ between runs (mv-15, lim-08, lim-03 / mv-01, dog-04), i.e. draft noise. Add the check if faithful drifts back or reviewers see overreach.
+- **Numbers (`gate --runs 2` vs the 3-run baseline):** faithful 0.958 / 0.972 → mean **0.965** (was 0.892, +7.3, tolerance 5.3); citation_supported 0.992 / 0.984 → **0.988** (was 0.947, +4.1); facts_covered 0.979 / 0.972 (was 0.970); verified_claim_rate 0.995 / 0.995 (0.995); refusals, has_verified_claim, no_advice 1.000; MRR 0.918 / 0.919; summaries faithful 0.98 / 0.98. Answer latency p50 6.4 / 6.2 s. `eval_suite safety`: all 1.000 (31); `pinpoint`: precision **1.000** over 187 claims (was 158: stricter claims split into more, shorter claims).
+- **Baseline:** `record --from-latest --runs 2`: faithful and citation raised (beyond noise), summaries faithful kept (within noise), MRR 0.919, facts_covered 0.976. No `--accept-drop`.
+- **Tests:** prompt contains the claim-within-quote rule. pytest 509 passed. Spend ≈ $1.5 (2 gate runs, 18 spot-check drafts, safety + pinpoint).
+
 ## 2026-09-27 · Fix · Plain-word /search is reranked, progressively: 'how long to sue' finds the Limitations Act (#41)
 
 - **Root cause:** for "how long to sue", Limitations Act s. 4 is vector rank 5 and not in the keyword top 50 (its text says "proceeding … claim", not "sue"), so fused order (what /search showed) put Insurance Act, SABS and the Rules above it. /ask never had the problem: it reranks.
