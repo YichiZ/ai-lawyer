@@ -1,7 +1,7 @@
 {
-  "recorded_at": "2026-09-26T13:42:22+00:00",
-  "corpus_hash": "d248af1908ce950a0fe104a5f85880c77f0191c42d92f5853bc352448d9c9746",
-  "gold_hash": "02255a090cd706c6fb77269e2d952383802e879d95802427dbcd27af95663d50",
+  "recorded_at": "2026-09-27T04:06:04+00:00",
+  "corpus_hash": "92a38d67d9fd1298b400eff2fcf20ea0eaf248ed79afedad4a8543f26c5eb22d",
+  "gold_hash": "2940fb02dfa588f3463fa75bb0f178fe0d62591c8b13cf74f76427c43a6395d6",
   "models": {
     "answer": "gemini-3.7-flash",
     "judge": "gemini-3.5-flash-lite",
@@ -9,33 +9,33 @@
   },
   "gate_max_distance": 0.3,
   "runs": {
-    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/b5e404cd-46fd-4384-b4c0-d5c57f5e4aa8",
-    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/57bc819b-8c63-4b29-840c-471230319554",
-    "summaries": "summaries - 2026-09-26T13:08:22.001859Z"
+    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/36a97828-d8f1-493a-bb37-c5102ab22302",
+    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/75cb8a9a-9f28-47dc-96fe-aa2d3931cbd2",
+    "summaries": "summaries - 2026-09-27T04:01:32.160368Z"
   },
   "latency_ms": {
     "sources_ms": {
-      "p50": 2706.0,
-      "p95": 3990.5
+      "p50": 2988.0,
+      "p95": 3415.6
     },
     "total_ms": {
-      "p50": 6417.0,
-      "p95": 31133.7
+      "p50": 6464.0,
+      "p95": 19264.8
     }
   },
   "metrics": {
     "retrieval.recall@8": 1.0,
-    "retrieval.mrr": 0.9086,
+    "retrieval.mrr": 0.9274,
     "answers.out_of_scope.refusal_correct": 0.933,
     "answers.in_scope.has_verified_claim": 1.0,
-    "answers.in_scope.verified_claim_rate": 1.0,
-    "answers.in_scope.facts_covered": 0.976,
-    "answers.in_scope.citation_supported": 0.946,
-    "answers.in_scope.faithful": 0.855,
+    "answers.in_scope.verified_claim_rate": 0.993,
+    "answers.in_scope.facts_covered": 0.971,
+    "answers.in_scope.citation_supported": 0.967,
+    "answers.in_scope.faithful": 0.943,
     "answers.in_scope.no_advice": 1.0,
     "answers.in_scope.refusal_correct": 1.0,
     "summaries.faithful": 0.98,
     "summaries.no_advice": 1.0,
-    "summaries.grade_le_10": 0.58
+    "summaries.grade_le_10": 0.46
   }
 }
