@@ -5,7 +5,7 @@ Two layers:
    `evals/baseline.json`. It fails on a drop of more than 2 points; LLM-judge metrics use a tolerance sized from
    their measured noise (below).
 2. **The production suite** (`make eval-suite`): six evals that target the failure modes that would hurt a real
-   researcher. The plan is in [evals-plan.md](evals-plan.md).
+   researcher. The plan is in [archive/evals-plan.md](archive/evals-plan.md).
 
 All evals run locally with Vertex AI through ADC. Results are saved to `evals/runs/`.
 
