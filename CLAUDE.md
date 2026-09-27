@@ -86,7 +86,7 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-25 — pdftotext's default reading order separated labels ("A. B. C.") from their paragraphs → always extract Municipal Code PDFs with `-layout`.
 - 2026-09-25 — Next allows one dev server per build dir ("Another next dev server is already running") → e2e uses `NEXT_DIST_DIR=.next-e2e`.
 - 2026-09-25 — Clipboard can't be verified in the built-in browser (pane hidden → `visibilityState: hidden`) → Playwright with granted clipboard permissions.
-- 2026-09-25 — Code that writes to a repo file from a module-level path leaked test data into it → an autouse conftest fixture redirects such paths to `tmp_path`.
+- 2026-09-25 — Code that writes to a repo file from a module-level path leaked test data into it → an autouse conftest fixture redirects such paths to `tmp_path`; the e2e API (Playwright config env) points `GOLD_CANDIDATES_PATH` at `web/test-results/`.
 - 2026-09-26 — Langfuse `run_experiment` drops failed items silently (a run scored 59/62 after 429s) → check completeness before scoring; evals use concurrency 2, longer backoff and a 60 s timeout.
 - 2026-09-26 — LLM-judge scores vary up to 8 points between identical runs; retrieval and code metrics don't → gate judge metrics at 5 points, others at 2.
 - 2026-09-26 — An e2e test depended on data in the dev DB and failed in CI → e2e tests create their own data; reproduce CI with a fresh fixture-only DB (`DATABASE_URL=…/ai_lawyer_ci npm --prefix web run e2e`).

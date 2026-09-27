@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Reviewers can reject a draft for giving legal advice (#13)
+
+- **Root cause:** the reject reasons were `wrong_law`, `missing_authority`, `unsupported_claim`, `out_of_scope` (API `ReviewRequest` literal, `web/lib/api.ts` `REJECT_REASONS`), so a draft that predicts an outcome, values a claim or computes a deadline had to be rejected under an unrelated reason, polluting the Langfuse `review_reason` score and the gold candidates. `POST /answers/{id}/review {"decision":"reject","reason":"legal_advice"}` → 422.
+- **What:** `legal_advice` added to the API literal and to `REJECT_REASONS` ("Gives legal advice"), which drives both the review form's select and the researcher's rejected-answer message. The Langfuse score and `evals/gold_candidates.jsonl` pass the raw reason through, so they needed no change. The new e2e reject exposed that the Playwright API wrote rejected e2e answers into the repo's `evals/gold_candidates.jsonl`; its env now sets `GOLD_CANDIDATES_PATH=web/test-results/gold_candidates.jsonl` (gitignored).
+- **Validated:** the reject API test is parametrized over `unsupported_claim` and `legal_advice` (accepted, stored, researcher view returns the reason, no draft); new Playwright test rejects with "Gives legal advice" and checks the researcher sees "A reviewer did not release this answer (Gives legal advice)" and no draft; the exported candidate line carries `"review_reason": "legal_advice"`. pytest 447 passed; e2e 33/33 against a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+
 ## 2026-09-27 · Fix · Glossary never stores a non-answer; core injury terms added (#4)
 
 - **Root cause:** `app/glossary_terms.tsv` pins many terms to a section that uses the term without defining it (tort → Insurance Act s. 267.5, which never says "tort"; mediation → LA s. 11; settlement → r. 49.01), and the prompt said "base the definition only on this text", so the model answered "The provided text does not define…" and the builder stored whatever came back. The same prompt produced "Based on this text…" / "Under this text…" phrasing and definitions narrowed to the source ("damages … that a dog owner is liable to pay").
