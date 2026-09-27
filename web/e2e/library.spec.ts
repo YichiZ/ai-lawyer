@@ -66,4 +66,22 @@ test("unknown section shows the not-found page", async ({ page }) => {
   const res = await page.goto("/laws/limitations-act-2002/s-999");
   expect(res?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "Not found" })).toBeVisible();
+  await expect(page.getByText("That law or section is not in the guide.")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link", { name: "Back to the law library" })).toHaveAttribute("href", "/laws");
 });
+
+// Each route says what is missing and links back to where to find it (#15).
+for (const [path, text, link, href] of [
+  ["/answers/abc", "That answer doesn't exist.", "Ask a question", "/ask"],
+  ["/cases/no-such-decision", "That decision is not in the guide.", "Search the guide", "/search"],
+  ["/guides/no-such-guide", "That topic guide doesn't exist.", "Browse the topic guides", "/"],
+  ["/no-such-page", "That page is not in the guide.", "Back to the home page", "/"],
+]) {
+  test(`not-found text for ${path}`, async ({ page }) => {
+    const res = await page.goto(path);
+    expect(res?.status()).toBe(404);
+    await expect(page.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
+    await expect(page.getByText(text)).toBeVisible();
+    await expect(page.getByRole("main").getByRole("link", { name: link })).toHaveAttribute("href", href);
+  });
+}

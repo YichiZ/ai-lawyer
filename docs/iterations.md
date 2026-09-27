@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Per-route not-found pages and readable validation errors (#15)
+
+- **Status of #15:** item 1 (garbled out-of-scope message) was fixed in #39 (`out_of_scope_message` keeps the scope note's first clause) and item 4 ("1 sections") in #40 (`plural()`, e2e checks "1 section"); verified on main.
+- **Not-found (item 2):** one shared `components/NotFound.tsx`, and a `not-found.tsx` per segment so `notFound()` in a page renders the nearest one: laws → "That law or section is not in the guide." + law library; cases → "That decision is not in the guide." + search; answers → "That answer doesn't exist." + Ask; guides → "That topic guide doesn't exist." + home (the guides list); any other URL → "That page is not in the guide." + home. h1 stays "Not found".
+- **Validation errors (item 3):** the `RequestValidationError` handler maps each pydantic error type (missing, string_too_short/long, literal_error, pattern, int parsing, invalid JSON, non-object body, model-validator sentences) to one sentence with a field label; `code` stays `invalid_request`. `POST /ask {"question":"hi"}` → "Question must be at least 5 characters." (was "Invalid value for: body.question"). The review model validator now raises full sentences ("A rejection needs a reason.").
+- **Tests:** 11 message assertions (ask, search, slug, answer id, review decision/reason/edit, ingest in_scope, bad JSON). pytest 520 passed; `tsc --noEmit` clean; Playwright (fresh `ai_lawyer_ci`) 42 passed, incl. 4 new not-found routes (404 + text + link) and axe on `/answers/abc` in both schemes.
+
 ## 2026-09-27 · Fix · By-law headings stop before footnotes and body text (#21)
 
 - **Root cause:** `parse_chapter` joined heading lines until one ended with ".". A footnote number after the period (`Signs. 12`, `conditioning.28`, `streets. 29`), a quoted period (`"highway."`) or a heading with no period (`Transition` then `A.`) never matched, so the heading swallowed the body up to the next period, and the section text lost those lines.
