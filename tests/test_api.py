@@ -179,7 +179,8 @@ def test_ask_validates_question(ask_client, body, message):
     ("post", "/ingest", {"content": "{not json", "headers": {"Content-Type": "application/json"}},
      "Request body is not valid JSON."),
 ])
-def test_validation_errors_are_readable(client, method, path, kwargs, message):
+def test_validation_errors_are_readable(ask_client, method, path, kwargs, message):
+    client, _ = ask_client  # FastAPI resolves get_ai before validation fails: never build a real Vertex client
     headers = {**REVIEWER, **kwargs.pop("headers", {})}
     r = getattr(client, method)(path, headers=headers, **kwargs)
     assert r.status_code == 422 and r.json()["error"] == {"code": "invalid_request", "message": message}
