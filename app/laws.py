@@ -2,13 +2,13 @@
 import psycopg
 from psycopg.rows import dict_row
 
-from app.format import indent_lines, mcgill_citation
+from app.format import indent_lines, mcgill_citation, subtitle
 from app.glossary import find_terms
 from ingest.statutes import display_pinpoint
 
 EXCERPT_CHARS = 300  # documents with reproduction='excerpt' (City copyright) never return more than this
 KIND_ORDER = ("statute", "regulation", "bylaw", "web", "decision")
-DOC_FIELDS = ("slug, title, short_name, citation, kind, jurisdiction, in_force_from, url, source, "
+DOC_FIELDS = ("slug, title, short_name, citation, kind, jurisdiction, in_force_from, date, url, source, "
               "upstream_license, reproduction")
 
 
@@ -18,21 +18,33 @@ def excerpt(text: str) -> str:
 
 def list_laws(conn: psycopg.Connection) -> list[dict]:
     rows = conn.cursor(row_factory=dict_row).execute(
-        "SELECT d.kind, d.slug, d.title, d.short_name, d.citation, d.in_force_from, d.reproduction,"
+        "SELECT d.kind, d.slug, d.title, d.short_name, d.citation, d.in_force_from, d.date, d.url, d.reproduction,"
         " count(s.id) FILTER (WHERE s.kind = 'section') AS section_count"
         " FROM documents d LEFT JOIN sections s ON s.document_id = d.id WHERE d.kind <> 'decision'"
         " GROUP BY d.id ORDER BY d.title"
     ).fetchall()
     groups = {k: [] for k in KIND_ORDER}
     for r in rows:
-        groups.setdefault(r["kind"], []).append(r)
+        groups.setdefault(r["kind"], []).append({**r, "subtitle": subtitle(r)})
     return [{"kind": k, "documents": docs} for k, docs in groups.items() if docs]
 
 
 def get_document(conn: psycopg.Connection, slug: str) -> dict | None:
-    return conn.cursor(row_factory=dict_row).execute(
+    doc = conn.cursor(row_factory=dict_row).execute(
         f"SELECT id, {DOC_FIELDS} FROM documents WHERE slug = %s AND kind <> 'decision'", (slug,)
     ).fetchone()
+    return {**doc, "subtitle": subtitle(doc)} if doc else None
+
+
+def delete_web_page(conn: psycopg.Connection, slug: str) -> str | None:
+    """Delete the web page `slug` (sections and chunks cascade) and its ingest job, so it can be added again later.
+    Returns the document's kind (only 'web' is deleted), or None if there is no such document."""
+    with conn.transaction():
+        row = conn.execute("SELECT kind FROM documents WHERE slug = %s", (slug,)).fetchone()
+        if row and row[0] == "web":
+            conn.execute("DELETE FROM documents WHERE slug = %s AND kind = 'web'", (slug,))
+            conn.execute("DELETE FROM ingest_jobs WHERE document_slug = %s", (slug,))
+    return row[0] if row else None
 
 
 def law_tree(conn: psycopg.Connection, document_id: int) -> list[dict]:

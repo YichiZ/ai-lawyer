@@ -163,5 +163,8 @@ CREATE TABLE IF NOT EXISTS ingest_jobs (
     enqueued_at     timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
+-- #8: the reviewer who confirmed an added page is about Ontario personal-injury law; web pages show their fetch date.
+ALTER TABLE ingest_jobs ADD COLUMN IF NOT EXISTS scope_confirmed_by bigint REFERENCES users (id);
+UPDATE documents SET date = (created_at AT TIME ZONE 'America/Toronto')::date WHERE kind = 'web' AND date IS NULL;
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
 ALTER TABLE documents ADD CONSTRAINT documents_kind_check CHECK (kind IN ('statute', 'regulation', 'bylaw', 'decision', 'web'));

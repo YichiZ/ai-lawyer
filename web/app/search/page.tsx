@@ -33,6 +33,9 @@ export default async function SearchPage({ searchParams }: Props) {
           <h2 id={`g-${g.slug}`} className="font-serif text-xl font-semibold">
             <Link href={`/laws/${g.slug}`} className="text-ink">{g.title}</Link>
           </h2>
+          {g.kind === "web" && (
+            <p className="text-sm text-muted">Official web page · {g.subtitle}</p>
+          )}
           <ol className="mt-2 space-y-3">
             {g.hits.map((h) => (
               <li key={h.url} className="border-l-2 border-rule pl-3">

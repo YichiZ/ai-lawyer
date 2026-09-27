@@ -21,7 +21,7 @@ from langfuse import Evaluation, Langfuse
 from app.ask import (
     ALL_KINDS,
     GATE_MAX_DISTANCE,
-    LAW_KINDS,
+    RETRIEVAL_KINDS,
     library_titles,
     pinpoint_claims,
     retrieve,
@@ -67,7 +67,7 @@ def _retrievers(client):
     return embedder(client, "RETRIEVAL_QUERY"), make_reranker(json_generator(client, model=CHEAP_MODEL))
 
 
-def retrieval_task(embed, rerank=None, kinds=LAW_KINDS):
+def retrieval_task(embed, rerank=None, kinds=RETRIEVAL_KINDS):
     def task(*, item, **_):
         question = item.input["question"]
         t0 = time.perf_counter()
@@ -91,7 +91,7 @@ def retrieval_evaluator(*, output, expected_output, **_):
             Evaluation(name="mrr", value=mrr(ranked, expected_output["expected"]))]
 
 
-def run_retrieval(lf: Langfuse, gold_path: Path = GOLD_PATH, dataset_name: str = DATASET, kinds=LAW_KINDS,
+def run_retrieval(lf: Langfuse, gold_path: Path = GOLD_PATH, dataset_name: str = DATASET, kinds=RETRIEVAL_KINDS,
                   name: str = "retrieval") -> dict:
     gold = {g["id"]: g for g in load_gold(gold_path)}
     upsert_dataset(lf, list(gold.values()), dataset_name)

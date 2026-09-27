@@ -36,17 +36,18 @@ class Queue:
     def _dispatch(self, jid: str) -> None:
         self.redis.xadd(self.stream, {"job": jid}, maxlen=STREAM_MAXLEN, approximate=True)
 
-    def enqueue(self, conn: psycopg.Connection, kind: str, url: str) -> str:
-        """Idempotent: the same (kind, url) is one job; only a new (or dead, retried) row is dispatched."""
+    def enqueue(self, conn: psycopg.Connection, kind: str, url: str, confirmed_by: int | None = None) -> str:
+        """Idempotent: the same (kind, url) is one job; only a new (or dead, retried) row is dispatched.
+        `confirmed_by` is the reviewer who confirmed the page is in scope."""
         jid = job_id(kind, url)
         with conn.transaction():
             row = conn.execute(
-                """INSERT INTO ingest_jobs (id, kind, url) VALUES (%s, %s, %s)
+                """INSERT INTO ingest_jobs (id, kind, url, scope_confirmed_by) VALUES (%s, %s, %s, %s)
                    ON CONFLICT (id) DO UPDATE SET status = 'queued', attempts = 0, error = NULL, stage = NULL,
-                       next_attempt_at = now(), updated_at = now()
+                       next_attempt_at = now(), updated_at = now(), scope_confirmed_by = EXCLUDED.scope_confirmed_by
                      WHERE ingest_jobs.status = 'dead'
                    RETURNING id""",
-                (jid, kind, url),
+                (jid, kind, url, confirmed_by),
             ).fetchone()
         if row:
             self._dispatch(jid)

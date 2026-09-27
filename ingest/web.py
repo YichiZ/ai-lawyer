@@ -17,6 +17,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from ingest.manifest import append_entry
 from ingest.statutes import ParsedLaw, slugify
@@ -209,6 +210,7 @@ def parse_page(url: str, body: bytes, content_type: str) -> ParsedLaw:
         "slug": ("web-" + slugify(f"{parsed.hostname.removeprefix('www.')} {parsed.path}"))[:120].rstrip("-"),
         "title": title, "short_name": title[:80], "citation": f"online: {site} <{url}>",
         "jurisdiction": "CA" if site in ("canada.ca", "scc-csc.ca") else "ON", "url": url, "source": f"web:{site}",
+        "date": datetime.now(ZoneInfo("America/Toronto")).date(),  # fetched on; shown where laws show "as of"
         "upstream_license": LICENCES[site], "reproduction": "excerpt" if site in EXCERPT_DOMAINS else "full",
     }
     return ParsedLaw(document, sections)

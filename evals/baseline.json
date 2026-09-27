@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-09-27T06:58:54+00:00",
-  "corpus_hash": "92a38d67d9fd1298b400eff2fcf20ea0eaf248ed79afedad4a8543f26c5eb22d",
+  "recorded_at": "2026-09-27T07:33:53+00:00",
+  "corpus_hash": "40a5d57710ea0008e9f29bfcea7beaa850bfa59faf670f754aabc9c7d657baf0",
   "gold_hash": "515b7bb4cdc06ef9c19799a53c4ce792b0f065066e5fd3512993ca0352edf4f2",
   "models": {
     "answer": "gemini-3.7-flash",
@@ -9,28 +9,28 @@
   },
   "gate_max_distance": 0.3,
   "runs": {
-    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/14c8d3be-04f7-41bf-afb7-2865bcc3b1c0",
-    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/c89ac157-e23c-4929-95cb-e02b45a65593",
-    "summaries": "summaries - 2026-09-27T06:57:53.072122Z"
+    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/9c40adb1-1933-4a12-b985-3f484774ad39",
+    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/86e9030c-e9c7-45d5-8f2d-5e0eb25724c9",
+    "summaries": "summaries - 2026-09-27T07:30:57.757593Z"
   },
   "latency_ms": {
     "sources_ms": {
-      "p50": 2867.0,
-      "p95": 3457.5
+      "p50": 2889.0,
+      "p95": 3484.5
     },
     "total_ms": {
-      "p50": 6624.0,
-      "p95": 18847.5
+      "p50": 6479.0,
+      "p95": 29270.0
     }
   },
   "metrics": {
     "retrieval.recall@8": 1.0,
-    "retrieval.mrr": 0.9049,
+    "retrieval.mrr": 0.9178,
     "answers.out_of_scope.refusal_correct": 1.0,
     "answers.in_scope.has_verified_claim": 1.0,
     "answers.in_scope.verified_claim_rate": 1.0,
-    "answers.in_scope.facts_covered": 0.979,
-    "answers.in_scope.citation_supported": 0.981,
+    "answers.in_scope.facts_covered": 0.972,
+    "answers.in_scope.citation_supported": 0.974,
     "answers.in_scope.faithful": 0.944,
     "answers.in_scope.no_advice": 1.0,
     "answers.in_scope.refusal_correct": 1.0,

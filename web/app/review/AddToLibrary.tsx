@@ -17,6 +17,12 @@ export default function AddToLibrary({ url }: { url: string }) {
   const finished = job?.status === "done" || job?.status === "dead";
   return (
     <form action={action} className="inline">
+      {!job && (
+        <label className="mr-2 text-sm">
+          <input type="checkbox" name="in_scope" required className="mr-1 align-middle" />
+          This page is about Ontario personal-injury law
+        </label>
+      )}
       {!finished && (
         <button type="submit" disabled={pending} className="rounded-sm border border-primary px-2 py-0.5 text-sm font-semibold text-primary disabled:opacity-60">
           {pending ? "Working…" : job ? "Check status" : "Add to library"}

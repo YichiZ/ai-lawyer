@@ -1,7 +1,16 @@
 """Presentation helpers the web pages use: legislative indent levels and McGill-style citations."""
 import re
+from urllib.parse import urlparse
 
 from ingest.statutes import display_pinpoint
+
+
+def subtitle(doc: dict) -> str | None:
+    """The secondary line under a law's title: its citation, or for a web page its domain (the citation there is the
+    McGill "online: site <url>" string, unreadable as a label; #8)."""
+    if doc["kind"] == "web":
+        return (urlparse(doc.get("url") or "").hostname or "").removeprefix("www.") or None
+    return doc.get("citation")
 
 LABEL = re.compile(r"^\(([0-9]+(?:\.[0-9]+)?|[a-z]{1,2}(?:\.[0-9]+)?|[ivxl]+(?:\.[0-9]+)?|[A-Z]{1,2}(?:\.[0-9]+)?)\)\s")
 BYLAW_LABEL = re.compile(r"^[A-Z]{1,2}\.\s")

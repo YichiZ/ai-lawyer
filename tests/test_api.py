@@ -265,14 +265,71 @@ def queue():
     q.redis.delete(q.stream)
 
 
+REVIEWER = {"X-Demo-User": "reviewer"}
+
+
 def test_ingest_reviewer_only_allowed_domains_and_status(client, queue):
     url = "https://www.ontario.ca/page/api-ingest-fixture"
-    assert client.post("/ingest", json={"url": url}).status_code == 403
-    refused = client.post("/ingest", json={"url": "https://www.canlii.org/en/on/x"}, headers={"X-Demo-User": "reviewer"})
+    assert client.post("/ingest", json={"url": url, "in_scope": True}).status_code == 403
+    refused = client.post("/ingest", json={"url": "https://www.canlii.org/en/on/x", "in_scope": True}, headers=REVIEWER)
     assert refused.status_code == 422 and "ontario.ca" in refused.json()["error"]["message"]
-    r = client.post("/ingest", json={"url": url}, headers={"X-Demo-User": "reviewer"})
+    r = client.post("/ingest", json={"url": url, "in_scope": True}, headers=REVIEWER)
     assert r.status_code == 202
     job = r.json()["data"]
     assert (job["status"], job["url"]) == ("queued", url)
     assert client.get(f"/ingest/{job['id']}").json()["data"]["status"] == "queued"
     assert client.get(f"/ingest/{'0' * 32}").status_code == 404
+
+
+@pytest.mark.parametrize("extra", [{}, {"in_scope": False}])
+def test_ingest_needs_the_reviewer_to_confirm_scope(client, queue, extra):
+    r = client.post("/ingest", json={"url": "https://www.ontario.ca/page/unconfirmed", **extra}, headers=REVIEWER)
+    assert r.status_code == 422 and "in_scope" in r.json()["error"]["message"]
+
+
+def test_ingest_records_who_confirmed_scope(client, queue, conn):
+    job = client.post("/ingest", json={"url": "https://www.ontario.ca/page/confirmed", "in_scope": True},
+                      headers=REVIEWER).json()["data"]
+    confirmed_by = conn.execute("SELECT u.role FROM ingest_jobs j JOIN users u ON u.id = j.scope_confirmed_by"
+                                " WHERE j.id = %s", (job["id"],)).fetchone()
+    assert confirmed_by == ("reviewer",)
+
+
+@pytest.fixture
+def web_page(client, conn):
+    from ingest import web
+    from test_web_ingest import PAGE
+
+    parsed = web.parse_page("https://tc.canada.ca/en/drones/" + "long-path-" * 20, PAGE, "text/html")
+    assert len(parsed.document["slug"]) == 120  # web slugs are capped at 120: the API must accept them
+    load_document(conn, parsed)
+    doc_id = conn.execute("SELECT id FROM documents WHERE slug = %s", (parsed.document["slug"],)).fetchone()[0]
+    sync_chunks(conn, doc_id, plan_chunks("Drones", load_sections(conn, doc_id)))
+    return parsed.document["slug"]
+
+
+def test_web_page_shows_title_domain_and_fetched_date(client, web_page):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    today = datetime.now(ZoneInfo("America/Toronto")).date().isoformat()
+    groups = {g["kind"]: g["documents"] for g in client.get("/laws").json()["data"]}
+    [page] = groups["web"]
+    assert (page["title"], page["subtitle"], page["section_count"]) == ("Slips and falls on city property",
+                                                                        "tc.canada.ca", 2)
+    assert page["date"] == today
+    assert groups["statute"][0]["subtitle"] == "SO 2002, c 24, Sched B"  # other laws keep their citation
+    doc = client.get(f"/laws/{web_page}").json()["data"]["document"]
+    assert (doc["subtitle"], doc["date"]) == ("tc.canada.ca", today)
+
+
+def test_delete_web_page_reviewer_only(client, web_page, conn):
+    assert client.delete(f"/laws/{web_page}").status_code == 403
+    assert client.delete("/laws/test-act", headers=REVIEWER).status_code == 409  # statutes are never removed here
+    assert client.delete("/laws/no-such-page", headers=REVIEWER).status_code == 404
+    r = client.delete(f"/laws/{web_page}", headers=REVIEWER)
+    assert r.status_code == 200 and r.json()["data"] == {"slug": web_page, "deleted": True}
+    assert conn.execute("SELECT count(*) FROM documents WHERE slug = %s", (web_page,)).fetchone() == (0,)
+    assert conn.execute("SELECT count(*) FROM chunks c JOIN documents d ON d.id = c.document_id"
+                        " WHERE d.kind = 'web'").fetchone() == (0,)
+    assert client.get("/laws/test-act").status_code == 200

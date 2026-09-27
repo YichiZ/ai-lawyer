@@ -16,7 +16,7 @@ import psycopg
 from app.ask import library_titles, pinpoint_claims, result_flags, retrieve, retrieve_for_answer, run_ask
 from app.rerank import make_reranker
 from app.review import risk_reasons
-from app.search import SEARCH_TOP_K, group_by_law, suggest
+from app.search import group_by_law, search_hits, suggest
 from evals.answers import JUDGE_MODEL, judge_answer
 from evals.gold import load_gold
 from evals.metrics import chunk_covers, recall_at_k
@@ -100,7 +100,7 @@ def run_search(m: Models) -> dict:
                 got = suggest(conn, it["query"])
                 rows.append({**it, "got": got[0]["url"] if got else None, "ok": score_jump(got, it["expected_url"])})
             else:
-                groups = group_by_law(retrieve(conn, it["query"], m.embed(it["query"]), top_k=SEARCH_TOP_K))
+                groups = group_by_law(search_hits(conn, it["query"], m.embed(it["query"])))
                 rows.append({**it, "got": [g["slug"] for g in groups[:3]], "ok": score_hit(groups, it["expected_slug"])})
     metrics = {"jump_accuracy": rate([r["ok"] for r in rows if r["kind"] == "jump"]),
                "hit@3": rate([r["ok"] for r in rows if r["kind"] == "hit"]), "n": len(rows)}

@@ -94,3 +94,46 @@ def test_search_groups_by_law_and_offers_ask(client):
 
 def test_search_citation_query_is_not_a_question(client):
     assert client.get("/search", params={"q": "limitation period"}).json()["meta"]["ask_this"] is False
+
+
+# --- web pages: their own lane, labelled (#8) ---
+
+@pytest.fixture
+def web_client(client, conn):
+    from ingest import web
+    from test_web_ingest import PAGE
+
+    load_document(conn, web.parse_page("https://www.ontario.ca/page/slips", PAGE, "text/html"))
+    doc_id = conn.execute("SELECT id FROM documents WHERE kind = 'web'").fetchone()[0]
+    sync_chunks(conn, doc_id, plan_chunks("Slips", load_sections(conn, doc_id)))
+    embed_pending(conn, lambda t: [0.01] * 1536, model="fake", workers=1)
+    return client
+
+
+def test_web_pages_never_enter_law_retrieval(web_client, conn):
+    from app import ask
+
+    laws = ask.retrieve(conn, "notice of a slip and fall", [0.01] * 1536, top_k=50)
+    assert laws and {h.source["kind"] for h in laws} == {"statute"}
+    pages = ask.retrieve_web(conn, "notice of a slip and fall", [0.01] * 1536)
+    assert 1 <= len(pages) <= ask.WEB_K and {h.source["kind"] for h in pages} == {"web"}
+    both = ask.retrieve_for_answer(conn, "notice of a slip and fall", [0.01] * 1536)
+    assert [h.source["kind"] for h in both] == ["statute"] * len(laws[:ask.TOP_K]) + ["web"] * len(pages)
+
+
+def test_web_lane_skips_pages_far_from_the_question(web_client, conn):
+    from app import ask
+
+    far = [0.01] * 768 + [-0.01] * 768  # orthogonal to every chunk: cosine distance 1
+    assert ask.retrieve_web(conn, "zzz", far) == []
+
+
+def test_search_lists_web_pages_after_laws_labelled(web_client):
+    groups = web_client.get("/search", params={"q": "notice to the municipality"}).json()["data"]
+    assert [g["kind"] for g in groups] == ["statute", "web"]
+    assert groups[1]["title"] == "Slips and falls on city property" and groups[1]["subtitle"] == "ontario.ca"
+
+
+def test_suggest_shows_a_web_page_domain_not_its_citation(web_client):
+    pages = [s for s in web_client.get("/suggest", params={"q": "slips and falls"}).json()["data"] if s["type"] == "law"]
+    assert [p["display"] for p in pages] == ["ontario.ca"]
