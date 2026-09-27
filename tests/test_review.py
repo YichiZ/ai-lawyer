@@ -247,3 +247,29 @@ def test_queue_marks_web_sources_addable_only_on_allowed_domains(client, conn):
                  (json.dumps({"web_fallback": True, "web_sources": sources}), answer_id))
     [item] = [i for i in client.get("/review/queue", headers=REVIEWER).json()["data"] if i["id"] == answer_id]
     assert [s["addable"] for s in item["web_sources"]] == [True, False]
+
+
+def test_recent_lists_only_released_answers_newest_reviewed_first(client, conn):
+    """#10: the home page's recently reviewed answers — approved/edited only, never guide sections or draft text."""
+    ids = {name: make_answer(conn, question=name) for name in ("old", "new", "edited", "rejected", "pending", "guide")}
+    for name, decision in [("old", "approve"), ("new", "approve"), ("edited", "edit"), ("rejected", "reject"),
+                           ("guide", "approve")]:
+        body = {"decision": decision, "final_markdown": "Revised.", "note": "n", "reason": "out_of_scope"}
+        assert client.post(f"/answers/{ids[name]}/review", json=body, headers=REVIEWER).status_code == 200
+    for hours, name in [(3, "old"), (2, "edited"), (1, "new")]:  # decisions in one transaction share now()
+        conn.execute("UPDATE answers SET reviewed_at = now() - make_interval(hours => %s) WHERE id = %s",
+                     (hours, ids[name]))
+    conn.execute("INSERT INTO guides (slug, title, intro, sort_order) VALUES ('mva', 'Motor vehicle accidents', 'i', 1)")
+    conn.execute("INSERT INTO guide_sections (guide_slug, heading, question, answer_id, sort_order)"
+                 " VALUES ('mva', 'Deadlines', 'guide', %s, 1)", (ids["guide"],))
+
+    items = client.get("/answers?limit=5").json()["data"]
+    assert [i["question"] for i in items] == ["new", "edited", "old"]
+    assert set(items[0]) == {"id", "question", "reviewed_by", "reviewed_at"}
+    assert items[0]["id"] == ids["new"] and items[0]["reviewed_by"] == "Demo Reviewer"
+    assert [i["question"] for i in client.get("/answers?limit=1").json()["data"]] == ["new"]
+
+
+@pytest.mark.parametrize("limit", ["0", "11", "x"])
+def test_recent_limit_is_bounded(client, limit):
+    assert client.get(f"/answers?limit={limit}").status_code == 422

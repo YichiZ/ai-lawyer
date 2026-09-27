@@ -34,6 +34,13 @@ test("ask → reviewer approves → researcher sees the reviewed answer and open
   await expect(panel.getByRole("button", { name: "Close" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
+
+  // #10: the approved answer is the newest on the home page's recently reviewed list
+  await page.goto("/");
+  const recent = page.getByRole("region", { name: "Recently reviewed answers" });
+  await expect(recent.getByRole("listitem").first()).toContainText(/Reviewed by Demo Reviewer on/);
+  await recent.getByRole("link", { name: question }).click();
+  await expect(page).toHaveURL(answerUrl);
 });
 
 async function askAsResearcher(page: Page, question: string) {

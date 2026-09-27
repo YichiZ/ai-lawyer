@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Home page lists recently reviewed answers (#10)
+
+- **API:** `GET /answers?limit=` (1–10, default 5; 422 outside) returns only `approved`/`edited` answers, newest `reviewed_at` first: id, question, reviewer name, reviewed_at — no draft or final text. `/answers` rather than `/answers/recent`, so it can't clash with `/answers/{answer_id}`. Guide-section answers are excluded: they already appear on their guide pages, which the home page lists just above.
+- **Web:** "Recently reviewed answers" on `/` (server component, fetched in parallel with the guides): question links to `/answers/{id}`, "Reviewed by … on …" via `formatTimestamp` (America/Toronto). The section is not rendered when the list is empty.
+- **Tests:** API: only released answers listed (rejected, pending and guide-section answers left out), order, `limit=1`, no draft fields, limit 0/11/x → 422 (also with ADC hidden). Playwright: the ask → approve test now opens `/` and follows the new answer's link. pytest 524 passed; `tsc --noEmit` clean; Playwright (fresh `ai_lawyer_ci`) 42 passed, then axe on `/` again with an approved answer listed (light + dark) clean.
+
 ## 2026-09-27 · Fix · Per-route not-found pages and readable validation errors (#15)
 
 - **Status of #15:** item 1 (garbled out-of-scope message) was fixed in #39 (`out_of_scope_message` keeps the scope note's first clause) and item 4 ("1 sections") in #40 (`plural()`, e2e checks "1 section"); verified on main.

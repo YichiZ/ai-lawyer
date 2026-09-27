@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { listGuides } from "@/lib/api";
+import { formatTimestamp, listGuides, listRecentAnswers } from "@/lib/api";
 
 export default async function Home() {
-  const guides = (await listGuides()) ?? [];
+  const [guides, recent] = await Promise.all([listGuides().then((g) => g ?? []), listRecentAnswers().then((a) => a ?? [])]);
   return (
     <div>
       <div className="max-w-2xl">
@@ -24,6 +24,21 @@ export default async function Home() {
           </li>
         ))}
       </ul>
+      {recent.length > 0 && (
+        <section aria-labelledby="recent-answers">
+          <h2 id="recent-answers" className="mt-10 font-serif text-2xl font-semibold">Recently reviewed answers</h2>
+          <ul className="mt-4 max-w-2xl divide-y divide-rule border-y border-rule">
+            {recent.map((a) => (
+              <li key={a.id} className="py-3">
+                <Link href={`/answers/${a.id}`} className="font-semibold">{a.question}</Link>
+                <span className="mt-1 block text-sm text-muted">
+                  Reviewed by {a.reviewed_by ?? "a reviewer"} on {formatTimestamp(a.reviewed_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <p className="mt-10"><Link href="/laws" className="font-semibold">Browse the law library →</Link></p>
     </div>
   );

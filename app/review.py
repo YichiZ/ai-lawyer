@@ -77,6 +77,18 @@ def drafting(conn: psycopg.Connection, answer_id: int) -> bool | None:
     return row[0] if row else None
 
 
+def recent(conn: psycopg.Connection, limit: int) -> list[dict]:
+    """Released (approved/edited) answers, newest reviewed first. Guide-section answers are left out: they already
+    appear on their guide pages, and the home page lists those guides just above (#10)."""
+    return conn.cursor(row_factory=dict_row).execute(
+        "SELECT a.id, a.question, r.name AS reviewed_by, a.reviewed_at"
+        " FROM answers a LEFT JOIN users r ON r.id = a.reviewed_by"
+        " WHERE a.status IN ('approved', 'edited')"
+        " AND NOT EXISTS (SELECT 1 FROM guide_sections gs WHERE gs.answer_id = a.id)"
+        " ORDER BY a.reviewed_at DESC, a.id DESC LIMIT %s", (limit,),
+    ).fetchall()
+
+
 def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | None:
     """Researchers see sources while pending and the final text only after approval; reviewers see everything."""
     a = conn.cursor(row_factory=dict_row).execute(

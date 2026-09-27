@@ -286,6 +286,7 @@ Indexes: HNSW on `embedding`, GIN on `tsv`, GIN trigram on `documents.title` and
 | `GET /suggest?q=`, `GET /search?q=[&rerank=true]` | Typeahead with citation jumps; grouped hybrid search (fused, or reranked) |
 | `POST /ask`, `POST /ask/web` | Sources now + answer id in `pending_review`; opt-in web answer |
 | `GET /answers/{id}`, `GET /review/queue`, `POST /answers/{id}/review` | Review workflow |
+| `GET /answers?limit=` (1–10, default 5) | Recently reviewed answers for the home page: approved/edited only, not guide sections; id, question, reviewer, date |
 | `GET /guides`, `GET /guides/{slug}`, `GET /glossary` | Topic guides, glossary |
 | `POST /ingest` (reviewer, `in_scope: true`), `GET /ingest/{job_id}`, `DELETE /laws/{slug}` (reviewer, web pages only) | Add a page; job status; remove an added page |
 

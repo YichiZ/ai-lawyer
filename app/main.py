@@ -323,6 +323,12 @@ def review_answer(answer_id: int, body: ReviewRequest, conn: Conn, reviewer: Rev
     return envelope({"id": answer_id, "status": status})
 
 
+@app.get("/answers")
+def list_answers(conn: Conn, limit: Annotated[int, Query(ge=1, le=10)] = 5):
+    """Recently reviewed answers (approved or edited only) for the home page."""
+    return envelope(review.recent(conn, limit))
+
+
 @app.get("/answers/{answer_id}")
 def get_answer(answer_id: int, conn: Conn, user: User):
     view = review.get_answer(conn, answer_id, user["role"])
