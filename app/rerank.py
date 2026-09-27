@@ -14,7 +14,9 @@ SCHEMA = {"type": "object", "properties": {"ranking": {"type": "array", "items":
           "required": ["ranking"]}
 PROMPT = """Rank the passages by how directly they answer the research question about Ontario personal-injury law.
 Return every passage id, most relevant first. Prefer the provision that states the rule asked about over
-provisions that only mention the same words.
+provisions that only mention the same words. When the question names a municipality, prefer the law that governs
+it: the City of Toronto Act, 2006 and its regulations for the City of Toronto; the Municipal Act, 2001 and its
+regulations for any other municipality.
 
 Question: {question}
 

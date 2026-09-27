@@ -15,6 +15,11 @@ def test_prompt_lists_ids_citations_and_truncated_text():
     assert len(p.split("[c1]")[1].split("[c2]")[0].split()) < 140  # ~120 words per passage
 
 
+def test_prompt_prefers_the_law_governing_the_named_jurisdiction():
+    p = rerank_prompt("q", HITS)
+    assert "City of Toronto Act, 2006" in p and "Municipal Act, 2001" in p
+
+
 def test_parse_keeps_known_ids_dedupes_and_appends_missing():
     order = parse_ranking({"ranking": ["c3", "c9", "c3", "c1"]}, [h.chunk_id for h in HITS])
     assert order == ["c3", "c1", "c2", "c4", "c5"]
