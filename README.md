@@ -47,7 +47,7 @@
 
 ## What it does
 
-- **Law library:** 12 Ontario statutes and regulations, Toronto Municipal Code ch. 629, 719 and 743 (excerpts only,
+- **Law library:** 20 Ontario statutes and regulations, Toronto Municipal Code ch. 629, 719 and 743 (excerpts only,
   City copyright), and 1,660 Court of Appeal and Supreme Court of Canada injury decisions from the open
   [A2AJ](https://huggingface.co/a2aj) datasets. Each section has a plain-language summary, glossary terms and a list of
   the decisions that cite it.

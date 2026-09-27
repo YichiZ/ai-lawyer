@@ -26,7 +26,9 @@ ABBREVIATIONS = {
     "dola": "dog-owners-liability-act", "ia": "insurance-act", "sabs": "statutory-accident-benefits-schedule",
     "hta": "highway-traffic-act", "cja": "courts-of-justice-act", "rcp": "rules-of-civil-procedure",
     "rules": "rules-of-civil-procedure", "fla": "family-law-act", "cota": "city-of-toronto-act-2006",
-    "wsia": "workplace-safety-and-insurance-act-1997",
+    "wsia": "workplace-safety-and-insurance-act-1997", "ma": "municipal-act-2001", "tpa": "trespass-to-property-act",
+    "mvaca": "motor-vehicle-accident-claims-act", "caia": "compulsory-automobile-insurance-act",
+    "hia": "health-insurance-act",
 }
 
 

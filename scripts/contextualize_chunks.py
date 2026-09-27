@@ -10,7 +10,7 @@ import time
 
 import psycopg
 
-from ingest.chunks import embed_pending
+from ingest.chunks import LAW_KINDS, embed_pending
 from ingest.contextualize import contextualize_pending
 from ingest.vertex import EMBED_MODEL, batch_client, embedder, text_generator
 
@@ -27,7 +27,9 @@ def main() -> int:
             conn.commit()
             print(f"cleared {n} chunks; re-embedding", flush=True)
         else:
-            n, chars = conn.execute("SELECT count(*), coalesce(sum(length(text)), 0) FROM chunks WHERE situating IS NULL").fetchone()
+            n, chars = conn.execute(
+                "SELECT count(*), coalesce(sum(length(c.text)), 0) FROM chunks c JOIN documents d ON d.id = c.document_id"
+                " WHERE c.situating IS NULL AND d.kind = ANY(%s)", (LAW_KINDS,)).fetchone()
             tokens_in = chars / 4 + n * (OUTLINE_TOKENS + PROMPT_TOKENS)
             cost = tokens_in / 1e6 * PRICE_IN + n * OUTPUT_TOKENS / 1e6 * PRICE_OUT
             print(f"{n} chunks to situate, ~{tokens_in / 1e6:.1f}M input tokens, estimated ${cost:.2f}", flush=True)

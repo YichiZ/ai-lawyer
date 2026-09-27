@@ -16,6 +16,7 @@ from app import tracing
 from app.authorities import SECONDARY_LABEL, secondary_statutes
 from app.format import mcgill_citation
 from app.laws import excerpt
+from ingest.chunks import LAW_KINDS
 from ingest.statutes import display_pinpoint
 
 # Fusion tuned on the Phase 3 gold sweep (3.3): k 60 / equal weights buried vector #1 hits under keyword noise.
@@ -182,7 +183,6 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
 # --- database side ---
 
-LAW_KINDS = ["statute", "regulation", "bylaw", "web"]  # web: official pages a reviewer added (6.2); decisions separately
 
 
 def retrieve_for_answer(conn: psycopg.Connection, question: str, query_vector: list[float],

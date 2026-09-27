@@ -14,6 +14,12 @@ from ingest.citations import statute_refs
         ("section 267.5(5) of the Insurance Act", [("insurance-act", "s-267.5-5")]),
         ("apportioned under the Negligence Act, R.S.O. 1990, c. N.1", [("negligence-act", None)]),
         ("s. 42(6) of the City of Toronto Act, 2006", [("city-of-toronto-act-2006", "s-42-6")]),
+        ("s. 44(10) of the Municipal Act, 2001", [("municipal-act-2001", "s-44-10")]),
+        ("a subrogated claim under s. 30 of the Health Insurance Act", [("health-insurance-act", "s-30")]),
+        ("the Compulsory Automobile Insurance Act, R.S.O. 1990, c. C.25, s. 2(1)",
+         [("compulsory-automobile-insurance-act", "s-2-1")]),
+        ("paid out of the fund under the Motor Vehicle Accident Claims Act", [("motor-vehicle-accident-claims-act", None)]),
+        ("s. 3 of the Trespass to Property Act", [("trespass-to-property-act", "s-3")]),
         ("the Criminal Code, s. 249", []),
     ],
 )

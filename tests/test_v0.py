@@ -74,5 +74,5 @@ def test_duplicate_citation_rows_are_flagged():
 
 
 def test_v0_list_is_consistent():
-    assert len({law.slug for law in V0}) == len(V0) == 12
+    assert len({law.slug for law in V0}) == len(V0) == 20
     assert len({norm_citation(law.citation) for law in V0}) == len(V0)

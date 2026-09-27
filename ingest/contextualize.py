@@ -9,7 +9,7 @@ from typing import Callable
 
 import psycopg
 
-from ingest.chunks import run_batched
+from ingest.chunks import LAW_KINDS, run_batched
 from ingest.statutes import display_pinpoint
 
 MAX_OUTLINE_LINES = 60
@@ -44,7 +44,7 @@ def contextualize_pending(conn: psycopg.Connection, generate: Callable[[str], st
     rows = conn.execute(
         "SELECT c.id, c.document_id, d.title, coalesce(s.pinpoint, c.pinpoint), c.text FROM chunks c"
         " JOIN documents d ON d.id = c.document_id LEFT JOIN sections s ON s.id = c.section_ids[1]"
-        " WHERE c.situating IS NULL ORDER BY c.id"
+        " WHERE c.situating IS NULL AND d.kind = ANY(%s) ORDER BY c.id", (LAW_KINDS,)
     ).fetchall()
     outlines: dict[tuple[int, str], str] = {}
     sections_by_doc: dict[int, list[dict]] = {}

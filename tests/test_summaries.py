@@ -39,3 +39,14 @@ def test_summarize_pending_is_idempotent_and_redoes_changed_text(conn):
     conn.execute("UPDATE sections SET text = text || ' Changed.' WHERE pinpoint = 's-4'")
     assert summarize_pending(conn, lambda p: "New summary.", workers=1) == 1
     assert conn.execute("SELECT plain_summary FROM sections WHERE pinpoint = 's-4'").fetchone()[0] == "New summary."
+
+
+def test_bylaw_and_web_sections_are_summarized_but_not_decisions(conn):
+    for kind in ("decision", "bylaw", "web"):
+        doc = conn.execute("INSERT INTO documents (sha256, kind, slug, title, source) VALUES (%s, %s, %s, %s, 't')"
+                           " RETURNING id", (kind, kind, kind, kind.title())).fetchone()[0]
+        conn.execute("INSERT INTO sections (document_id, pinpoint, kind, text, sort_order) VALUES (%s, 's-1', 'section', %s, 1)",
+                     (doc, f"A {kind} rule that is long enough to be summarized. " * 3))
+    assert summarize_pending(conn, lambda p: "Plain.", workers=1) == 2
+    got = dict(conn.execute("SELECT d.kind, s.plain_summary FROM sections s JOIN documents d ON d.id = s.document_id").fetchall())
+    assert got == {"decision": None, "bylaw": "Plain.", "web": "Plain."}
