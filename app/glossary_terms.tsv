@@ -1,4 +1,4 @@
-# term	slug	pinpoint — pinpoint = defining section, or the section where the concept operates. Empty = look up a statutory definition.
+# term	slug	pinpoint — pinpoint = defining section, or the section where the concept operates. Empty = look up a statutory definition. Several pinpoints joined by "+" (s-29+s-1-1) = one source: a definition plus the one it refers to.
 limitation period	limitations-act-2002	s-4
 basic limitation period	limitations-act-2002	s-4
 ultimate limitation period	limitations-act-2002	s-15
@@ -15,7 +15,6 @@ duty of care	occupiers-liability-act	s-3
 risks willingly assumed	occupiers-liability-act	s-4
 trespass	trespass-to-property-act	s-2
 recreational activity	occupiers-liability-act	s-4
-snow or ice	occupiers-liability-act	s-6.1
 independent contractor	occupiers-liability-act	s-6
 negligence	negligence-act	s-1
 contributory negligence	negligence-act	s-3
@@ -26,11 +25,10 @@ contribution and indemnity	negligence-act	s-1
 gross negligence	city-of-toronto-act-2006	s-42
 state of repair	city-of-toronto-act-2006	s-42
 written notice	city-of-toronto-act-2006	s-42
-city clerk	city-of-toronto-act-2006	s-42-6
+city clerk	city-of-toronto-act-2006	s-42-6+s-137-1
 reasonable excuse	city-of-toronto-act-2006	s-42
 highway
 sidewalk	toronto-municipal-code-719	719-2
-bite or attack	dog-owners-liability-act	s-2
 owner of a dog	dog-owners-liability-act	s-1
 pit bull
 strict liability	dog-owners-liability-act	s-2
@@ -63,7 +61,7 @@ schedule 2 employer
 right of action	workplace-safety-and-insurance-act-1997	s-26
 occupational disease
 survivor
-spouse	family-law-act	s-29
+spouse	family-law-act	s-29+s-1-1
 dependant
 guidance, care and companionship	family-law-act	s-61
 action

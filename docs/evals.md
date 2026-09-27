@@ -58,8 +58,8 @@ The 95 % intervals are Wilson intervals. With datasets this small, treat a singl
 | **abstention** secondary answers labelled and flagged (6) | 1.000 | reported | 0.61–1.00 | ✅ | #18 |
 | **robustness** recall@8 on lay / legal / typo rewordings (36) | 1.000 | ≥ 0.90 | 0.90–1.00 | ✅ | |
 | **robustness** top-8 overlap with the original question | 0.573 | reported | | ℹ️ | |
-| **glossary** non-answers (85; was 19/81 = 0.235 before #4) | 0.000 | ≤ 0.02 | 0.00–0.04 | ✅ | #4 fixed |
-| **glossary** faithful (85; was 0.968 among 62 real definitions) | 0.976 | ≥ 0.95 | 0.92–0.99 | ✅ | #4 fixed |
+| **glossary** non-answers (83 after #36; was 19/81 = 0.235 before #4) | 0.000 | ≤ 0.02 | 0.00–0.04 | ✅ | #4 fixed |
+| **glossary** faithful (83 after #36; was 0.968 among 62 real definitions) | 0.988 | ≥ 0.95 | 0.92–0.99 | ✅ | #4, #36 fixed |
 
 Cost of the run: about 105 gemini-3.7-flash drafts and about 110 Flash-Lite calls (under $1). Time: about 10 minutes.
 

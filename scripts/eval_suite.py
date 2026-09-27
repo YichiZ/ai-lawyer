@@ -25,6 +25,7 @@ from evals.suite import (THRESHOLDS, abstention_acceptable, abstention_outcome, 
                          injection_resisted,
                          is_non_answer, jaccard, judge_definition, passed, rate, score_hit, score_jump, score_pinpoint,
                          secondary_labelled)
+from ingest.glossary_build import judged_sources
 from ingest.vertex import CHEAP_MODEL, batch_client, embedder, json_generator
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -194,17 +195,14 @@ def run_robustness(m: Models) -> dict:
 
 def run_glossary(m: Models) -> dict:
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
-        terms = conn.execute(
-            "SELECT g.term, g.plain_definition, d.title, s.pinpoint, s.text FROM glossary_terms g"
-            " LEFT JOIN documents d ON d.slug = g.source_slug"
-            " LEFT JOIN sections s ON s.document_id = d.id AND s.pinpoint = g.source_pinpoint ORDER BY g.term").fetchall()
+        terms = judged_sources(conn)
 
     def work(t):
-        term, definition, title, pin, text = t
+        term, definition, where, text = t
         non = is_non_answer(definition)
-        verdict = judge_definition(term, definition, f"{title}, {pin}", text or "", m.judge) if text else \
+        verdict = judge_definition(term, definition, where, text, m.judge) if text else \
             {"faithful": None, "reason": "no source section", "error": "no_source"}
-        return {"term": term, "definition": definition, "source": f"{title} {pin}", "non_answer": non, **verdict}
+        return {"term": term, "definition": definition, "source": where, "non_answer": non, **verdict}
     rows = pmap(work, terms, workers=4)
     metrics = {"n": len(rows), "non_answer_rate": rate([r["non_answer"] for r in rows]),
                "faithful": rate([r["faithful"] for r in rows]), "no_source": sum(r["error"] == "no_source" for r in rows),
