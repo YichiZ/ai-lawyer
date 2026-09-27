@@ -218,7 +218,8 @@ def draft_web_answer(connect, answer_id: int, question: str, search_web) -> None
         try:
             text, sources = search_web(question)
             status = "web" if sources else "not_found"
-            conn.execute("UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb WHERE id = %s",
+            conn.execute("UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb"
+                         " WHERE id = %s AND status = 'pending_review'",
                          (web_fallback.compose_web_draft(text, sources),
                           json.dumps({"status": status, "web_sources": sources}), answer_id))
             span.update(output={"status": status, "sources": len(sources)})
