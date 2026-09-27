@@ -12,17 +12,19 @@ from typing import Callable
 import psycopg
 
 from ingest.statutes import display_pinpoint
+from ingest.v0 import V0
 
 TERMS_PATH = Path(__file__).resolve().parent.parent / "app" / "glossary_terms.tsv"
 LAW_KINDS = ("statute", "regulation", "bylaw")
+LIBRARY_ORDER = [law.slug for law in V0]  # injury-core laws first
 PROMPT = """Write a glossary entry for the legal term "{term}" for paralegals and law students working in Ontario \
 personal-injury law: 1-2 short sentences, grade 8 reading level.
 
 Say what the term means in plain language, so the entry makes sense on its own. Your source is the provision below \
 from {where}:
 - If the provision defines the term, reword that definition only and add nothing to it.
-- Otherwise, give the term's core legal meaning in one short sentence, then one sentence on what this provision says \
-about it (who it applies to, what it allows or bars). Do not narrow the core meaning to one situation (e.g. only dog \
+- Otherwise, give the term's core legal meaning in one short sentence, then one sentence on what the law says about \
+it, naming the law (who it applies to, what it allows or bars). Do not narrow the core meaning to one situation (e.g. only dog \
 owners) unless the term only exists there.
 Everything else must be supported by the provision: do not add numbers, deadlines, conditions, examples or exceptions \
 it does not state, and never contradict it.
@@ -79,16 +81,18 @@ def load_terms(path: Path = TERMS_PATH) -> list[tuple[str, str | None, str | Non
     return out
 
 
-def _defining_section(conn: psycopg.Connection, term: str):
-    """(slug, pinpoint, text) of the law section that says “term” means/includes …, subsections first."""
-    for verb in ("means", "includes"):
-        row = conn.execute(
-            "SELECT d.slug, s.pinpoint, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
-            " WHERE d.kind = ANY(%s) AND s.text ILIKE %s ORDER BY (s.kind = 'subsection') DESC, d.slug, s.sort_order LIMIT 1",
-            (list(LAW_KINDS), f"%“{term}” {verb}%")).fetchone()
-        if row:
-            return tuple(row)
-    return None
+def _defining_section(conn: psycopg.Connection, term: str, slug: str | None = None):
+    """(slug, pinpoint, text) of the law section that says “term” means/includes …: only in `slug` when given,
+    otherwise library laws in `V0` order (injury-core first), then others; within a law the first defining section
+    (its matching subsection before it, as the shorter text)."""
+    row = conn.execute(
+        "SELECT d.slug, s.pinpoint, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
+        " LEFT JOIN sections p ON p.id = s.parent_id AND s.kind = 'subsection'"
+        " WHERE d.kind = ANY(%s) AND s.text ILIKE ANY(%s) AND (%s::text IS NULL OR d.slug = %s)"
+        " ORDER BY array_position(%s::text[], d.slug) NULLS LAST, d.slug, COALESCE(p.sort_order, s.sort_order),"
+        " (s.kind = 'subsection') DESC, s.sort_order LIMIT 1",
+        (list(LAW_KINDS), [f"%“{term}” means%", f"%“{term}” includes%"], slug, slug, LIBRARY_ORDER)).fetchone()
+    return tuple(row) if row else None
 
 
 def _defines(text: str, term: str) -> bool:
@@ -96,8 +100,8 @@ def _defines(text: str, term: str) -> bool:
 
 
 def resolve_source(conn: psycopg.Connection, term: str, slug: str | None, pinpoint: str | None):
-    """(slug, pinpoint, text): a law's definition of “term” wins over the curated section unless that section defines
-    it too; the curated section otherwise; None if neither exists."""
+    """(slug, pinpoint, text), first match of: the curated section if it defines “term”; another section of the
+    curated law that defines it; any law's definition (library order); the curated section; None."""
     pinned = None
     if slug:
         row = conn.execute("SELECT d.slug, s.pinpoint, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
@@ -105,6 +109,9 @@ def resolve_source(conn: psycopg.Connection, term: str, slug: str | None, pinpoi
         pinned = tuple(row) if row else None
         if pinned and _defines(pinned[2], term):
             return pinned
+        same_law = _defining_section(conn, term, slug)
+        if same_law:
+            return same_law
     return _defining_section(conn, term) or pinned
 
 

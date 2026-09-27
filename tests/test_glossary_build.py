@@ -1,5 +1,6 @@
 from ingest.glossary_build import build_prompt, define, is_non_answer, load_terms, rejection, resolve_source, upsert_definitions
 from ingest.statutes import load_document, parse_law
+from ingest.v0 import V0Law
 from test_statutes import LAW, row
 
 NON_ANSWER = "The provided text does not define the term."
@@ -33,6 +34,7 @@ def test_prompt_mentions_term_source_and_text_and_forbids_source_talk():
     p = build_prompt("claim", "Test Act, s. 1", "“claim” means a claim to remedy an injury;")
     assert "claim" in p and "Test Act, s. 1" in p and "remedy an injury" in p
     assert "the provided text" in p and "Never mention the source" in p
+    assert "what the law says about it, naming the law" in p and "what this provision says" not in p
 
 
 def test_rejection_catches_non_answers_and_source_references():
@@ -109,3 +111,32 @@ def test_upsert_redo_rewrites_and_keeps_a_good_definition_if_the_rewrite_fails(c
     assert conn.execute("SELECT plain_definition FROM glossary_terms WHERE term = 'claim'").fetchone()[0] == "Old but valid."
     upsert_definitions(conn, [("claim", "test-act", "s-4")], lambda p: GOOD, workers=1, redo=frozenset({"claim"}))
     assert conn.execute("SELECT plain_definition, source_pinpoint FROM glossary_terms WHERE term = 'claim'").fetchone() == (GOOD, "s-1")
+
+
+def load_law(conn, slug, s1_text):
+    """A copy of the test law under `slug` whose s. 1 says `s1_text`."""
+    load_document(conn, parse_law(row(name_en=slug), V0Law(slug, slug, f"RSO 1990, c {slug}", "LEGISLATION-ON")))
+    conn.execute("UPDATE sections s SET text = %s FROM documents d WHERE d.id = s.document_id AND d.slug = %s"
+                 " AND s.pinpoint = 's-1'", (s1_text, slug))
+
+
+def test_resolve_source_prefers_the_curated_law_then_injury_core_laws(conn):
+    load_law(conn, "aaa-act", "“occupier” means an unrelated thing;")  # alphabetically first, not a library law
+    load_law(conn, "trespass-to-property-act", "“occupier” includes a person in possession of premises for this Act;")
+    load_law(conn, "occupiers-liability-act", "“occupier” includes a person in physical possession of premises;")
+    # no curated section: library order (Occupiers' Liability Act before Trespass to Property Act), never alphabetical
+    assert resolve_source(conn, "occupier", None, None)[:2] == ("occupiers-liability-act", "s-1")
+    # curated section in a law that defines the term elsewhere: that law's definition wins
+    assert resolve_source(conn, "occupier", "trespass-to-property-act", "s-4")[:2] == ("trespass-to-property-act", "s-1")
+    # curated law defines nothing: fall back to the library order
+    assert resolve_source(conn, "occupier", "test-act-missing", "s-4")[:2] == ("occupiers-liability-act", "s-1")
+
+
+def test_resolve_source_takes_the_laws_first_definition_not_a_later_subsection(conn):
+    load_document(conn, parse_law(row(), LAW))
+    pins = [r[0] for r in conn.execute("SELECT pinpoint FROM sections WHERE kind = 'subsection' ORDER BY sort_order")]
+    later = pins[-1]  # a subsection of s. 15, after s. 1 (general definitions)
+    conn.execute("UPDATE sections SET text = '“claim” means a narrow Part-only thing;' WHERE pinpoint = %s", (later,))
+    assert resolve_source(conn, "claim", None, None)[:2] == ("test-act", "s-1")
+    conn.execute("UPDATE sections SET text = 'In this Act, nothing.' WHERE pinpoint = 's-1'")
+    assert resolve_source(conn, "claim", None, None)[:2] == ("test-act", later)
