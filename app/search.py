@@ -20,6 +20,7 @@ CITATION = re.compile(
     r"(?P<subs>(?:\(\w{1,4}\))*)\s*$",
     re.IGNORECASE,
 )
+WHOLE_RULE = re.compile(r"^\d+(?:\.\d)?$")  # Rule 76, Rule 24.1 (a Part); subrules are 76.01, 24.1.01
 NEUTRAL = re.compile(r"^\s*(\d{4})\s+(ONCA|SCC)\s+(\d+)(?:\s+at\s+para\.?\s*(\d+))?\s*$", re.IGNORECASE)
 QUESTION_WORDS = ("how", "what", "when", "where", "who", "why", "which", "can", "could", "do", "does", "did", "is",
                   "are", "am", "should", "if", "will", "may", "must")
@@ -41,8 +42,10 @@ def parse_citation(q: str) -> tuple[str | None, str] | None:
     m = CITATION.match(q)
     if not m:
         return None
-    prefix = "r" if m.group("kind").lower().startswith("r") else "s"
     subs = "".join(f"-{s}" for s in re.findall(r"\((\w{1,4})\)", m.group("subs")))
+    prefix = "s"
+    if m.group("kind").lower().startswith("r"):
+        prefix = "rule" if WHOLE_RULE.match(m.group("num")) and not subs else "r"
     law = m.group("law").strip(" ,").lower() or None
     return law, f"{prefix}-{m.group('num')}{subs.lower()}"
 

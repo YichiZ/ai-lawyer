@@ -17,6 +17,16 @@ from app.search import is_question, parse_citation
         ("Limitations Act s. 4", "limitations act", "s-4"),
         ("OLA s 6.1", "ola", "s-6.1"),
         ("negligence act, s. 3", "negligence act", "s-3"),
+        # a whole Rule is stored as a rule-N Part, its subrules as r-N.NN (issue #14)
+        ("rule 76", None, "rule-76"),
+        ("Rule 76", None, "rule-76"),
+        ("r. 76", None, "rule-76"),
+        ("rule 24.1", None, "rule-24.1"),
+        ("rcp rule 76", "rcp", "rule-76"),
+        ("r 76.01", None, "r-76.01"),
+        ("r. 76.01", None, "r-76.01"),
+        ("rule 76.01", None, "r-76.01"),
+        ("Rule 24.1.01", None, "r-24.1.01"),
     ],
 )
 def test_parse_citation(q, law, pinpoint):
