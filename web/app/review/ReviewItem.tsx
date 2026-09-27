@@ -33,6 +33,11 @@ export default function ReviewItem({ item }: { item: QueueItem }) {
           )}
         </span>
       </div>
+      {item.guide && (
+        <p className="mt-1 text-sm">
+          Guide: <a href={`/guides/${item.guide.slug}`}>{item.guide.title}</a> → {item.guide.heading}
+        </p>
+      )}
       {item.risk.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2" aria-label="Risk flags">
           {item.risk.map((r) => (

@@ -1,4 +1,5 @@
-"""Topic guides: each section is an answer that went through review; unreviewed sections are not shown."""
+"""Topic guides: each section is an answer that went through review. A pending section shows only its retrieved
+sources (like the Ask page), never the draft."""
 import psycopg
 from psycopg.rows import dict_row
 
@@ -18,7 +19,7 @@ def get_guide(conn: psycopg.Connection, slug: str) -> dict | None:
     if not guide:
         return None
     rows = cur.execute(
-        "SELECT gs.heading, gs.question, gs.answer_id, a.status, a.final_markdown, a.claims, a.reviewed_at,"
+        "SELECT gs.heading, gs.question, gs.answer_id, a.status, a.final_markdown, a.claims, a.reviewed_at, a.flags,"
         " r.name AS reviewed_by FROM guide_sections gs LEFT JOIN answers a ON a.id = gs.answer_id"
         " LEFT JOIN users r ON r.id = a.reviewed_by WHERE gs.guide_slug = %s ORDER BY gs.sort_order", (slug,),
     ).fetchall()
@@ -29,5 +30,7 @@ def get_guide(conn: psycopg.Connection, slug: str) -> dict | None:
         if r["status"] in ("approved", "edited"):
             s |= {"final_markdown": r["final_markdown"], "claims": r["claims"], "reviewed_by": r["reviewed_by"],
                   "reviewed_at": r["reviewed_at"], "edited": r["status"] == "edited"}
+        elif r["status"] == "pending_review":
+            s["sources"] = r["flags"].get("sources", [])
         sections.append(s)
     return {**guide, "sections": sections}

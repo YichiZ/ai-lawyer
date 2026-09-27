@@ -158,6 +158,7 @@ export interface QueueItem {
   sources: Source[];
   web_sources: { url: string; title: string; domain: string; addable: boolean }[];
   trace_url: string | null;
+  guide: { slug: string; title: string; heading: string } | null;
 }
 
 export interface IngestJob {
@@ -213,6 +214,7 @@ export interface GuideSection {
   reviewed_by?: string;
   reviewed_at?: string;
   edited?: boolean;
+  sources?: Source[]; // pending sections only: what retrieval found, never the draft
 }
 
 export interface Case {

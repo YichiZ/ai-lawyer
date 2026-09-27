@@ -35,7 +35,9 @@ def risk_reasons(flags: dict) -> list[str]:
 
 def queue(conn: psycopg.Connection) -> list[dict]:
     rows = conn.cursor(row_factory=dict_row).execute(
-        "SELECT a.id, a.question, a.draft_markdown, a.claims, a.flags, a.created_at, a.trace_id, u.name AS asked_by"
+        "SELECT a.id, a.question, a.draft_markdown, a.claims, a.flags, a.created_at, a.trace_id, u.name AS asked_by,"
+        " (SELECT jsonb_build_object('slug', g.slug, 'title', g.title, 'heading', gs.heading) FROM guide_sections gs"
+        "  JOIN guides g ON g.slug = gs.guide_slug WHERE gs.answer_id = a.id LIMIT 1) AS guide"
         " FROM answers a LEFT JOIN users u ON u.id = a.asked_by"
         " WHERE a.status = 'pending_review' AND a.draft_markdown IS NOT NULL"
         " ORDER BY a.created_at, a.id"
@@ -48,7 +50,8 @@ def queue(conn: psycopg.Connection) -> list[dict]:
                       "dropped_claims": flags.get("dropped_claims", []), "sources": flags.get("sources", []),
                       "web_sources": [{**w, "addable": site_of(w["url"]) is not None} for w in flags.get("web_sources", [])],
                       "timings_ms": flags.get("timings_ms"), "trace_url": tracing.trace_url(trace_id)})
-    return sorted(items, key=lambda i: (not i["risk"],))  # stable: risky first, then oldest first
+    # stable: risky first (likeliest to be wrong), then guide sections (the home page's entry point, #3), then oldest
+    return sorted(items, key=lambda i: (not i["risk"], i["guide"] is None))
 
 
 def decide(conn: psycopg.Connection, answer_id: int, reviewer_id: int, decision: str,

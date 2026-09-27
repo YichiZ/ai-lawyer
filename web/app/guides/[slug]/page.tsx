@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CitationChips from "@/components/CitationChips";
 import Markdown from "@/components/Markdown";
+import SourceList from "@/components/SourceList";
 import { formatTimestamp, getGuide } from "@/lib/api";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -36,7 +37,17 @@ export default async function GuidePage({ params }: Props) {
               </p>
             </div>
           ) : (
-            <p className="mt-3 rounded-sm border border-rule bg-panel p-3 text-sm">This section is awaiting review.</p>
+            <div className="mt-3">
+              <p className="rounded-sm border border-rule bg-panel p-3 text-sm">
+                Awaiting review.{s.sources && s.sources.length > 0 && " Until a reviewer approves the answer, these are the sources found for this question."}
+              </p>
+              {s.sources && s.sources.length > 0 && (
+                <>
+                  <h3 className="sr-only">Sources found for {s.heading}</h3>
+                  <SourceList sources={s.sources} />
+                </>
+              )}
+            </div>
           )}
         </section>
       ))}

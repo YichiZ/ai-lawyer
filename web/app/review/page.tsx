@@ -19,7 +19,7 @@ export default async function ReviewPage() {
   return (
     <div>
       <h1 className="font-serif text-3xl font-semibold">Review queue</h1>
-      <p className="mt-2 text-muted">{items.length} answer(s) awaiting review. Flagged drafts come first.</p>
+      <p className="mt-2 text-muted">{items.length} answer(s) awaiting review. Flagged drafts come first, then topic-guide sections.</p>
       <div className="mt-6 space-y-6">
         {items.map((item) => <ReviewItem key={item.id} item={item} />)}
         {items.length === 0 && <p>Nothing to review.</p>}

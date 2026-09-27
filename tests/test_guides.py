@@ -40,6 +40,14 @@ def test_guide_shows_reviewed_sections_only(client):
     assert first["heading"] == "Deadlines" and first["final_markdown"] == "Two years." and first["reviewed_by"] == "Demo Reviewer"
     assert first["claims"][0]["source"]["display"] == "s. 4"
     assert second["status"] == "pending_review" and "final_markdown" not in second and "draft_markdown" not in second
+    assert "claims" not in second and "Draft text." not in str(second)
+    assert "sources" not in first  # approved sections are unchanged: citations come from their claims
+
+
+def test_pending_section_shows_its_sources(client):
+    second = client.get("/guides/limitation-periods").json()["data"]["sections"][1]
+    [src] = second["sources"]
+    assert src["display"] == "s. 4" and src["url"] == "/laws/test-act/s-4" and src["snippet"] == "Unless..."
 
 
 def test_unknown_guide_404(client):
