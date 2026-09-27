@@ -1,5 +1,6 @@
 import pytest
 
+from app import search
 from app.search import is_question, parse_citation
 
 
@@ -127,6 +128,23 @@ def test_search_groups_by_law_and_offers_ask(client):
     assert groups[0]["slug"] == "test-act" and groups[0]["title"] == "Test Act"
     assert {"display", "snippet", "url"} <= set(groups[0]["hits"][0])
     assert meta["ask_this"] is True
+
+
+def test_search_reranks_the_fused_candidates(client, conn):
+    """Plain-word search uses the /ask reranker on the fused top candidates (#41)."""
+    seen = {}
+
+    class RerankingAI(FakeAI):
+        def rerank(self, question, hits, top_k):
+            seen.update(question=question, n=len(hits), top_k=top_k)
+            return list(reversed(hits))[:top_k]
+
+    app.dependency_overrides[get_ai] = lambda: RerankingAI()
+    q = "how long to sue"
+    fused = search.search_hits(conn, q, [0.01] * 1536)
+    groups = client.get("/search", params={"q": q}).json()["data"]
+    assert seen == {"question": q, "n": len(fused), "top_k": search.SEARCH_TOP_K}
+    assert [h["url"] for g in groups for h in g["hits"]] == [h.source["url"] for h in reversed(fused)]
 
 
 def test_search_citation_query_is_not_a_question(client):

@@ -306,7 +306,7 @@ def get_suggest(q: Annotated[str, Query(min_length=2, max_length=200)], conn: Co
 @app.get("/search")
 def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Conn, ai: AI):
     """Hybrid retrieval grouped by law. Question-shaped queries get meta.ask_this so the UI can offer 'Ask this'."""
-    hits = search.search_hits(conn, q.strip(), ai.embed_query(q.strip()))
+    hits = search.search_hits(conn, q.strip(), ai.embed_query(q.strip()), rerank=getattr(ai, "rerank", None))
     groups = search.group_by_law(hits)
     return envelope(groups, meta={"total": len(hits), "ask_this": search.is_question(q)})
 

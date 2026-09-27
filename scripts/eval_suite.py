@@ -100,7 +100,7 @@ def run_search(m: Models) -> dict:
                 got = suggest(conn, it["query"])
                 rows.append({**it, "got": got[0]["url"] if got else None, "ok": score_jump(got, it["expected_url"])})
             else:
-                groups = group_by_law(search_hits(conn, it["query"], m.embed(it["query"])))
+                groups = group_by_law(search_hits(conn, it["query"], m.embed(it["query"]), rerank=m.rerank))
                 rows.append({**it, "got": [g["slug"] for g in groups[:3]], "ok": score_hit(groups, it["expected_slug"])})
     metrics = {"jump_accuracy": rate([r["ok"] for r in rows if r["kind"] == "jump"]),
                "hit@3": rate([r["ok"] for r in rows if r["kind"] == "hit"]), "n": len(rows)}
