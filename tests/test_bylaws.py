@@ -168,3 +168,34 @@ def test_layout_text_keeps_labels_with_their_paragraphs():
         "B. If a person fails to comply with a notice issued under § 743-44A, then the General Manager may:",
         "C. Where a person does not reimburse the City within 14 days, the City may recover the costs.",
     ]
+
+
+# Real heading layouts (#21), short synthetic bodies: footnote numbers after the heading, a quoted period, no period.
+LAYOUT_HEADINGS = """§ 743-9. Fouling and obstruction streets. 29
+
+Unless authorized by this Chapter:
+
+A.        No person shall foul a street.
+
+§ 743-10. Heating and air conditioning.28
+
+A.        Every system shall be kept in good repair.
+
+§ 743-11. Use of the word "highway."
+
+The word "highway" has the meaning in the Highway Traffic Act.
+
+§ 743-12. Transition
+
+A.        Despite this chapter, the former by-law continues to apply.
+"""
+
+
+def test_headings_stop_before_footnotes_and_body_text():
+    sections = parse_chapter(LAYOUT_HEADINGS, chapter="743", title="t", pdf_sha256="e" * 64, url="u", license="l").sections
+    assert [(s["heading"], s["text"].split("\n")[0]) for s in sections] == [
+        ("Fouling and obstruction streets", "Unless authorized by this Chapter:"),
+        ("Heating and air conditioning", "A. Every system shall be kept in good repair."),
+        ('Use of the word "highway."', 'The word "highway" has the meaning in the Highway Traffic Act.'),
+        ("Transition", "A. Despite this chapter, the former by-law continues to apply."),
+    ]
