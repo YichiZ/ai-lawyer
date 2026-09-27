@@ -142,7 +142,7 @@ Redis dispatches work; Postgres remembers it. This follows the Hello Interview g
 
 **Redis config:** AOF on (`appendfsync everysec`), `maxmemory` with `noeviction` so a full Redis rejects enqueues loudly instead of dropping jobs; stream capped with `XADD MAXLEN ~ 100000`. Queue depth, pending count and oldest-pending age are readable with `XLEN` / `XPENDING` and the `ingest_jobs` table (not exported as metrics in the demo).
 
-**Add-to-corpus (6.2).** A reviewer adds an official page from a web-fallback answer: https on ontario.ca, canada.ca, ontariocourts.ca, scc-csc.ca or toronto.ca only (redirects checked too), robots.txt obeyed, ≤ 1 request/s per host. Stages `fetch → parse → load → chunk → embed`; the file is kept in `input/web/` with a manifest line; HTML is split on h2/h3 headings (menus and link-only blocks dropped), PDFs by page; toronto.ca stays excerpt-only. Refusals (domain, robots.txt, 4xx, unsupported type) are permanent: `dead` at once, no retries. Added pages are kind `web` and join law retrieval.
+**Add-to-corpus (6.2).** A reviewer adds an official page from a web-fallback answer: https on ontario.ca, canada.ca, ontariocourts.ca, scc-csc.ca or toronto.ca only (redirects checked too), robots.txt obeyed, ≤ 1 request/s per host. Stages `fetch → parse → load → chunk → embed`; the file is kept in `input/web/` with a manifest line; HTML is split on h2/h3 headings (menus and link-only blocks dropped), PDFs by page; toronto.ca stays excerpt-only. Refusals (domain, robots.txt, 4xx, unsupported type) are permanent: `dead` at once, no retries. Added pages are kind `web`. The domain allowlist says nothing about relevance (a Transport Canada drone page passed it, #8), so the reviewer must tick "This page is about Ontario personal-injury law": `POST /ingest {url, in_scope: true}` (422 without it) and `ingest_jobs.scope_confirmed_by` records who. `DELETE /laws/{slug}` (reviewers only, kind `web` only, 409 for any other law) removes a page with its sections, chunks and job row; the file and manifest line in `input/` stay. Pages list under "Official web pages" with their title, their domain as secondary text and "fetched <date>" (`documents.date`) where laws show "as of <in-force date>".
 
 ## Retrieval
 
@@ -155,6 +155,8 @@ Measured in Phase 3 against the gold set (`docs/iterations.md` has every delta, 
 5. **Rerank** — gemini-3.5-flash-lite orders the fused top 20 (ids + first ~120 words) in one JSON call; keep top 8; it may reorder but not drop the fused top 3; errors/timeouts (2.5 s deadline) fall back to fused order. MRR ~0.91–0.92. Runs in the background before drafting, so it adds nothing to the researcher's wait. (Top 30 was slower and no better.)
 6. **Authority boost** — (Phase 5) small boost for SCC/ONCA and often-cited decisions; demote overturned ones.
 7. **Expand context** — attach section heading or neighbouring paragraphs.
+
+**Lanes.** Each kind of source is ranked on its own and never competes with the laws: the law lane (statutes, regulations, by-laws: `RETRIEVAL_KINDS`) gives the top 8; decisions the top 4 (mixing them in dropped statute recall@8 1.000 → 0.935); web pages a reviewer added the fused top 2, kept only within the grounding-gate distance (0.30), because in the law lane an ontario.ca Small Claims page outranked Limitations Act s. 4 for "how long to sue" (#8). The grounding gate reads law hits only. `/search` lists the law groups first, then web pages labelled "Official web page · domain". The batch jobs (situate, summarize) still process web pages (`ingest.chunks.LAW_KINDS`).
 
 Tried and dropped: a curated synonym table on the keyword side (no gain once fusion was fixed).
 
@@ -256,7 +258,7 @@ Indexes: HNSW on `embedding`, GIN on `tsv`, GIN trigram on titles/headings/terms
 | `POST /ask` | Sources now + answer id in `pending_review` |
 | `GET /answers/{id}`, `GET /review/queue`, `POST /answers/{id}/review` | Review workflow |
 | `GET /guides/{slug}`, `GET /glossary` | Topic guides, glossary |
-| `POST /ingest`, `GET /ingest/{job_id}` | Ingestion |
+| `POST /ingest` (reviewer, `in_scope: true`), `GET /ingest/{job_id}`, `DELETE /laws/{slug}` (reviewer, web pages only) | Ingestion; remove an added page |
 
 ## Evals
 
