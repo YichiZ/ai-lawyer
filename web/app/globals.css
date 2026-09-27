@@ -82,6 +82,8 @@ header a, header button {
 .law-text p[data-level="2"] { padding-left: 4.4em; text-indent: -2.2em; }
 .law-text p[data-level="3"] { padding-left: 6.6em; text-indent: -2.2em; }
 .law-text p[data-level="4"] { padding-left: 8.8em; text-indent: -2.2em; }
+.law-text .marginal-note { margin: 1em 0 0.2em; font-family: var(--font-source-sans), system-ui, sans-serif; font-size: 15px; font-weight: 600; }
+.law-text .marginal-note:first-child { margin-top: 0; }
 
 @media (prefers-reduced-motion: no-preference) {
   a, button { transition: color 150ms, background-color 150ms; }

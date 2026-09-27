@@ -82,6 +82,8 @@ def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | No
 
     full = doc["reproduction"] == "full"
     shown = (lambda t: t) if full else excerpt
+    # each subsection's marginal note goes on the line that opens it (labels are unique, so first lines are too)
+    notes = {c["text"].split("\n")[0]: c["heading"] for c in children if c["kind"] == "subsection" and c["heading"]}
     document = {k: v for k, v in doc.items() if k != "id"}
     return {
         "pinpoint": s["pinpoint"],
@@ -89,7 +91,7 @@ def get_section(conn: psycopg.Connection, doc: dict, pinpoint: str) -> dict | No
         "kind": s["kind"],
         "heading": s["heading"],
         "text": shown(s["text"]),
-        "lines": indent_lines(shown(s["text"])),
+        "lines": [{**line, "note": notes.get(line["text"])} for line in indent_lines(shown(s["text"]))],
         "full_text": full,
         "plain_summary": s["plain_summary"],  # our own words, so shown even for excerpt-only by-laws
         "glossary": glossary_for(conn, shown(s["text"])),

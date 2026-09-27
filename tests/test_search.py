@@ -79,6 +79,20 @@ def test_suggest_matches_headings_and_titles(client):
                        "heading": None, "url": "/laws/test-act"}
 
 
+def test_suggest_matches_subsection_notes_once(client, conn):
+    import json
+
+    from ingest.v0 import V0Law
+    from test_statutes import S267_5, S267_5_MD
+
+    auto = V0Law("auto-act", "Auto Act", "RSO 1990, c I8", "LEGISLATION-ON")
+    load_document(conn, parse_law(row(unofficial_sections_en=json.dumps(S267_5), unofficial_text_en=S267_5_MD), auto))
+    urls = [d["url"] for d in client.get("/suggest", params={"q": "non-pecuniary loss"}).json()["data"]]
+    assert "/laws/auto-act/s-267.5-5" in urls  # s. 267.5 itself has no heading; (5) carries the note
+    urls = [d["url"] for d in client.get("/suggest", params={"q": "ultimate limitation"}).json()["data"]]
+    assert "/laws/test-act/s-15" in urls and "/laws/test-act/s-15-1" not in urls  # (1)'s note is the section's
+
+
 @pytest.mark.parametrize("q", ["", "a", "x" * 201])
 def test_suggest_validates(client, q):
     assert client.get("/suggest", params={"q": q}).status_code == 422

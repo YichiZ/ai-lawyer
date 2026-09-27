@@ -1,7 +1,7 @@
 """Typeahead (/suggest) and grouped search (/search).
 
 Typing a citation ("s. 4(1)", "OLA s 6.1", "r. 2.02", "§ 743-9") jumps straight to the section; anything else is
-matched against law titles and section headings with pg_trgm.
+matched against law titles and section headings (and subsection marginal notes) with pg_trgm.
 """
 import re
 
@@ -103,7 +103,8 @@ def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> lis
     ).fetchall()
     sections = cur.execute(
         "SELECT d.slug, d.title, s.pinpoint, s.heading FROM sections s JOIN documents d ON d.id = s.document_id"
-        " WHERE s.kind = 'section' AND %s <%% s.heading"
+        " LEFT JOIN sections p ON p.id = s.parent_id"  # subsection notes too, unless it is the section's own heading
+        " WHERE s.kind IN ('section', 'subsection') AND s.heading IS DISTINCT FROM p.heading AND %s <%% s.heading"
         " ORDER BY word_similarity(%s, s.heading) DESC, d.title, s.sort_order LIMIT %s",
         (q, q, limit),
     ).fetchall()

@@ -15,7 +15,7 @@ function SectionLink({ slug, node }: { slug: string; node: TreeNode }) {
     <li className="py-1">
       <Link href={`/laws/${slug}/${node.pinpoint}`} className="grid grid-cols-[7rem_1fr] gap-3">
         <span className="pinpoint text-sm">{node.display}</span>
-        <span>{node.heading ?? <span className="text-muted">(no heading)</span>}</span>
+        <span>{node.heading}</span>
       </Link>
     </li>
   );
