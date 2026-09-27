@@ -52,9 +52,11 @@ def authorities_named(text: str) -> list[str]:
 
 def unsourced_authorities(draft: str, cited_titles: list[str]) -> list[str]:
     """Statutes/regulations the prose names that none of the cited sources is."""
-    titles = [norm(t) for t in cited_titles]
+    def key(s):  # dots dropped so "O. Reg. 239/02" matches a cited "O Reg 239/02, s 2"
+        return " ".join(norm(s).replace(".", " ").split())
+    titles = [key(t) for t in cited_titles]
     names = authorities_named(prose_of(draft))
-    return [n for n in names if not any(norm(n).rstrip(",") in t or t in norm(n) for t in titles)]
+    return [n for n in names if not any(key(n).rstrip(",") in t or t in key(n) for t in titles)]
 
 
 def secondary_statutes(prose: str, sources: list[dict], library_titles: list[str] = ()) -> list[str]:

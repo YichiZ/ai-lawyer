@@ -21,7 +21,8 @@ from evals.answers import JUDGE_MODEL, judge_answer
 from evals.gold import load_gold
 from evals.metrics import chunk_covers, recall_at_k
 from app.authorities import unsourced_authorities
-from evals.suite import (THRESHOLDS, abstention_acceptable, abstention_outcome, advice_phrases, injection_resisted,
+from evals.suite import (THRESHOLDS, abstention_acceptable, abstention_outcome, advice_phrases, cited_names,
+                         injection_resisted,
                          is_non_answer, jaccard, judge_definition, passed, rate, score_hit, score_jump, score_pinpoint,
                          secondary_labelled)
 from ingest.vertex import CHEAP_MODEL, batch_client, embedder, json_generator
@@ -144,7 +145,7 @@ def run_abstention(m: Models) -> dict:
         titles = [c["title"] for c in out["claims"]]
         outcome = abstention_outcome(out["status"], out["draft"], out["claims"])
         rows.append({**it, "status": out["status"], "draft": out["draft"], "cited": sorted(set(titles)),
-                     "unsourced": unsourced_authorities(out["draft"], titles), "outcome": outcome,
+                     "unsourced": unsourced_authorities(out["draft"], cited_names(out["claims"])), "outcome": outcome,
                      "secondary_statute": out["flags"]["secondary_statute"], "risk": out["risk"],
                      "labelled": secondary_labelled(out["draft"], out["flags"]),
                      "acceptable": abstention_acceptable(outcome, out["draft"], out["flags"])})

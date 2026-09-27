@@ -65,6 +65,12 @@ def test_abstention_outcomes():
                               [{"title": "Limitations Act, 2002", "kind": "statute"}]) == "grounded"
 
 
+def test_regulation_named_by_its_citation_is_grounded():
+    reg = [{"title": "Minimum Maintenance Standards for Municipal Highways", "kind": "regulation",
+            "citation": "Minimum Maintenance Standards for Municipal Highways, O Reg 239/02, s 2(1)"}]
+    assert abstention_outcome("drafted", "O. Reg. 239/02 sets minimum standards of repair.", reg) == "grounded"
+
+
 def test_secondary_counts_only_when_labelled_and_flagged():
     draft = "Under s. 44(10) of the Municipal Act, 2001, notice is due within 10 days."
     labelled, flags = f"{SECONDARY_LABEL}\n\n{draft}", {"secondary_statute": ["Municipal Act, 2001"]}
