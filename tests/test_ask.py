@@ -1,11 +1,14 @@
 import pytest
 
 from app.ask import (
+    CLAIMS_SCHEMA,
     GATE_MAX_DISTANCE,
+    AskResult,
     Retrieved,
     compose_draft,
     library_titles,
     normalize,
+    result_flags,
     rrf,
     run_ask,
     verify_claims,
@@ -194,3 +197,24 @@ def test_statute_sourced_answer_is_not_labelled():
                     "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
     result = run_ask("How long to sue?", [law], llm)
     assert not result.draft_markdown.startswith(SECONDARY_LABEL) and result.secondary_statute == []
+
+
+def test_advice_seeking_flag_from_the_model():
+    """#7: the drafting call also says whether the question asks for advice on the asker's own facts."""
+    out = {"in_scope": True, "answer": "Two years.", "claims": [claim("a proceeding shall not be commenced")]}
+    llm = FakeLLM([{**out, "advice_seeking": True}, out])
+    assert run_ask("I slipped last week. Do I have a case?", [hit("c1", 0.2)], llm).advice_seeking is True
+    assert run_ask("How long to sue?", [hit("c1", 0.2)], llm).advice_seeking is False
+    assert "advice_seeking" in CLAIMS_SCHEMA["required"]
+    assert "advice_seeking=true" in " ".join(llm.prompts[0].split())
+
+
+def test_advice_seeking_kept_when_unverified():
+    bad = {"in_scope": True, "advice_seeking": True, "answer": "x", "claims": [claim("made up words that are not there")]}
+    result = run_ask("Calculate my last day to sue.", [hit("c1", 0.2)], FakeLLM([bad, bad]))
+    assert result.status == "unverified" and result.advice_seeking
+
+
+def test_result_flags_carry_advice_seeking():
+    flags = result_flags(AskResult("drafted", "d", advice_seeking=True))
+    assert flags["advice_seeking"] is True and flags["status"] == "drafted"

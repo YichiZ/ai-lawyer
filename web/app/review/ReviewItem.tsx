@@ -8,6 +8,7 @@ import { REJECT_REASONS, type QueueItem } from "@/lib/api";
 
 const RISK_LABELS: Record<string, string> = {
   secondary_statute: "Statute only quoted in a decision",
+  advice_seeking: "Asks for advice on their own facts",
   dropped_claims: "Claims dropped by quote check",
   retried: "Needed a retry",
   not_found: "Not found in our laws",

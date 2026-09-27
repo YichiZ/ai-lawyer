@@ -13,7 +13,7 @@ from pathlib import Path
 
 import psycopg
 
-from app.ask import library_titles, pinpoint_claims, retrieve, retrieve_for_answer, run_ask
+from app.ask import library_titles, pinpoint_claims, result_flags, retrieve, retrieve_for_answer, run_ask
 from app.rerank import make_reranker
 from app.review import risk_reasons
 from app.search import SEARCH_TOP_K, group_by_law, suggest
@@ -63,8 +63,7 @@ def answer(m: Models, question: str) -> dict:
     claims = [{"text": c["text"], "quote": c["quote"], "slug": c["source"]["slug"],
                "pinpoint": c["source"]["pinpoint"], "title": c["source"]["title"], "kind": c["source"].get("kind"),
                "citation": c["source"]["citation"]["text"]} for c in result.claims]
-    flags = {"status": result.status, "dropped_claims": result.dropped, "retried": result.retried,
-             "secondary_statute": result.secondary_statute}
+    flags = result_flags(result)  # the flags complete_draft stores, so risk is computed as in production
     return {"status": result.status, "draft": result.draft_markdown, "claims": claims, "dropped": len(result.dropped),
             "flags": flags, "risk": risk_reasons(flags)}
 
