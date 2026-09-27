@@ -8,7 +8,8 @@ import time
 
 import psycopg
 
-from ingest.summaries import KINDS, MIN_CHARS, PLACEHOLDERS, source_hash, summarize_pending
+from ingest.chunks import LAW_KINDS
+from ingest.summaries import MIN_CHARS, PLACEHOLDERS, source_hash, summarize_pending
 from ingest.vertex import ANSWER_MODEL, batch_client, text_generator
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localhost:5432/ai_lawyer")
@@ -19,7 +20,7 @@ PROMPT_TOKENS, OUTPUT_TOKENS = 250, 110
 def main() -> int:
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
         rows = conn.execute("SELECT s.text, s.summary_source_hash FROM sections s JOIN documents d ON d.id = s.document_id"
-                            " WHERE s.kind = 'section' AND d.kind = ANY(%s)", (KINDS,)).fetchall()
+                            " WHERE s.kind = 'section' AND d.kind = ANY(%s)", (LAW_KINDS,)).fetchall()
         todo = [t for t, h in rows if len(t.strip()) >= MIN_CHARS and not t.strip().startswith(PLACEHOLDERS)
                 and h != source_hash(t)]
         tokens_in = sum(len(t) for t in todo) / 4 + len(todo) * PROMPT_TOKENS

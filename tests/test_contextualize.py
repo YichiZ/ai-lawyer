@@ -62,9 +62,12 @@ def test_unchanged_chunk_keeps_situating_through_sync(conn):
     assert got == {"s-4": "Situated.", "s-5": None}
 
 
-def test_decision_chunks_are_not_situated(conn):
-    doc = conn.execute("INSERT INTO documents (sha256, kind, slug, title, source) VALUES ('d', 'decision', 'c', 'R v X', 't')"
-                       " RETURNING id").fetchone()[0]
-    rows = [{"id": 10, "pinpoint": "para-1", "kind": "section", "heading": None, "text": "The appeal is allowed.", "parent": None}]
-    sync_chunks(conn, doc, plan_chunks("R v X", rows))
-    assert contextualize_pending(conn, lambda p: "x", workers=1) == 0
+def test_bylaw_and_web_chunks_are_situated_but_not_decisions(conn):
+    for kind in ("decision", "bylaw", "web"):
+        doc = conn.execute("INSERT INTO documents (sha256, kind, slug, title, source) VALUES (%s, %s, %s, %s, 't')"
+                           " RETURNING id", (kind, kind, kind, kind.title())).fetchone()[0]
+        rows = [{"id": 10, "pinpoint": "s-1", "kind": "section", "heading": None, "text": f"A {kind} rule.", "parent": None}]
+        sync_chunks(conn, doc, plan_chunks(kind.title(), rows))
+    assert contextualize_pending(conn, lambda p: "Situated.", workers=1) == 2
+    got = dict(conn.execute("SELECT d.kind, c.situating FROM chunks c JOIN documents d ON d.id = c.document_id").fetchall())
+    assert got == {"decision": None, "bylaw": "Situated.", "web": "Situated."}
