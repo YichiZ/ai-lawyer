@@ -2,6 +2,14 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Citation jumps for 'rule 76' and pinpoint-first order (#14, #20)
+
+- **#14 root cause:** `parse_citation` mapped every `r`/`rule` citation to the `r-` prefix, but whole Rules are stored as `rule-N` Parts (86 of them, incl. `rule-24.1`) and subrules as `r-N.NN`, so `rule 76` looked up `r-76`, which never exists. **Fix:** a rule number with no two-digit part (`76`, `24.1`) and no subclauses maps to `rule-N`; `r 76.01`, `rule 76.01`, `Rule 24.1.01`, `rule 14.08(1)` keep `r-`.
+- **#20 root cause:** `CITATION` only matched `[law] s. N`, so `s. 7 limitations act` fell through to title search and returned the law. **Fix:** a second pattern `CITATION_LAW_LAST` (same pinpoint grammar) accepts `s. N [,] [of] [the] <law>`: `s. 7 limitations act`, `section 7 of the Limitations Act`, `s 7 LA`, `r. 76.01 rcp`. An unfinished `section 7 of` jumps to s. 7 of any law instead of treating "of" as a law. Ranges (`ss. 4-5 …`) are still not citations in either order.
+- **Callers:** `parse_citation` is used only by `search.suggest` (`/suggest`, and the search eval through it).
+- **Tests:** 21 new parametrized cases in `tests/test_search.py` (rule vs subrule, law-last forms, existing law-first/abbreviation forms, negatives: neutral citation, `ss. 4-5 limitations act`, `s. 7 7`). pytest 507 passed. Checked `/suggest` on the dev DB: every form above opens the expected page; `LA s. 4`, `HTA s. 193`, `MA s. 44`, `2016 ONCA 585 at para 12` unchanged.
+- **Numbers (`scripts.eval_suite search`):** jump accuracy 0.929 → **1.000** (jump-05, jump-21 fixed); hit@3 0.917 unchanged (hit-02 "how long to sue" is #41).
+
 ## 2026-09-27 · Fix · Eval gate sized to measured judge noise; re-records stop ratcheting the baseline (#31)
 
 - **Measured first:**
