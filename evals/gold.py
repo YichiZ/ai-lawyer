@@ -1,6 +1,8 @@
 """The gold set: questions with the pinpoints that answer them and facts a correct answer must convey.
 
 Every in-scope item is grounded: its expected pinpoints exist and each fact appears in their official text.
+`expected` lists alternatives (any one is a hit); an alternative not yet lawyer-checked carries
+`"verified": false` and a `note`.
 """
 import json
 from pathlib import Path
@@ -58,6 +60,8 @@ def validate_gold(items: list[dict], conn: psycopg.Connection) -> list[str]:
             errors.append(f"{where}: no expected pinpoints")
         texts = []
         for e in expected:
+            if e.get("verified") is False and not (e.get("note") or "").strip():
+                errors.append(f"{where}: unverified pinpoint needs a note: {e.get('slug')} {e.get('pinpoint')}")
             text = _section_text(conn, e.get("slug", ""), e.get("pinpoint", ""))
             if text is None:
                 errors.append(f"{where}: pinpoint not found: {e.get('slug')} {e.get('pinpoint')}")

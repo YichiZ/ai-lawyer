@@ -67,6 +67,13 @@ def test_hit_covering_several_subsections_matches_any_of_them():
     assert recall_at_k([other, packed], dog, k=2) == 1.0 and mrr([other, packed], dog) == 0.5
 
 
+def test_unverified_alternative_counts_as_a_hit():
+    expected = [{"slug": "insurance-act", "pinpoint": "s-267.5-7"},
+                {"slug": "reg", "pinpoint": "s-5.1", "verified": False, "note": "not lawyer-checked"}]
+    ranked = [("reg", "s-5.1"), ("insurance-act", "s-267.5-7")]
+    assert recall_at_k(ranked, expected) == 1.0 and mrr(ranked, expected) == 1.0
+
+
 def test_chunk_covers_uses_subsections_not_the_parent(conn):
     from evals.metrics import chunk_covers
     from ingest.chunks import CHUNK_CHAR_LIMIT, load_sections

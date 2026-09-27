@@ -59,5 +59,14 @@ def test_duplicate_ids(db):
     assert any("duplicate id lim-01" in e for e in validate_gold([GOOD, GOOD], db))
 
 
+def test_unverified_alternative_needs_a_note_and_an_existing_pinpoint(db):
+    alt = {"slug": "test-act", "pinpoint": "s-15", "verified": False, "note": "not lawyer-checked"}
+    assert validate_gold([{**GOOD, "expected": GOOD["expected"] + [alt]}], db) == []
+    no_note = {k: v for k, v in alt.items() if k != "note"}
+    assert any("needs a note" in e for e in validate_gold([{**GOOD, "expected": GOOD["expected"] + [no_note]}], db))
+    missing = {**alt, "pinpoint": "s-999"}
+    assert any("pinpoint not found" in e for e in validate_gold([{**GOOD, "expected": GOOD["expected"] + [missing]}], db))
+
+
 def test_topics_cover_the_five_guides():
     assert {"limitations", "city-claims", "slip-and-fall", "dog-bites", "motor-vehicle"} <= set(TOPICS)
