@@ -179,6 +179,7 @@ Measured in Phase 3 against the gold set; `docs/iterations.md` has every delta, 
 `/search` runs the law lane plus close web pages, grouped by document, laws first, web pages labelled "Official web page · domain"; question-shaped queries get "Ask this". It is progressive: the page renders the fused results at once, then fetches `/search?rerank=true` (same hits, reranked with the same fast client and fallback; the query embedding is cached per process) and swaps the list in place. Fused order put Limitations Act s. 4 5th for "how long to sue" (#41). First results p50 0.3 s, reranked order p50 1.6 s. The swap remounts the list instead of moving nodes: moving them measured CLS 0.19, the remount 0. `/suggest` typeahead uses `pg_trgm` on titles and headings (and subsection notes), and jumps straight to a citation typed in either order (`LA s. 4`, `s. 7 of the Limitations Act`, `rule 76`, `2024 ONCA 123 at para 12`).
 
 **Tried and dropped:** a curated synonym table on the keyword side (no gain once fusion was fixed; re-tried for #41, it did not fix "how long to sue": `ts_rank_cd` favours long chunks, so s. 4 stayed out of the keyword top 50, and length normalization that fixed it cost fused MRR 0.864 → 0.846).
+
 **Not built:** in-force / jurisdiction / court / date filters (only the kind lanes filter); an authority boost for SCC/ONCA or often-cited decisions; neighbour-paragraph context expansion.
 
 ## Answering
@@ -207,6 +208,7 @@ Every chat answer and every topic-guide section is a draft until a reviewer appr
 5. **Learn** — Langfuse scores on the trace: decision, reason, time to review, edit distance; edited and rejected answers are appended to `evals/gold_candidates.jsonl`.
 
 No auto-release. The demo seeds two users (Demo Researcher, Demo Reviewer) selected by an `X-Demo-User` header — no real auth.
+
 **Not built:** a weekly report of approval rate, edit rate and review time (the per-answer scores exist in Langfuse).
 
 ## Frontend

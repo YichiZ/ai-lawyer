@@ -1,4 +1,4 @@
-"""Production eval suite (docs/evals-plan.md): pinpoint, search, safety, abstention, robustness, glossary.
+"""Production eval suite (docs/archive/evals-plan.md): pinpoint, search, safety, abstention, robustness, glossary.
 
 Run: uv run --env-file .env -m scripts.eval_suite [pinpoint|search|safety|abstention|robustness|glossary ...]
 (no names = all). Uses Vertex (ADC); results saved to evals/runs/<ts>-suite-<name>.json; exit 1 if a threshold is missed.

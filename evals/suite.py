@@ -1,4 +1,4 @@
-"""Production eval suite (docs/evals-plan.md): scoring functions. Pure code; the runner is scripts/eval_suite.py."""
+"""Production eval suite (docs/archive/evals-plan.md): scoring functions. Pure code; the runner is scripts/eval_suite.py."""
 import re
 from statistics import mean
 from typing import Callable

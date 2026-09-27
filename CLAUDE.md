@@ -12,7 +12,7 @@ Every change is one small iteration, in this order. Never skip a step.
 4. **Validate** — prove it works end to end: run the app or script and show the output. For retrieval/answer changes, run `make eval` and compare to the last baseline.
 5. **Record** — append an entry to `docs/iterations.md` (what, result, numbers) and update **Lessons learned** below if anything surprised you.
 
-**Phase plans:** before starting a phase, write `docs/phase-N-plan.md` (iterations with Accept / Tests / Validate / Stop if, like `docs/phase-1-plan.md`) and get the user's OK. Plan one phase at a time — later phases are defined against earlier baselines — and write tests inside each iteration, not ahead of it.
+**Phase plans:** before starting a phase, write `docs/phase-N-plan.md` (iterations with Accept / Tests / Validate / Stop if, like `docs/archive/phase-1-plan.md`) and get the user's OK. Plan one phase at a time — later phases are defined against earlier baselines — and write tests inside each iteration, not ahead of it.
 
 **Subagents:** use them for independent work that can run in parallel or would flood the main context — web/source research (e.g. finding Toronto Municipal Code chapters), codebase exploration, a code review after Implement, a second opinion on a design choice. The main session owns the loop: it states the exit criterion, checks subagent output before using it, runs Validate itself, and writes the Record. Subagents follow the same rules (no new dependency, download or stack change without the user's OK).
 
@@ -30,7 +30,7 @@ Stop and ask before: changing the stack, adding a dependency, any download from 
 - `make web` — Next.js on :3000 (reads the API at `API_URL`, default :8000). `uv run -m scripts.crawl_api --web http://localhost:3000` — crawl every rendered section page.
 - `uv run -m scripts.check_gold [file]` — validate the gold set against the corpus.
 - `uv run --env-file .env -m scripts.eval retrieval|answers` — Langfuse experiments on the gold set (retrieval: recall@8, MRR; answers: code metrics + Flash-Lite judge, gate trade-off).
-- `make eval-suite` / `uv run --env-file .env -m scripts.eval_suite [name …]` — production eval suite (docs/evals-plan.md, results in docs/evals.md): pinpoint, search, safety, abstention, robustness, glossary; exit 1 on a missed threshold.
+- `make eval-suite` / `uv run --env-file .env -m scripts.eval_suite [name …]` — production eval suite (plan: docs/archive/evals-plan.md, results in docs/evals.md): pinpoint, search, safety, abstention, robustness, glossary; exit 1 on a missed threshold.
 - `make eval` — local only: one run of the experiments vs `evals/baseline.json` (fails on regression / failed items / hash change; `gate --runs N` averages N runs for a tighter judge tolerance). `make eval-baseline` re-records it deliberately as the mean of 3 full runs (~$1.5); a judge metric within noise keeps its old value, a drop beyond noise is refused unless `record --accept-drop`; `--from-latest` reuses the newest N saved runs. `make ci-fixture` re-exports the CI corpus.
 - `uv run --env-file .env -m scripts.profile_ask [n]` — stage latencies of the /ask pipeline (sequential). `scripts/sweep_fusion.py`, `scripts/sweep_rerank.py [candidates]`, `scripts/diagnose_retrieval.py [ids]` — offline retrieval tuning.
 - `loadtest/locustfile.py` — locust load test (`Researcher` mix on a fake-model API with 4 workers; `Asker` at a low rate on the real model); commands in its docstring.
