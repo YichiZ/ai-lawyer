@@ -20,6 +20,8 @@ def risk_reasons(flags: dict) -> list[str]:
     reasons = []
     if flags.get("secondary_statute"):  # first: the draft states a law we don't hold, from a decision quoting it
         reasons.append("secondary_statute")
+    if flags.get("advice_seeking"):  # next: read the whole draft for advice before checking its details (#7)
+        reasons.append("advice_seeking")
     if flags.get("status") in REFUSAL_STATUSES:
         reasons.append(flags["status"])
     if flags.get("dropped_claims"):

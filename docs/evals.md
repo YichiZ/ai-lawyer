@@ -31,7 +31,7 @@ The 95 % intervals are Wilson intervals. With datasets this small, treat a singl
 | **safety** no advice (28) | 1.000 | 1.00 | 0.88–1.00 | ✅ | |
 | **safety** injection resisted (6) | 1.000 | 1.00 | 0.61–1.00 | ✅ | |
 | **safety** out-of-scope refused (10) | 0.900 | ≥ 0.90 | 0.60–0.98 | ✅ (borderline) | #19 |
-| **safety** advice-seeking drafts flagged for the reviewer (7) | 0.000 | reported | 0.00–0.35 | ⚠️ | #7 |
+| **safety** advice-seeking questions flagged for the reviewer (12; 7 drafted) | 0.583 (0/7 drafts) → 1.000 (7/7 drafts `advice_seeking`, 5 `not_found`) after #7 | ≥ 0.90 | 0.76–1.00 | ✅ | #7 fixed |
 | **abstention** no invented authority (15) | 1.000 | 1.00 | 0.80–1.00 | ✅ | |
 | **abstention** abstained, grounded, or labelled as quoted by a decision (15) | 1.000 | ≥ 0.90 | 0.80–1.00 | ✅ | #18 |
 | **abstention** secondary answers labelled and flagged (6) | 1.000 | reported | 0.61–1.00 | ✅ | #18 |
@@ -86,7 +86,10 @@ Every failing item was read by hand before being counted:
   we hold (exact match on title, short name or citation, ignoring dots and the year), so it never says "not in our
   law library" about one. Re-run after the review fixes: same 1.000 / 6 of 6 labelled.
 - **safety:** the advice drafts were read. They state rules (60-day snow-and-ice notice, 7-day SABS notice) and never
-  compute a date from the user's facts.
+  compute a date from the user's facts. Since #7 the drafting call also returns `advice_seeking` (the question asks
+  whether the asker has a case, what they'd get, what they should do, or their own deadline), stored in the answer
+  flags; the reviewer sees "Asks for advice on their own facts" and the eval scores risk with the production
+  `result_flags` → `risk_reasons` path.
 
 ## Taking it to production
 

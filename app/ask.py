@@ -39,6 +39,7 @@ CLAIMS_SCHEMA = {
     "type": "object",
     "properties": {
         "in_scope": {"type": "boolean"},
+        "advice_seeking": {"type": "boolean"},
         "scope_note": {"type": "string"},
         "answer": {"type": "string"},
         "claims": {"type": "array", "items": {
@@ -47,7 +48,7 @@ CLAIMS_SCHEMA = {
             "required": ["text", "chunk_id", "quote"],
         }},
     },
-    "required": ["in_scope", "answer", "claims"],
+    "required": ["in_scope", "advice_seeking", "answer", "claims"],
 }
 
 PROMPT = """You are a research assistant for paralegals and law students studying Ontario personal-injury law.
@@ -57,6 +58,10 @@ Toronto by-laws.
 Rules:
 - If the question is not about Ontario personal-injury law (or the related Toronto by-laws), set in_scope=false and
   put a short description of the topic in scope_note. Do not answer it.
+- Set advice_seeking=true if the question asks about the asker's own situation for a conclusion: whether they have a
+  case or will win, what their claim is worth or what they would get, what they should do, or when their own deadline
+  falls (they give their own date and ask for their deadline, or ask if it is too late). A question about what the
+  rule is, even phrased with "I" or "my" ("I tripped on a sidewalk. How soon must I notify the City?"), is false.
 - "answer": 2-3 plain sentences a law student can follow. State rules, not advice: never say whether someone has a
   case, never predict an outcome, never value a claim, never compute a specific deadline date.
 - "claims": each claim is one statement from your answer, the id of the passage that supports it (e.g. "c12"), and a
@@ -92,6 +97,7 @@ class AskResult:
     dropped: list[dict] = field(default_factory=list)
     retried: bool = False
     secondary_statute: list[str] = field(default_factory=list)  # laws named but only quoted by cited decisions (#18)
+    advice_seeking: bool = False  # the question asks for advice on the asker's own facts (#7)
 
 
 def normalize(s: str) -> str:
@@ -159,12 +165,13 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
     chunks = {h.chunk_id: h.text for h in hits}
     sources = {h.chunk_id: h.source for h in hits}
     passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}\n{h.text}" for h in hits)
-    all_dropped, feedback = [], ""
+    all_dropped, feedback, advice = [], "", False
     for attempt in range(2):
         prompt = PROMPT.format(question=question, passages=passages, feedback=feedback)
         with tracing.observe("generate", as_type="generation", input=prompt, metadata={"attempt": attempt + 1}) as gen:
             out = generate(prompt, CLAIMS_SCHEMA)
             gen.update(output=out)
+        advice = bool(out.get("advice_seeking"))
         if not out.get("in_scope", True):
             note = out.get("scope_note") or "that topic"
             return AskResult(status="out_of_scope", draft_markdown=(
@@ -178,11 +185,11 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
             secondary = secondary_statutes(out["answer"], [c["source"] for c in ok], library_titles)
             draft = compose_draft(out["answer"], ok)
             return AskResult("drafted", f"{SECONDARY_LABEL}\n\n{draft}" if secondary else draft, ok, all_dropped,
-                             retried=attempt > 0, secondary_statute=secondary)
+                             retried=attempt > 0, secondary_statute=secondary, advice_seeking=advice)
         feedback = ("\nYour previous quotes were not exact copies of the passages. Copy each quote character for "
                     "character from the passage you cite.\n")
     return AskResult(status="unverified", draft_markdown="No statement could be verified against the passages.",
-                     dropped=all_dropped, retried=True)
+                     dropped=all_dropped, retried=True, advice_seeking=advice)
 
 
 # --- database side ---
@@ -277,11 +284,16 @@ def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None
         ).fetchone()[0]
 
 
+def result_flags(result: AskResult) -> dict:
+    """The answer flags a draft result sets; risk_reasons() reads them (production and evals alike)."""
+    return {"status": result.status, "retried": result.retried, "dropped_claims": result.dropped,
+            "secondary_statute": result.secondary_statute, "advice_seeking": result.advice_seeking}
+
+
 def complete_draft(conn: psycopg.Connection, answer_id: int, result: AskResult, draft_ms: int,
                    hits: list[Retrieved] | None = None) -> None:
     """Store the draft; `hits` (the reranked passages the draft used) replace the sources shown at ask time."""
-    patch = {"status": result.status, "retried": result.retried, "dropped_claims": result.dropped,
-             "secondary_statute": result.secondary_statute}
+    patch = result_flags(result)
     if hits is not None:
         patch["sources"] = [{**h.source, "score": h.score, "distance": h.distance} for h in hits]
     with conn.transaction():

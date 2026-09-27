@@ -223,6 +223,22 @@ def test_secondary_statute_is_stored_and_flagged_first(client, conn):
     assert "secondary_statute" not in risk_reasons({"status": "drafted", "secondary_statute": []})
 
 
+def test_advice_seeking_is_stored_and_flagged_after_secondary_statute(client, conn):
+    """#7: a drafted answer to "do I have a case?" is risky even when the draft itself gives no advice."""
+    calm = make_answer(conn, question="How long to sue?")
+    result = AskResult("drafted", "Two years.", [CLAIM], [], advice_seeking=True)
+    answer_id = store_answer(conn, "I slipped last week. Do I have a case?", None, result, [HIT], {})
+    flags = conn.execute("SELECT flags FROM answers WHERE id = %s", (answer_id,)).fetchone()[0]
+    assert flags["advice_seeking"] is True and risk_reasons(flags) == ["advice_seeking"]
+    assert risk_reasons({**flags, "secondary_statute": ["X Act"], "retried": True}) == [
+        "secondary_statute", "advice_seeking", "retried"]
+    items = client.get("/review/queue", headers=REVIEWER).json()["data"]
+    order = [i["id"] for i in items]
+    assert order.index(answer_id) < order.index(calm)
+    assert next(i for i in items if i["id"] == answer_id)["risk"] == ["advice_seeking"]
+    assert risk_reasons({"status": "drafted", "advice_seeking": False}) == []
+
+
 def test_queue_marks_web_sources_addable_only_on_allowed_domains(client, conn):
     answer_id = make_answer(conn)
     sources = [{"url": "https://www.ontario.ca/page/x", "title": "X", "domain": "ontario.ca"},
