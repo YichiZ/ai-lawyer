@@ -56,8 +56,10 @@ def draft(conn, connect, ai, generate, question: str) -> int:
     vec = ai.embed_query(question)
     candidates = ask.retrieve(conn, question, vec, top_k=RERANK_CANDIDATES)
     cases = ask.retrieve(conn, question, vec, top_k=RERANK_CANDIDATES, kinds=["decision"])
-    answer_id = ask.create_pending(conn, question, None, candidates[:ask.TOP_K] + cases[:ask.CASE_K], {"sources": 0}, None)
-    draft_answer(connect, answer_id, question, candidates, generate, None, ai.rerank, cases)
+    pages = ask.retrieve_web(conn, question, vec)  # the web-page lane, as POST /ask retrieves it (#41)
+    hits = candidates[:ask.TOP_K] + pages + cases[:ask.CASE_K]
+    answer_id = ask.create_pending(conn, question, None, hits, {"sources": 0}, None)
+    draft_answer(connect, answer_id, question, candidates, generate, None, ai.rerank, cases, pages)
     return answer_id
 
 
