@@ -60,6 +60,21 @@ def test_queue_puts_risky_drafts_first(client, conn):
     assert "dropped_claims" in item["risk"]
 
 
+def test_queue_puts_guide_sections_after_risky_before_other_calm_drafts(client, conn):
+    calm = make_answer(conn, question="calm")
+    risky = make_answer(conn, status="unverified", question="risky")
+    guide = make_answer(conn, question="guide")
+    conn.execute("INSERT INTO guides (slug, title, intro, sort_order) VALUES ('mva', 'Motor vehicle accidents', 'i', 1)")
+    conn.execute("INSERT INTO guide_sections (guide_slug, heading, question, answer_id, sort_order)"
+                 " VALUES ('mva', 'Deadlines', 'guide', %s, 1)", (guide,))
+    items = client.get("/review/queue", headers=REVIEWER).json()["data"]
+    order = [i["id"] for i in items]
+    assert order.index(risky) < order.index(guide) < order.index(calm)
+    by_id = {i["id"]: i for i in items}
+    assert by_id[guide]["guide"] == {"slug": "mva", "title": "Motor vehicle accidents", "heading": "Deadlines"}
+    assert by_id[calm]["guide"] is None
+
+
 def test_researcher_sees_no_draft_while_pending(client, conn):
     aid = make_answer(conn)
     data = client.get(f"/answers/{aid}", headers=RESEARCHER).json()["data"]

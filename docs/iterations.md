@@ -2,6 +2,12 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Guide drafts first in the review queue; pending guide sections show their sources (#3)
+
+- **What:** `GET /review/queue` tags each item that belongs to a guide (`guide: {slug, title, heading}`, via `guide_sections.answer_id`) and sorts risky first, then guide sections, then oldest. Risk stays first: a flagged draft is the likeliest to be wrong, and guide sections are then the most valuable calm drafts (the home page's entry point). The review card shows "Guide: Motor vehicle accidents → Deadlines". `GET /guides/{slug}` now returns `sources` (from `answers.flags.sources`, excerpt snippets only) for sections pending review — never the draft or claims; approved sections are unchanged. The guide page shows "Awaiting review" plus the sources (`SourceList`, as on the Ask page).
+- **Not changed:** nothing is approved by code; the 16 guide drafts still need a human reviewer (issue #3's third bullet).
+- **Validated:** 3 new API tests (queue order + tag, pending section sources and no draft/claims, approved unchanged); new Playwright spec asks through the fake API, points a throwaway guide at the answer, checks the guide page (sources visible, "[Test answer]" absent, axe clean) and the reviewer's guide tag, then deletes the guide. Tests 437 passed; e2e 32/32 against a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+
 ## 2026-09-27 · Fix · Motor-vehicle Deadlines guide covers the limitation and SABS deadlines (#5)
 
 - **Root cause:** the section question ("time limits … to dispute accident benefits and to sue") retrieved no Limitations Act section at all: the fused top 20 were SABS and Insurance Act sections only, so the draft (answer 106) cited s. 259.1 (1 year to sue your own insurer over car damage) as a deadline and gave s. 258.3(1)'s 120-day notice as a bare "must".
