@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-27T04:06:04+00:00",
+  "recorded_at": "2026-09-27T04:17:02+00:00",
   "corpus_hash": "92a38d67d9fd1298b400eff2fcf20ea0eaf248ed79afedad4a8543f26c5eb22d",
   "gold_hash": "2940fb02dfa588f3463fa75bb0f178fe0d62591c8b13cf74f76427c43a6395d6",
   "models": {
@@ -9,7 +9,7 @@
   },
   "gate_max_distance": 0.3,
   "runs": {
-    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/36a97828-d8f1-493a-bb37-c5102ab22302",
+    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/9f0f2065-a9ce-4d5d-9e5a-98d3d2c89d8f",
     "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/75cb8a9a-9f28-47dc-96fe-aa2d3931cbd2",
     "summaries": "summaries - 2026-09-27T04:01:32.160368Z"
   },
@@ -25,7 +25,7 @@
   },
   "metrics": {
     "retrieval.recall@8": 1.0,
-    "retrieval.mrr": 0.9274,
+    "retrieval.mrr": 0.9119,
     "answers.out_of_scope.refusal_correct": 0.933,
     "answers.in_scope.has_verified_claim": 1.0,
     "answers.in_scope.verified_claim_rate": 0.993,
