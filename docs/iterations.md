@@ -2,6 +2,16 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Plain-word /search is reranked: 'how long to sue' finds the Limitations Act (#41)
+
+- **Root cause:** for "how long to sue", Limitations Act s. 4 is vector rank 5 and not in the keyword top 50 (its text says "proceeding … claim", not "sue"), so fused order (what /search showed) put Insurance Act, SABS and the Rules above it. /ask never had the problem: it reranks.
+- **Options measured (offline, same query vectors):** (b) the old 55-row synonym table (commit d293141) on the keyword side: hit@3 11/12, s. 4 still outside the keyword top 50 because `ts_rank_cd` rewards long chunks that repeat the OR'ed terms; gold fused MRR 0.864 → 0.876. Synonyms + length normalization (`ts_rank_cd(…, 2)`): hit@3 12/12 but gold fused MRR 0.864 → 0.846; normalization alone (1 or 2) or 32 didn't fix hit-02. (a) Flash-Lite rerank of /search's fused top 20: 12/12 in 3/3 passes, s. 4's law ranked first each time.
+- **Chosen: (a)**, the only option that fixed hit-02 without hurting /ask retrieval. `search_hits(…, rerank=)`; `/search` passes `ai.rerank` (the /ask fast client: one 2.5 s attempt, falls back to fused order); the search eval passes the eval reranker. /ask is unchanged, so no answers gate or re-record.
+- **Latency (production clients, embed + retrieve + rerank, 36 requests):** sequential p50 0.28 → 1.51 s, p95 0.61 → 2.04 s; 4 concurrent p50 0.25 → 1.42 s, p95 0.55 → 1.69 s. Right at the 2 s sources target; the 2.5 s deadline caps the worst case at ~3 s with fused order. Accepted: search is a research tool, and a wrong top law is worse than a second's wait.
+- **Also (#41 LOW, from PR #40):** `scripts/profile_ask.py` profiles `retrieve_for_answer` (laws + web + cases, as drafted) and `scripts/build_guides.py` passes the web lane to `create_pending` and `draft_answer`, like POST /ask.
+- **Tests:** `/search` calls the reranker with the fused candidates and shows its order (red without the wiring). pytest 508 passed. `profile_ask 2` ran (sources p50 3.3 s now includes the case rerank).
+- **Numbers:** `eval_suite search`: hit@3 0.917 → **1.000**, jump accuracy 1.000. `eval retrieval`: recall@8 1.000, MRR 0.921 (baseline 0.908, unchanged code path). `eval_suite robustness`: recall@8 1.000 (lay/legal/typo 1.0), overlap 0.558. Spend ≈ $0.15.
+
 ## 2026-09-27 · Fix · Citation jumps for 'rule 76' and pinpoint-first order (#14, #20)
 
 - **#14 root cause:** `parse_citation` mapped every `r`/`rule` citation to the `r-` prefix, but whole Rules are stored as `rule-N` Parts (86 of them, incl. `rule-24.1`) and subrules as `r-N.NN`, so `rule 76` looked up `r-76`, which never exists. **Fix:** a rule number with no two-digit part (`76`, `24.1`) and no subclauses maps to `rule-N`; `r 76.01`, `rule 76.01`, `Rule 24.1.01`, `rule 14.08(1)` keep `r-`.
