@@ -35,6 +35,10 @@ S.O. 2002, c. 24, Sched. B
 ### Ultimate limitation periods
 
 15 (1) Even if the period has not expired, no proceeding.
+
+### Same
+
+(2) No proceeding after the 15th anniversary,
 """
 
 
@@ -177,22 +181,22 @@ def test_locate_sections_tolerates_out_of_order_markdown():
 
     md = "### Heading two\n\n2.02 Motion text\n\n## RULE 2.1\n\n### Heading two-one\n\n2.1.01 Other text"
     found = locate_sections(md, ["2.1.01", "2.02"])  # section map order differs from Markdown order
-    assert found["2.1.01"] == ("RULE 2.1", "Heading two-one")
-    assert found["2.02"] == (None, "Heading two")
+    assert found["2.1.01"] == ("RULE 2.1", "Heading two-one", {})
+    assert found["2.02"] == (None, "Heading two", {})
 
 
 def test_locate_sections_heading_does_not_leak_to_next_section():
     from ingest.statutes import locate_sections
 
     md = "### Transition\n\n24 Text\n\n25-49 Omitted (amends other Acts)."
-    assert locate_sections(md, ["24", "25-49"])["25-49"] == (None, None)
+    assert locate_sections(md, ["24", "25-49"])["25-49"] == (None, None, {})
 
 
 def test_rule_headings_group_like_parts():
     from ingest.statutes import locate_sections, part_pinpoint
 
     md = "### GENERAL MATTERS\n\n### RULE 1 CITATION, APPLICATION AND INTERPRETATION\n\n### Citation\n\n1.01 These rules may be cited"
-    assert locate_sections(md, ["1.01"])["1.01"] == ("RULE 1 CITATION, APPLICATION AND INTERPRETATION", "Citation")
+    assert locate_sections(md, ["1.01"])["1.01"] == ("RULE 1 CITATION, APPLICATION AND INTERPRETATION", "Citation", {})
     assert part_pinpoint("RULE 2.1 GENERAL POWERS") == "rule-2.1"
     assert display_pinpoint("rule-2.1") == "Rule 2.1"
 
@@ -214,3 +218,75 @@ def test_hash_changes_with_parser_version(monkeypatch):
 def test_display_and_mcgill_pinpoints(pinpoint, display, mcgill):
     assert display_pinpoint(pinpoint) == display
     assert display_pinpoint(pinpoint, mcgill=True) == mcgill
+
+
+# Insurance Act s. 267.5 as A2AJ has it: a cross-heading, then one marginal note per subsection, no section heading.
+S267_5 = {
+    "267.5": "(1) Income loss text.\n(2) Subsection (1) applies.\n(3) Health care text.\n(4) Repealed.\n(5) Non-pecuniary text.\n(6) Same text.",
+    "3": "(1) Occupier duty.\n(2) Idem text.",
+}
+S267_5_MD = """### Protection from liability
+
+### Income loss and loss of earning capacity
+
+267.5 (1) Income loss text.
+
+### Application
+
+(2) Subsection (1) applies.
+
+### Protection from liability; health care expenses
+
+(3) Health care text.
+(4) Repealed.
+
+### Non-pecuniary loss
+
+(5) Non-pecuniary text.
+
+### Same
+
+(6) Same text.
+
+### Occupier’s duty
+
+3 (1) Occupier duty.
+
+### Idem
+
+(2) Idem text.
+"""
+
+
+def test_subsections_carry_their_own_marginal_notes():
+    pins = by_pinpoint(parse_law(row(unofficial_sections_en=json.dumps(S267_5), unofficial_text_en=S267_5_MD), LAW))
+    assert pins["s-267.5-1"]["heading"] == "Income loss and loss of earning capacity"
+    assert pins["s-267.5-3"]["heading"] == "Protection from liability; health care expenses"
+    assert pins["s-267.5-4"]["heading"] is None
+    assert pins["s-267.5-5"]["heading"] == "Non-pecuniary loss"
+    assert pins["s-267.5-6"]["heading"] == "Same"
+
+
+def test_section_with_many_distinct_notes_has_no_heading():
+    pins = by_pinpoint(parse_law(row(unofficial_sections_en=json.dumps(S267_5), unofficial_text_en=S267_5_MD), LAW))
+    assert pins["s-267.5"]["heading"] is None  # not "Income loss ...": (1) is one of four topics
+
+
+@pytest.mark.parametrize("notes, expected", [
+    ({"1": "Discovery", "2": "Presumption", "3": "Demand obligations", "4": "Same"},
+     "Discovery · Presumption · Demand obligations"),
+    ({"1": "Occupier’s duty", "2": "Idem"}, "Occupier’s duty"),
+    ({"1": "A", "2": "B", "3": "C", "4": "D"}, None),
+    ({"1": "Protection from liability; health care expenses", "2": "Amount of damages for non-pecuniary loss", "3": "Costs of the action"}, None),
+    ({}, "Basic limitation period"),
+])
+def test_section_heading(notes, expected):
+    from ingest.statutes import section_heading
+
+    assert section_heading(notes.get("1", "Basic limitation period"), notes) == expected
+
+
+def test_section_heading_unchanged_when_other_notes_only_continue_it():
+    pins = by_pinpoint(parse_law(row(unofficial_sections_en=json.dumps(S267_5), unofficial_text_en=S267_5_MD), LAW))
+    assert pins["s-3"]["heading"] == "Occupier’s duty"
+    assert pins["s-3-2"]["heading"] == "Idem"
