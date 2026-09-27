@@ -1,9 +1,12 @@
 """Run Langfuse experiments on the gold set.
 
 Run: uv run --env-file .env -m scripts.eval retrieval | answers | summaries | caselaw | retrieval-with-decisions
-                                          | gate | record [--from-latest]
-  gate    run both experiments and compare with evals/baseline.json (exit 1 on regression) — `make eval`
-  record  run both and write evals/baseline.json; --from-latest uses the newest saved runs instead
+                                          | gate | record [--runs N] [--from-latest] [--accept-drop]
+  gate    run the experiments once (--runs N: average N runs) and compare with evals/baseline.json (exit 1 on
+          regression) — `make eval`. Judge-metric tolerance is 2 sd of the difference of means (evals/baseline.py).
+  record  average 3 full runs (--runs N) and write evals/baseline.json — `make eval-baseline`. A judge metric within
+          noise of the old baseline keeps its old value; a drop beyond noise is refused unless --accept-drop.
+  --from-latest uses the newest N saved runs instead of running the experiments.
 Needs LANGFUSE_* keys (Langfuse Cloud) and Vertex ADC. Each run is also saved to evals/runs/ (gitignored).
 """
 import json
@@ -37,7 +40,8 @@ from evals.answers import (
     refusal_correct,
     verified_rate,
 )
-from evals.baseline import BASELINE_PATH, compare, corpus_hash, flatten, gold_hash
+from evals.baseline import (BASELINE_PATH, RECORD_RUNS, average, compare, corpus_hash, flatten, gold_hash,
+                            merge_record)
 from evals.gold import GOLD_PATH, load_gold
 from evals.langfuse_io import CASELAW_DATASET, DATASET, upsert_dataset
 from evals.metrics import chunk_covers, mean_of, mrr, recall_at_k, summarize
@@ -237,21 +241,26 @@ def run_summaries(lf: Langfuse) -> dict:
             "summary": summarize_scores(items), "items": items}
 
 
-def combined(retrieval: dict, answers: dict, summaries: dict | None = None) -> dict:
+def combined(runs: list[tuple[dict, dict, dict | None]]) -> dict:
+    """Baseline-shaped report; metrics are the mean over the (retrieval, answers, summaries) runs."""
     with psycopg.connect(DATABASE_URL) as conn:
         corpus = corpus_hash(conn)
+    retrieval, answers, summaries = runs[0]
     return {"recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "corpus_hash": corpus, "gold_hash": gold_hash(GOLD_PATH),
             "models": {"answer": ANSWER_MODEL, "judge": JUDGE_MODEL, "embedding": "gemini-embedding-2"},
-            "gate_max_distance": GATE_MAX_DISTANCE,
-            "runs": {"retrieval": retrieval["url"], "answers": answers["url"],
-                     **({"summaries": summaries["url"] or summaries["run_name"]} if summaries else {})},
+            "gate_max_distance": GATE_MAX_DISTANCE, "n_runs": len(runs),
+            "runs": [{"retrieval": r["url"], "answers": a["url"],
+                      **({"summaries": s["url"] or s["run_name"]} if s else {})} for r, a, s in runs],
             "latency_ms": answers["summary"]["latency_ms"],
-            "metrics": {k: round(v, 4) for k, v in flatten(retrieval, answers, summaries).items()}}
+            "metrics": average([flatten(*run) for run in runs])}
 
 
-def latest(kind: str) -> dict:
-    return json.loads(sorted(RUNS.glob(f"*-{kind}.json"))[-1].read_text())
+def latest(kind: str, n: int = 1) -> list[dict]:
+    paths = sorted(RUNS.glob(f"*-{kind}.json"))[-n:]
+    if len(paths) < n:
+        raise SystemExit(f"--from-latest: only {len(paths)} saved {kind} run(s), need {n}")
+    return [json.loads(p.read_text()) for p in paths]
 
 
 def save(kind: str, report: dict) -> Path:
@@ -261,31 +270,50 @@ def save(kind: str, report: dict) -> Path:
     return path
 
 
-def gate_or_record(lf: Langfuse | None, mode: str, from_latest: bool) -> int:
+def collect(lf: Langfuse | None, n: int, from_latest: bool) -> list[tuple[dict, dict, dict | None]]:
     if from_latest:
-        retrieval, answers = latest("retrieval"), latest("answers")
-        summaries = latest("summaries") if list(RUNS.glob("*-summaries.json")) else None
-    else:
-        retrieval, answers, summaries = run_retrieval(lf), run_answers(lf), run_summaries(lf)
-        save("retrieval", retrieval), save("answers", answers), save("summaries", summaries)
+        summaries = latest("summaries", n) if list(RUNS.glob("*-summaries.json")) else [None] * n
+        return list(zip(latest("retrieval", n), latest("answers", n), summaries))
+    runs = []
+    for i in range(n):
+        print(f"run {i + 1}/{n}", flush=True)
+        run = run_retrieval(lf), run_answers(lf), run_summaries(lf)
+        for kind, report in zip(("retrieval", "answers", "summaries"), run):
+            save(kind, report)
         lf.flush()
-    current = combined(retrieval, answers, summaries)
+        runs.append(run)
+    return runs
+
+
+def gate_or_record(lf: Langfuse | None, mode: str, from_latest: bool, n: int, accept_drop: bool = False) -> int:
+    current = combined(collect(lf, n, from_latest))
+    old = json.loads(BASELINE_PATH.read_text()) if BASELINE_PATH.exists() else None
     if mode == "record":
-        BASELINE_PATH.write_text(json.dumps(current, indent=2) + "\n")
-        print(f"recorded {BASELINE_PATH.relative_to(ROOT)}")
-        for k, v in current["metrics"].items():
-            print(f"  {k:<42} {v:.3f}")
+        ok, record, lines = merge_record(current, old, accept_drop)
+        print("\n".join(lines))
+        if not ok:
+            print("baseline NOT written")
+            return 1
+        BASELINE_PATH.write_text(json.dumps(record, indent=2) + "\n")
+        print(f"recorded {BASELINE_PATH.relative_to(ROOT)} (mean of {n} run(s))")
+        for k, v in record["metrics"].items():
+            print(f"  {k:<42} {v:.3f}   this record {current['metrics'][k]:.3f}")
         return 0
-    ok, lines = compare(current, json.loads(BASELINE_PATH.read_text()))
+    ok, lines = compare(current, old)
     print("\n".join(lines))
     return 0 if ok else 1
+
+
+def arg(name: str, default: int) -> int:
+    return int(sys.argv[sys.argv.index(name) + 1]) if name in sys.argv else default
 
 
 def main() -> int:
     kind = sys.argv[1] if len(sys.argv) > 1 else "retrieval"
     from_latest = "--from-latest" in sys.argv
     if kind in ("gate", "record"):
-        return gate_or_record(None if from_latest else Langfuse(), kind, from_latest)
+        n = arg("--runs", RECORD_RUNS if kind == "record" else 1)
+        return gate_or_record(None if from_latest else Langfuse(), kind, from_latest, n, "--accept-drop" in sys.argv)
     lf = Langfuse()
     if not lf.auth_check():
         sys.exit("Langfuse auth failed: check LANGFUSE_* in .env (run with uv run --env-file .env)")
