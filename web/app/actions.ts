@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ApiError, ask, askWeb, getIngestJob, getSection, ingestUrl, reviewAnswer, suggest, type IngestJob, type Suggestion } from "@/lib/api";
+import { ApiError, ask, askWeb, getIngestJob, getSection, ingestUrl, reviewAnswer, search, suggest, type IngestJob, type SearchGroup, type Suggestion } from "@/lib/api";
 import { ROLE_COOKIE, currentRole } from "@/lib/role";
 
 export type FormState = { error?: string };
@@ -71,6 +71,16 @@ export async function suggestAction(q: string): Promise<Suggestion[]> {
     return (await suggest(query)) ?? [];
   } catch {
     return []; // typeahead failing must not break typing; the full search page reports errors
+  }
+}
+
+export async function rerankedSearchAction(q: string): Promise<SearchGroup[] | null> {
+  const query = q.trim();
+  if (query.length < 2 || query.length > 500) return null;
+  try {
+    return (await search(query, true)).groups;
+  } catch {
+    return null; // the fused results are already on screen; keep them
   }
 }
 

@@ -303,12 +303,24 @@ def get_suggest(q: Annotated[str, Query(min_length=2, max_length=200)], conn: Co
     return envelope(search.suggest(conn, q.strip()))
 
 
+# ponytail: per-process LRU, so the page's fast /search and its follow-up ?rerank=true embed the query once; a shared
+# cache (Redis) only if several API workers must share it.
+@lru_cache(maxsize=256)
+def search_vector(ai, q: str) -> tuple[float, ...]:
+    return tuple(ai.embed_query(q))
+
+
 @app.get("/search")
-def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Conn, ai: AI):
-    """Hybrid retrieval grouped by law. Question-shaped queries get meta.ask_this so the UI can offer 'Ask this'."""
-    hits = search.search_hits(conn, q.strip(), ai.embed_query(q.strip()), rerank=getattr(ai, "rerank", None))
+def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Conn, ai: AI, rerank: bool = False):
+    """Hybrid retrieval grouped by law, in fused order (fast). `rerank=true` returns the same hits in the Flash-Lite
+    reranked order (fused order if the rerank fails or passes its deadline); the page fetches it after showing the
+    fast results (#41). Question-shaped queries get meta.ask_this so the UI can offer 'Ask this'."""
+    q = q.strip()
+    reranker = getattr(ai, "rerank", None) if rerank else None
+    hits = search.search_hits(conn, q, list(search_vector(ai, q)), rerank=reranker)
     groups = search.group_by_law(hits)
-    return envelope(groups, meta={"total": len(hits), "ask_this": search.is_question(q)})
+    return envelope(groups, meta={"total": len(hits), "ask_this": search.is_question(q),
+                                  "reranked": reranker is not None})
 
 
 @app.get("/glossary")

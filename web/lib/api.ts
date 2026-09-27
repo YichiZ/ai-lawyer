@@ -244,8 +244,10 @@ export const getGuide = (slug: string) =>
 export const getGlossary = () => get<GlossaryEntry[]>("/glossary");
 export const suggest = (q: string) => get<Suggestion[]>(`/suggest?q=${encodeURIComponent(q)}`);
 
-export async function search(q: string): Promise<{ groups: SearchGroup[]; askThis: boolean }> {
-  const body = await requestEnvelope<SearchGroup[]>(`/search?q=${encodeURIComponent(q)}`);  // 422 (bad query) -> null
+// Fused order (fast); `rerank` asks for the same hits in the reranked order, which takes ~1.5 s (#41).
+export async function search(q: string, rerank = false): Promise<{ groups: SearchGroup[]; askThis: boolean }> {
+  const path = `/search?q=${encodeURIComponent(q)}${rerank ? "&rerank=true" : ""}`;
+  const body = await requestEnvelope<SearchGroup[]>(path);  // 422 (bad query) -> null
   return { groups: body?.data ?? [], askThis: Boolean(body?.meta?.ask_this) };
 }
 
