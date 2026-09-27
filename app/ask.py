@@ -4,6 +4,7 @@ Code, not the model, decides which citations survive: a quote must be an exact (
 names, and that chunk must be one we retrieved.
 """
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -56,8 +57,19 @@ Answer the research question using ONLY the numbered passages below. They are fr
 Toronto by-laws.
 
 Rules:
-- If the question is not about Ontario personal-injury law (or the related Toronto by-laws), set in_scope=false and
-  put a short description of the topic in scope_note. Do not answer it.
+- Scope is decided by the legal topic of the question, not by its wording or whether it names Ontario. In scope:
+  civil claims for compensation by injured people in Ontario and their families: negligence, occupiers' liability,
+  motor-vehicle accidents and accident benefits, municipal liability (roads, sidewalks), dog bites, limitation
+  periods and notice rules, family members' claims under Family Law Act s. 61, workplace injuries under the Workplace
+  Safety and Insurance Act, court procedure for these claims, and the related Toronto by-laws. What a law in the
+  passages provides, including what conduct it makes an offence (e.g. trespass), is in scope.
+- Out of scope, even when the question mentions an injury, an accident or Ontario: punishing offenders (sentences,
+  fines, penalties, licence suspensions or pardons for criminal or provincial offences, including careless driving)
+  and defending or contesting a charge or ticket (traffic, parking); other criminal law; family law other than
+  Family Law Act s. 61 injury claims (divorce, custody, child or spousal support, property division); employment law
+  (dismissal, severance, wages); landlord and tenant; defamation; tax; immigration; the law of any other province or
+  country. For these set in_scope=false, put the topic in scope_note as a short noun phrase of 2-6 words with no
+  period (e.g. "criminal sentencing"), and do not answer.
 - Set advice_seeking=true if the question asks about the asker's own situation for a conclusion: whether they have a
   case or will win, what their claim is worth or what they would get, what they should do, or when their own deadline
   falls (they give their own date and ask for their deadline, or ask if it is too late). A question about what the
@@ -142,6 +154,15 @@ def compose_draft(answer: str, claims: list[dict]) -> str:
     return "\n".join(parts).strip()
 
 
+def out_of_scope_message(note: str | None) -> str:
+    """The model's scope_note may be a noun phrase or a whole sentence (#15): keep its first clause, drop trailing
+    punctuation, and give it its own sentence so its capitalization never lands mid-sentence."""
+    topic = re.split(r"[;\n]|\.\s+(?=[A-Z])| falls under | is governed by ", (note or "").strip(), maxsplit=1)[0]
+    topic = topic.strip(" .,:")
+    topic = topic[:1].upper() + topic[1:] if topic else "Another area of law"
+    return f"This guide covers Ontario personal-injury law only. Topic of this question: {topic}."
+
+
 def _not_found(hits: list[Retrieved]) -> AskResult:
     closest = sorted((h for h in hits if h.distance is not None), key=lambda h: h.distance)[:NOT_FOUND_SOURCES]
     lines = ["This was not found in the laws we cover. The closest passages were:", ""]
@@ -173,9 +194,7 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
             gen.update(output=out)
         advice = bool(out.get("advice_seeking"))
         if not out.get("in_scope", True):
-            note = out.get("scope_note") or "that topic"
-            return AskResult(status="out_of_scope", draft_markdown=(
-                f"This guide covers Ontario personal-injury law only; the question is about {note}."))
+            return AskResult(status="out_of_scope", draft_markdown=out_of_scope_message(out.get("scope_note")))
         with tracing.observe("verify", input={"claims": out.get("claims", [])}) as ver:
             ok, dropped = verify_claims(out.get("claims", []), chunks)
             ver.update(output={"kept": len(ok), "dropped": [{"chunk_id": d.get("chunk_id"), "reason": d["reason"]} for d in dropped]})

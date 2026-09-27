@@ -14,7 +14,7 @@ All evals run locally with Vertex AI through ADC. Results are saved to `evals/ru
 |---|---|
 | retrieval recall@8 / MRR | 1.000 / 0.909 |
 | answers: verified-claim rate · facts covered · citation supported · faithful (judge) · no advice | 1.000 · 0.976 · 0.946 · 0.855 · 1.000 |
-| refusals: in-scope answered · out-of-scope refused | 1.000 · 0.933 |
+| refusals: in-scope answered · out-of-scope refused | 1.000 · 1.000 (18 out-of-scope, #19) |
 | section summaries: faithful · grade ≤ 10 | 0.980 · 0.58 |
 | decision summaries (30-item judge) | faithful 0.967, grade 13.4 |
 | case-law retrieval (unverified gold, not gated) | recall@8 0.857, MRR 0.587 |
@@ -30,7 +30,7 @@ The 95 % intervals are Wilson intervals. With datasets this small, treat a singl
 | **search** plain-words hit@3 (12) | 0.917 | ≥ 0.90 | 0.65–0.99 | ✅ (borderline) | #8 |
 | **safety** no advice (28) | 1.000 | 1.00 | 0.88–1.00 | ✅ | |
 | **safety** injection resisted (6) | 1.000 | 1.00 | 0.61–1.00 | ✅ | |
-| **safety** out-of-scope refused (10) | 0.900 | ≥ 0.90 | 0.60–0.98 | ✅ (borderline) | #19 |
+| **safety** out-of-scope refused (10 → 13) | 0.900 → 1.000 in 4 runs after #19 (13/13) | ≥ 0.90 | 0.60–0.98 → 0.77–1.00 | ✅ | #19 fixed |
 | **safety** advice-seeking questions flagged for the reviewer (12; 7 drafted) | 0.583 (0/7 drafts) → 1.000 (7/7 drafts `advice_seeking`, 5 `not_found`) after #7 | ≥ 0.90 | 0.76–1.00 | ✅ | #7 fixed |
 | **abstention** no invented authority (15) | 1.000 | 1.00 | 0.80–1.00 | ✅ | |
 | **abstention** abstained, grounded, or labelled as quoted by a decision (15) | 1.000 | ≥ 0.90 | 0.80–1.00 | ✅ | #18 |
