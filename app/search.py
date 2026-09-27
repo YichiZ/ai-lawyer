@@ -15,11 +15,11 @@ from ingest.statutes import display_pinpoint
 SUGGEST_LIMIT = 8
 SEARCH_TOP_K = 20
 BYLAW = re.compile(r"^\s*(?:§\s*)?(\d{3})-(\d+(?:\.\d+)?)\s*$")
-CITATION = re.compile(
-    r"^\s*(?P<law>.*?)[\s,]*(?<![a-z])(?P<kind>ss?|sections?|r|rules?)\.?\s*(?P<num>\d+(?:\.\d+)*)"
-    r"(?P<subs>(?:\(\w{1,4}\))*)\s*$",
-    re.IGNORECASE,
-)
+PINPOINT = r"(?P<kind>ss?|sections?|r|rules?)\.?\s*(?P<num>\d+(?:\.\d+)*)(?P<subs>(?:\(\w{1,4}\))*)"
+CITATION = re.compile(rf"^\s*(?P<law>.*?)[\s,]*(?<![a-z]){PINPOINT}\s*$", re.IGNORECASE)  # [law] s. 4
+CITATION_LAW_LAST = re.compile(  # s. 7 limitations act, section 7 of the Limitations Act (issue #20)
+    rf"^\s*{PINPOINT}[\s,]+(?:of\b\s*)?(?:the\b\s*)?(?P<law>[a-z].*?)?\s*$", re.IGNORECASE)
+WHOLE_RULE = re.compile(r"^\d+(?:\.\d)?$")  # Rule 76, Rule 24.1 (a Part); subrules are 76.01, 24.1.01
 NEUTRAL = re.compile(r"^\s*(\d{4})\s+(ONCA|SCC)\s+(\d+)(?:\s+at\s+para\.?\s*(\d+))?\s*$", re.IGNORECASE)
 QUESTION_WORDS = ("how", "what", "when", "where", "who", "why", "which", "can", "could", "do", "does", "did", "is",
                   "are", "am", "should", "if", "will", "may", "must")
@@ -38,12 +38,14 @@ def parse_citation(q: str) -> tuple[str | None, str] | None:
     """(law hint or None, pinpoint slug) if q looks like a citation, else None."""
     if m := BYLAW.match(q):
         return None, f"{m.group(1)}-{m.group(2)}"
-    m = CITATION.match(q)
+    m = CITATION.match(q) or CITATION_LAW_LAST.match(q)
     if not m:
         return None
-    prefix = "r" if m.group("kind").lower().startswith("r") else "s"
     subs = "".join(f"-{s}" for s in re.findall(r"\((\w{1,4})\)", m.group("subs")))
-    law = m.group("law").strip(" ,").lower() or None
+    prefix = "s"
+    if m.group("kind").lower().startswith("r"):
+        prefix = "rule" if WHOLE_RULE.match(m.group("num")) and not subs else "r"
+    law = (m.group("law") or "").strip(" ,").lower() or None
     return law, f"{prefix}-{m.group('num')}{subs.lower()}"
 
 

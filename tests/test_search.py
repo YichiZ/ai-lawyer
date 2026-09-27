@@ -17,13 +17,36 @@ from app.search import is_question, parse_citation
         ("Limitations Act s. 4", "limitations act", "s-4"),
         ("OLA s 6.1", "ola", "s-6.1"),
         ("negligence act, s. 3", "negligence act", "s-3"),
+        # a whole Rule is stored as a rule-N Part, its subrules as r-N.NN (issue #14)
+        ("rule 76", None, "rule-76"),
+        ("Rule 76", None, "rule-76"),
+        ("r. 76", None, "rule-76"),
+        ("rule 24.1", None, "rule-24.1"),
+        ("rcp rule 76", "rcp", "rule-76"),
+        ("r 76.01", None, "r-76.01"),
+        ("r. 76.01", None, "r-76.01"),
+        ("rule 76.01", None, "r-76.01"),
+        ("Rule 24.1.01", None, "r-24.1.01"),
+        # pinpoint before the law name (issue #20)
+        ("s. 7 limitations act", "limitations act", "s-7"),
+        ("section 7 of the Limitations Act", "limitations act", "s-7"),
+        ("s 7 LA", "la", "s-7"),
+        ("s. 4(1), Limitations Act", "limitations act", "s-4-1"),
+        ("r. 76.01 rcp", "rcp", "r-76.01"),
+        ("rule 76 of the rules", "rules", "rule-76"),
+        ("HTA s. 193", "hta", "s-193"),
+        ("MA s. 44", "ma", "s-44"),
+        ("limitations act s 4", "limitations act", "s-4"),
+        ("section 7 of", None, "s-7"),  # still typing the law name
+        ("s. 7 the", None, "s-7"),
     ],
 )
 def test_parse_citation(q, law, pinpoint):
     assert parse_citation(q) == (law, pinpoint)
 
 
-@pytest.mark.parametrize("q", ["slip and fall", "dog bite", "limitation period", "4 wheels", ""])
+@pytest.mark.parametrize("q", ["slip and fall", "dog bite", "limitation period", "4 wheels", "", "2016 ONCA 585 at para 12",
+                               "ss. 4-5 limitations act", "s. 7 7"])
 def test_not_a_citation(q):
     assert parse_citation(q) is None
 
