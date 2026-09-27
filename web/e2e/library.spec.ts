@@ -21,6 +21,13 @@ test("library → law → section, with official text, provenance and copyable c
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Limitations Act, 2002, SO 2002, c 24, Sched B, s 4");
 });
 
+test("each subsection shows its own marginal note; a multi-topic section is not titled by (1) (#9)", async ({ page }) => {
+  await page.goto("/laws/limitations-act-2002/s-5");
+  await expect(page.getByRole("heading", { level: 1, name: "Discovery · Presumption · Demand obligations" })).toBeVisible();
+  const notes = page.locator(".law-text .marginal-note");
+  await expect(notes).toHaveText(["Discovery", "Presumption", "Demand obligations", "Same"]);
+});
+
 test("Toronto by-law sections show an excerpt and a link, never the full text", async ({ page }) => {
   await page.goto("/laws/toronto-municipal-code-743/743-44");
   await expect(page.getByText(/^Excerpt only/)).toBeVisible();

@@ -46,7 +46,7 @@ export interface GlossaryEntry {
 
 export interface Section extends SectionRef {
   text: string;
-  lines: { text: string; level: number }[];
+  lines: { text: string; level: number; note?: string | null }[];  // note: the subsection marginal note that opens this line
   full_text: boolean;
   plain_summary: string | null;
   glossary: GlossaryEntry[];

@@ -18,7 +18,9 @@ RANGE_KEY = re.compile(r"^\d+(?:\.\d+)*-\d+(?:\.\d+)*$")
 SUBSECTION_LINE = re.compile(r"^\((\d+(?:\.\d+)?)\)\s")
 PART_HEADING = re.compile(r"^part\s+([ivxlc]+(?:\.\d+)?)\b", re.IGNORECASE)
 RULE_HEADING = re.compile(r"^rule\s+(\d+(?:\.\d+)?)\b", re.IGNORECASE)  # Rules of Civil Procedure group by Rule
-PARSER_VERSION = 2  # bump when parsing changes so the loader replaces already-loaded documents
+CONTINUATION_NOTE = re.compile(r"^(Same|Idem)\b")
+MAX_JOINED_NOTES, MAX_JOINED_CHARS = 3, 100  # a joined section heading still reads as a title
+PARSER_VERSION = 3  # bump when parsing changes so the loader replaces already-loaded documents
 RULE_SLUGS = {"rules-of-civil-procedure"}
 
 
@@ -89,25 +91,33 @@ def split_subsections(text: str) -> list[tuple[str, str]]:
 SECTION_START = re.compile(r"^(\d+(?:\.\d+)*(?:-\d+(?:\.\d+)*)?)(?:\s|$)")
 
 
-def locate_sections(markdown: str, keys: list[str]) -> dict[str, tuple[str | None, str | None]]:
-    """key -> (part heading, section heading) from the Markdown.
+def locate_sections(markdown: str, keys: list[str]) -> dict[str, tuple[str | None, str | None, dict[str, str]]]:
+    """key -> (part heading, heading before the section's first line, {subsection label: its marginal note}).
 
     One pass records the part and heading in effect at each line (a heading applies only up to the next section
-    start). Keys are looked up forward from the previous hit first, then anywhere, because the section map order
-    can differ from the Markdown order (e.g. Rule 2.1.01 vs 2.02).
+    start) and the `###` note directly above each "(n)" line. Keys are looked up forward from the previous hit first,
+    then anywhere, because the section map order can differ from the Markdown order (e.g. Rule 2.1.01 vs 2.02).
     """
-    part_at, heading_at, starts = [], [], {}
-    part = heading = None
+    part_at, heading_at, starts, notes_at = [], [], {}, {}
+    part = heading = note = current = None
     for i, line in enumerate(markdown.split("\n")):
         part_at.append(part)
         heading_at.append(heading)
         if line.startswith("## ") or (line.startswith("### ") and RULE_HEADING.match(line[4:])):
-            part, heading = line.split(" ", 1)[1].strip(), None
+            part, heading, note, current = line.split(" ", 1)[1].strip(), None, None, None
         elif line.startswith("### "):
-            heading = line[4:].strip()
+            heading = note = line[4:].strip()
         elif m := SECTION_START.match(line):
             starts.setdefault(m.group(1), []).append(i)
-            heading = None
+            notes_at[i] = {}
+            if sub := SUBSECTION_LINE.match(line[m.end():]):
+                notes_at[i][sub.group(1)] = heading
+            heading = note = None
+            current = i
+        elif line.strip():
+            if (sub := SUBSECTION_LINE.match(line)) and current is not None and note:
+                notes_at[current][sub.group(1)] = note
+            note = None
 
     pos, last_part, found = 0, None, {}
     for key in keys:
@@ -118,10 +128,21 @@ def locate_sections(markdown: str, keys: list[str]) -> dict[str, tuple[str | Non
             if forward:
                 pos = i + 1
             last_part = part_at[i]
-            found[key] = (part_at[i], heading_at[i])
+            found[key] = (part_at[i], heading_at[i], notes_at[i])
         else:
-            found[key] = (last_part, None)  # not in the Markdown: stays under the previous part
+            found[key] = (last_part, None, {})  # not in the Markdown: stays under the previous part
     return found
+
+
+def section_heading(first: str | None, notes: dict[str, str]) -> str | None:
+    """e-Laws gives subsections, not sections, their marginal notes. The note above (1) is the section's heading only
+    when later notes merely continue it ("Same", "Idem"); a few distinct notes are joined (" · ", since notes contain
+    ";"); more than that has no section heading (s. 267.5 has 18 notes) and each subsection shows its own."""
+    distinct = list(dict.fromkeys(n for n in [first, *notes.values()] if n and not CONTINUATION_NOTE.match(n)))
+    joined = " · ".join(distinct)
+    if len(distinct) <= 1:
+        return first
+    return joined if len(distinct) <= MAX_JOINED_NOTES and len(joined) <= MAX_JOINED_CHARS else None
 
 
 def part_pinpoint(heading: str) -> str:
@@ -156,14 +177,14 @@ def parse_law(row: dict, law: V0Law) -> ParsedLaw:
     for key, text in section_map.items():
         if not text or not text.strip():
             raise ValueError(f"{law.slug}: section {key} has empty text")
-        part_heading, heading = located[key]
+        part_heading, first_note, notes = located[key]
         parent = part_pinpoint(part_heading) if part_heading else None
         if parent and parent not in seen:
             add(parent, "part", part_heading, "", None)
         pin = section_pinpoint(key, prefix)
-        add(pin, "section", heading, text, parent)
+        add(pin, "section", section_heading(first_note, notes), text, parent)
         for label, sub_text in split_subsections(text):
-            add(f"{pin}-{label}", "subsection", None, sub_text, pin)
+            add(f"{pin}-{label}", "subsection", notes.get(label), sub_text, pin)
 
     document = {
         "sha256": source_hash(row),
@@ -198,16 +219,27 @@ def load_document(conn: psycopg.Connection, parsed: ParsedLaw) -> str:
             doc_id = existing[0]
             sets = ", ".join(f"{c} = %s" for c in DOC_COLUMNS)
             conn.execute(f"UPDATE documents SET {sets} WHERE id = %s", (*values, doc_id))
-            conn.execute("DELETE FROM sections WHERE document_id = %s", (doc_id,))
+            # Update sections in place by pinpoint: summaries, citation links and chunk section_ids keep their ids.
+            # Unparent first so deleting a dropped part cannot cascade into a section that is kept.
+            conn.execute("UPDATE sections SET parent_id = NULL WHERE document_id = %s", (doc_id,))
+            conn.execute("DELETE FROM sections WHERE document_id = %s AND NOT pinpoint = ANY(%s)",
+                         (doc_id, [s["pinpoint"] for s in parsed.sections]))
+            old = dict(conn.execute("SELECT pinpoint, id FROM sections WHERE document_id = %s", (doc_id,)).fetchall())
         else:
             cols, marks = ", ".join(DOC_COLUMNS), ", ".join(["%s"] * len(DOC_COLUMNS))
             doc_id = conn.execute(f"INSERT INTO documents ({cols}) VALUES ({marks}) RETURNING id", values).fetchone()[0]
+            old = {}
         ids: dict[str, int] = {}
         for s in parsed.sections:
             parent_id = ids[s["parent"]] if s["parent"] else None
-            ids[s["pinpoint"]] = conn.execute(
-                "INSERT INTO sections (document_id, parent_id, pinpoint, kind, heading, text, sort_order)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
-                (doc_id, parent_id, s["pinpoint"], s["kind"], s["heading"], s["text"], s["sort_order"]),
-            ).fetchone()[0]
+            fields = (parent_id, s["kind"], s["heading"], s["text"], s["sort_order"])
+            if s["pinpoint"] in old:
+                ids[s["pinpoint"]] = old[s["pinpoint"]]
+                conn.execute("UPDATE sections SET parent_id = %s, kind = %s, heading = %s, text = %s, sort_order = %s"
+                             " WHERE id = %s", (*fields, old[s["pinpoint"]]))
+            else:
+                ids[s["pinpoint"]] = conn.execute(
+                    "INSERT INTO sections (parent_id, kind, heading, text, sort_order, document_id, pinpoint)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id", (*fields, doc_id, s["pinpoint"]),
+                ).fetchone()[0]
     return "updated" if existing else "inserted"

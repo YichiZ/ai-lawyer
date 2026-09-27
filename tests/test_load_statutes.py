@@ -38,6 +38,20 @@ def test_changed_source_replaces_sections(conn):
     assert conn.execute("SELECT text FROM sections WHERE pinpoint = 's-4'").fetchone()[0] == "New text."
 
 
+def test_reload_keeps_section_ids_and_summaries(conn):
+    """Summaries, citation links and chunk section_ids point at section ids, so a reload updates rows in place."""
+    load_document(conn, parse_law(row(), LAW))
+    ids = dict(conn.execute("SELECT pinpoint, id FROM sections"))
+    conn.execute("UPDATE sections SET plain_summary = 'kept', summary_source_hash = 'h' WHERE pinpoint = 's-15'")
+    sections = {k: v for k, v in SECTIONS.items() if k != "Schedule"}  # one section removed
+    changed = parse_law(row(unofficial_sections_en=json.dumps({**sections, "4": "New text."})), LAW)
+    assert load_document(conn, changed) == "updated"
+    after = dict(conn.execute("SELECT pinpoint, id FROM sections"))
+    assert after == {p: i for p, i in ids.items() if p != "schedule"}
+    assert conn.execute("SELECT plain_summary FROM sections WHERE pinpoint = 's-15'").fetchone()[0] == "kept"
+    assert conn.execute("SELECT text FROM sections WHERE pinpoint = 's-4'").fetchone()[0] == "New text."
+
+
 def test_failure_mid_document_leaves_no_rows(conn):
     parsed = parse_law(row(), LAW)
     parsed.sections[-1]["parent"] = "no-such-parent"  # corrupt the tree after some rows were inserted

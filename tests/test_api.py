@@ -52,6 +52,12 @@ def test_section_full_text_with_navigation(client):
     assert body["document"]["upstream_license"] == "See upstream license"
 
 
+def test_section_lines_carry_subsection_marginal_notes(client):
+    lines = client.get("/laws/test-act/s-15").json()["data"]["lines"]
+    assert [(l["level"], l["note"]) for l in lines] == [
+        (1, "Ultimate limitation periods"), (1, "Same"), (2, None), (3, None), (1, None)]
+
+
 def test_subsection_breadcrumb(client):
     body = client.get("/laws/test-act/s-15-2").json()["data"]
     assert [b["pinpoint"] for b in body["breadcrumb"]] == ["part-ii", "s-15"]

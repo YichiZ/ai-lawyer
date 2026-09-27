@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { asOf, getSection, sourceLabel } from "@/lib/api";
 import CopyCitation from "./CopyCitation";
@@ -63,7 +64,7 @@ export default async function SectionPage({ params }: Props) {
             <li key={c.pinpoint} className="py-1">
               <Link href={`/laws/${slug}/${c.pinpoint}`} className="grid grid-cols-[7rem_1fr] gap-3">
                 <span className="pinpoint text-sm">{c.display}</span>
-                <span>{c.heading ?? <span className="text-muted">(no heading)</span>}</span>
+                <span>{c.heading}</span>
               </Link>
             </li>
           ))}
@@ -72,9 +73,10 @@ export default async function SectionPage({ params }: Props) {
         <div className="mt-6 rounded-sm border border-rule bg-panel px-5 py-5">
           <div className="law-text">
             {s.lines.map((line, i) => (
-              <p key={i} data-level={line.level}>
-                {line.text}
-              </p>
+              <Fragment key={i}>
+                {line.note && <p className="marginal-note">{line.note}</p>}
+                <p data-level={line.level}>{line.text}</p>
+              </Fragment>
             ))}
           </div>
           {!s.full_text && (

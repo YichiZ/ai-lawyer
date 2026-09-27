@@ -7,7 +7,7 @@ id,document_id,parent_id,pinpoint,kind,heading,text,sort_order,plain_summary
 “discharge” has the same meaning as in the Environmental Protection Act; (“rejet”, “rejeter”)
 “environmental claim” means a claim based on an act or omission that caused, contributed to, or permitted the discharge of a contaminant into the natural environment that has caused or is likely to cause an adverse effect; (“réclamation relative à l’environnement”)
 “natural environment” has the same meaning as in the Environmental Protection Act. (“environnement naturel”)",1,"This section defines key terms for anyone using this Act. It covers assault, claims, and environmental claims. Other terms use meanings from the Environmental Protection Act."
-12969,1,,s-2,section,Application,"(1) This Act applies to claims pursued in court proceedings other than,
+12969,1,,s-2,section,"Application · Exception, aboriginal rights","(1) This Act applies to claims pursued in court proceedings other than,
 (a) proceedings to which the Real Property Limitations Act applies;
 (b) proceedings in the nature of an appeal, if the time for commencing them is governed by an Act or rule of court;
 (c) proceedings under the Judicial Review Procedure Act;
@@ -16,7 +16,7 @@ id,document_id,parent_id,pinpoint,kind,heading,text,sort_order,plain_summary
 (f) proceedings based on equitable claims by aboriginal peoples against the Crown; and
 (g) proceedings to which the Limitation Convention or the Amended Limitation Convention, as defined in the International Sales Conventions Act, applies.
 (2) Proceedings referred to in clause (1) (e) and (f) are governed by the law that would have been in force with respect to limitation of actions if this Act had not been passed.",2,"This Act applies to people pursuing claims in court proceedings. It excludes certain listed proceedings, including specific Aboriginal claims. Those excluded Aboriginal claims follow previous limitation laws."
-12970,1,12969,s-2-1,subsection,,"(1) This Act applies to claims pursued in court proceedings other than,
+12970,1,12969,s-2-1,subsection,Application,"(1) This Act applies to claims pursued in court proceedings other than,
 (a) proceedings to which the Real Property Limitations Act applies;
 (b) proceedings in the nature of an appeal, if the time for commencing them is governed by an Act or rule of court;
 (c) proceedings under the Judicial Review Procedure Act;
@@ -24,10 +24,10 @@ id,document_id,parent_id,pinpoint,kind,heading,text,sort_order,plain_summary
 (e) proceedings based on the existing aboriginal and treaty rights of the aboriginal peoples of Canada which are recognized and affirmed in section 35 of the Constitution Act, 1982;
 (f) proceedings based on equitable claims by aboriginal peoples against the Crown; and
 (g) proceedings to which the Limitation Convention or the Amended Limitation Convention, as defined in the International Sales Conventions Act, applies.",3,
-12971,1,12969,s-2-2,subsection,,(2) Proceedings referred to in clause (1) (e) and (f) are governed by the law that would have been in force with respect to limitation of actions if this Act had not been passed.,4,
+12971,1,12969,s-2-2,subsection,"Exception, aboriginal rights",(2) Proceedings referred to in clause (1) (e) and (f) are governed by the law that would have been in force with respect to limitation of actions if this Act had not been passed.,4,
 12972,1,,s-3,section,Crown,This Act binds the Crown.,5,
 12973,1,,s-4,section,Basic limitation period,"Unless this Act provides otherwise, a proceeding shall not be commenced in respect of a claim after the second anniversary of the day on which the claim was discovered.",6,"A person cannot start a proceeding after two years of discovering a claim. This applies to anyone with a claim, unless this Act provides otherwise."
-12974,1,,s-5,section,Discovery,"(1) A claim is discovered on the earlier of,
+12974,1,,s-5,section,Discovery · Presumption · Demand obligations,"(1) A claim is discovered on the earlier of,
 (a) the day on which the person with the claim first knew,
 (i) that the injury, loss or damage had occurred,
 (ii) that the injury, loss or damage was caused by or contributed to by an act or omission,
@@ -41,33 +41,33 @@ id,document_id,parent_id,pinpoint,kind,heading,text,sort_order,plain_summary
 They are presumed to know when the act or omission occurred. 
 
 For demand obligations, harm occurs upon failing to perform after a demand."
-12975,1,12974,s-5-1,subsection,,"(1) A claim is discovered on the earlier of,
+12975,1,12974,s-5-1,subsection,Discovery,"(1) A claim is discovered on the earlier of,
 (a) the day on which the person with the claim first knew,
 (i) that the injury, loss or damage had occurred,
 (ii) that the injury, loss or damage was caused by or contributed to by an act or omission,
 (iii) that the act or omission was that of the person against whom the claim is made, and
 (iv) that, having regard to the nature of the injury, loss or damage, a proceeding would be an appropriate means to seek to remedy it; and
 (b) the day on which a reasonable person with the abilities and in the circumstances of the person with the claim first ought to have known of the matters referred to in clause (a).",8,
-12976,1,12974,s-5-2,subsection,,"(2) A person with a claim shall be presumed to have known of the matters referred to in clause (1) (a) on the day the act or omission on which the claim is based took place, unless the contrary is proved.",9,
-12977,1,12974,s-5-3,subsection,,"(3) For the purposes of subclause (1) (a) (i), the day on which injury, loss or damage occurs in relation to a demand obligation is the first day on which there is a failure to perform the obligation, once a demand for the performance is made.",10,
-12978,1,12974,s-5-4,subsection,,"(4) Subsection (3) applies in respect of every demand obligation created on or after January 1, 2004.",11,
+12976,1,12974,s-5-2,subsection,Presumption,"(2) A person with a claim shall be presumed to have known of the matters referred to in clause (1) (a) on the day the act or omission on which the claim is based took place, unless the contrary is proved.",9,
+12977,1,12974,s-5-3,subsection,Demand obligations,"(3) For the purposes of subclause (1) (a) (i), the day on which injury, loss or damage occurs in relation to a demand obligation is the first day on which there is a failure to perform the obligation, once a demand for the performance is made.",10,
+12978,1,12974,s-5-4,subsection,Same,"(4) Subsection (3) applies in respect of every demand obligation created on or after January 1, 2004.",11,
 12979,1,,s-6,section,Minors,"The limitation period established by section 4 does not run during any time in which the person with the claim,
 (a) is a minor; and
 (b) is not represented by a litigation guardian in relation to the claim.",12,The limitation period from another section does not run for a minor. This applies while no litigation guardian represents them for the claim.
-12980,1,,s-7,section,Incapable persons,"(1) The limitation period established by section 4 does not run during any time in which the person with the claim,
+12980,1,,s-7,section,Incapable persons · Presumption · Extension,"(1) The limitation period established by section 4 does not run during any time in which the person with the claim,
 (a) is incapable of commencing a proceeding in respect of the claim because of his or her physical, mental or psychological condition; and
 (b) is not represented by a litigation guardian in relation to the claim.
 (2) A person shall be presumed to have been capable of commencing a proceeding in respect of a claim at all times unless the contrary is proved.
 (3) If the running of a limitation period is postponed or suspended under this section and the period has less than six months to run when the postponement or suspension ends, the period is extended to include the day that is six months after the day on which the postponement or suspension ends.
 (4) Repealed: 2016, c. 2, Sched. 2, s. 1.",13,"A limitation period pauses while an incapable claimant lacks a litigation guardian. A person is presumed capable of claiming unless proven otherwise. If under six months remain afterward, the period extends to six months."
-12981,1,12980,s-7-1,subsection,,"(1) The limitation period established by section 4 does not run during any time in which the person with the claim,
+12981,1,12980,s-7-1,subsection,Incapable persons,"(1) The limitation period established by section 4 does not run during any time in which the person with the claim,
 (a) is incapable of commencing a proceeding in respect of the claim because of his or her physical, mental or psychological condition; and
 (b) is not represented by a litigation guardian in relation to the claim.",14,
-12982,1,12980,s-7-2,subsection,,(2) A person shall be presumed to have been capable of commencing a proceeding in respect of a claim at all times unless the contrary is proved.,15,
-12983,1,12980,s-7-3,subsection,,"(3) If the running of a limitation period is postponed or suspended under this section and the period has less than six months to run when the postponement or suspension ends, the period is extended to include the day that is six months after the day on which the postponement or suspension ends.",16,
+12982,1,12980,s-7-2,subsection,Presumption,(2) A person shall be presumed to have been capable of commencing a proceeding in respect of a claim at all times unless the contrary is proved.,15,
+12983,1,12980,s-7-3,subsection,Extension,"(3) If the running of a limitation period is postponed or suspended under this section and the period has less than six months to run when the postponement or suspension ends, the period is extended to include the day that is six months after the day on which the postponement or suspension ends.",16,
 12984,1,12980,s-7-4,subsection,,"(4) Repealed: 2016, c. 2, Sched. 2, s. 1.",17,
 12985,1,,s-8,section,Litigation guardians,"If a person is represented by a litigation guardian in relation to the claim, section 5 applies as if the litigation guardian were the person with the claim.",18,This rule applies when a litigation guardian represents a person with a claim. Another section treats the litigation guardian as the person with the claim.
-12986,1,,s-9,section,Definitions,"(1) In this section,
+12986,1,,s-9,section,,"(1) In this section,
 “potential defendant” means a person against whom another person may have a claim but against whom the other person has not commenced a proceeding in respect of the claim; (“défendeur éventuel”)
 “potential plaintiff” means a person who may have a claim against another person but has not commenced a proceeding against that person in respect of the claim. (“demandeur éventuel”)
 (2) If the running of a limitation period in relation to a claim is postponed or suspended under section 6 or 7, a potential defendant may make an application or a motion to have a litigation guardian appointed for a potential plaintiff.
@@ -88,11 +88,11 @@ v. agrees to attend to the potential plaintiff’s interests diligently and to t
 (a) shall not be served before the first anniversary of the appointment;
 (b) shall identify the potential plaintiff, the potential defendant and the claim; and
 (c) shall indicate that the claim could be extinguished if a proceeding is not promptly commenced.",19,A potential defendant may apply to appoint a litigation guardian. This appointment restarts a suspended limitation period if specific conditions are met. The limitation period expires after the potential defendant serves and files notice.
-12987,1,12986,s-9-1,subsection,,"(1) In this section,
+12987,1,12986,s-9-1,subsection,Definitions,"(1) In this section,
 “potential defendant” means a person against whom another person may have a claim but against whom the other person has not commenced a proceeding in respect of the claim; (“défendeur éventuel”)
 “potential plaintiff” means a person who may have a claim against another person but has not commenced a proceeding against that person in respect of the claim. (“demandeur éventuel”)",20,
-12988,1,12986,s-9-2,subsection,,"(2) If the running of a limitation period in relation to a claim is postponed or suspended under section 6 or 7, a potential defendant may make an application or a motion to have a litigation guardian appointed for a potential plaintiff.",21,
-12989,1,12986,s-9-3,subsection,,"(3) Subject to subsection (4), the appointment of a litigation guardian ends the postponement or suspension of the running of the limitation period if the following conditions are met:
+12988,1,12986,s-9-2,subsection,Appointment of litigation guardian on application or motion by potential defendant,"(2) If the running of a limitation period in relation to a claim is postponed or suspended under section 6 or 7, a potential defendant may make an application or a motion to have a litigation guardian appointed for a potential plaintiff.",21,
+12989,1,12986,s-9-3,subsection,Effect of appointment,"(3) Subject to subsection (4), the appointment of a litigation guardian ends the postponement or suspension of the running of the limitation period if the following conditions are met:
 1. The appointment is made by a judge on the application or motion of a potential defendant.
 2. The judge is satisfied that the litigation guardian,
 i. has been served with the motion,
@@ -100,12 +100,12 @@ ii. has consented to the appointment in writing, or in person before the judge,
 iii. in connection with the claim, knows of the matters referred to in clause 5 (1) (a),
 iv. does not have an interest adverse to that of the potential plaintiff, and
 v. agrees to attend to the potential plaintiff’s interests diligently and to take all necessary steps for their protection, including the commencement of a claim if appropriate.",22,
-12990,1,12986,s-9-4,subsection,,"(4) The limitation period shall be deemed not to expire against the potential plaintiff until the later of,
+12990,1,12986,s-9-4,subsection,Non-expiry,"(4) The limitation period shall be deemed not to expire against the potential plaintiff until the later of,
 (a) the date that is six months after the potential defendant files, with proof of service on the litigation guardian,
 (i) a notice that complies with subsection (5), and
 (ii) a declaration that, on the filing date, the potential defendant is not aware of any proceeding by the litigation guardian against the potential defendant in respect of the claim; and
 (b) the date on which the limitation period would otherwise expire after it resumes running under subsection (3).",23,
-12991,1,12986,s-9-5,subsection,,"(5) The notice,
+12991,1,12986,s-9-5,subsection,Notice,"(5) The notice,
 (a) shall not be served before the first anniversary of the appointment;
 (b) shall identify the potential plaintiff, the potential defendant and the claim; and
 (c) shall indicate that the claim could be extinguished if a proceeding is not promptly commenced.",24,
@@ -115,26 +115,26 @@ v. agrees to attend to the potential plaintiff’s interests diligently and to t
 (b) the date the attempted resolution process is terminated; or
 (c) the date a party terminates or withdraws from the agreement.
 (2) For greater certainty, a person or entity that provides resolution of claims or assistance in resolving claims, on an impartial basis, is an independent third party no matter how it is funded.",26,Parties may agree to use an independent third party to resolve claims. Limitation periods in another section do not run until the process ends. An impartial third party qualifies no matter how it is funded.
-12994,1,12993,s-11-1,subsection,,"(1) If a person with a claim and a person against whom the claim is made have agreed to have an independent third party resolve the claim or assist them in resolving it, the limitation periods established by sections 4 and 15 do not run from the date the agreement is made until,
+12994,1,12993,s-11-1,subsection,Attempted resolution,"(1) If a person with a claim and a person against whom the claim is made have agreed to have an independent third party resolve the claim or assist them in resolving it, the limitation periods established by sections 4 and 15 do not run from the date the agreement is made until,
 (a) the date the claim is resolved;
 (b) the date the attempted resolution process is terminated; or
 (c) the date a party terminates or withdraws from the agreement.",27,
-12995,1,12993,s-11-2,subsection,,"(2) For greater certainty, a person or entity that provides resolution of claims or assistance in resolving claims, on an impartial basis, is an independent third party no matter how it is funded.",28,
-12996,1,,s-12,section,Successors,"(1) For the purpose of clause 5 (1) (a), in the case of a proceeding commenced by a person claiming through a predecessor in right, title or interest, the person shall be deemed to have knowledge of the matters referred to in that clause on the earlier of the following:
+12995,1,12993,s-11-2,subsection,Same,"(2) For greater certainty, a person or entity that provides resolution of claims or assistance in resolving claims, on an impartial basis, is an independent third party no matter how it is funded.",28,
+12996,1,,s-12,section,Successors · Principals and agents,"(1) For the purpose of clause 5 (1) (a), in the case of a proceeding commenced by a person claiming through a predecessor in right, title or interest, the person shall be deemed to have knowledge of the matters referred to in that clause on the earlier of the following:
 1. The day the predecessor first knew or ought to have known of those matters.
 2. The day the person claiming first knew or ought to have known of them.
 (2) For the purpose of clause 5 (1) (a), in the case of a proceeding commenced by a principal, if the agent had a duty to communicate knowledge of the matters referred to in that clause to the principal, the principal shall be deemed to have knowledge of the matters referred to in that clause on the earlier of the following:
 1. The day the agent first knew or ought to have known of those matters.
 2. The day the principal first knew or ought to have known of them.
 (3) The day on which a predecessor or agent first ought to have known of the matters referred to in clause 5 (1) (a) is the day on which a reasonable person in the predecessor’s or agent’s circumstances and with the predecessor’s or agent’s abilities first ought to have known of them.",29,Principals and successors share the earlier knowledge of their agents or predecessors. This rule sets when they gain knowledge referred to in another section. Knowledge includes what a reasonable person in their situation ought to know.
-12997,1,12996,s-12-1,subsection,,"(1) For the purpose of clause 5 (1) (a), in the case of a proceeding commenced by a person claiming through a predecessor in right, title or interest, the person shall be deemed to have knowledge of the matters referred to in that clause on the earlier of the following:
+12997,1,12996,s-12-1,subsection,Successors,"(1) For the purpose of clause 5 (1) (a), in the case of a proceeding commenced by a person claiming through a predecessor in right, title or interest, the person shall be deemed to have knowledge of the matters referred to in that clause on the earlier of the following:
 1. The day the predecessor first knew or ought to have known of those matters.
 2. The day the person claiming first knew or ought to have known of them.",30,
-12998,1,12996,s-12-2,subsection,,"(2) For the purpose of clause 5 (1) (a), in the case of a proceeding commenced by a principal, if the agent had a duty to communicate knowledge of the matters referred to in that clause to the principal, the principal shall be deemed to have knowledge of the matters referred to in that clause on the earlier of the following:
+12998,1,12996,s-12-2,subsection,Principals and agents,"(2) For the purpose of clause 5 (1) (a), in the case of a proceeding commenced by a principal, if the agent had a duty to communicate knowledge of the matters referred to in that clause to the principal, the principal shall be deemed to have knowledge of the matters referred to in that clause on the earlier of the following:
 1. The day the agent first knew or ought to have known of those matters.
 2. The day the principal first knew or ought to have known of them.",31,
-12999,1,12996,s-12-3,subsection,,(3) The day on which a predecessor or agent first ought to have known of the matters referred to in clause 5 (1) (a) is the day on which a reasonable person in the predecessor’s or agent’s circumstances and with the predecessor’s or agent’s abilities first ought to have known of them.,32,
-13000,1,,s-13,section,Acknowledgments,"(1) If a person acknowledges liability in respect of a claim for payment of a liquidated sum, the recovery of personal property, the enforcement of a charge on personal property or relief from enforcement of a charge on personal property, the act or omission on which the claim is based shall be deemed to have taken place on the day on which the acknowledgment was made.
+12999,1,12996,s-12-3,subsection,Same,(3) The day on which a predecessor or agent first ought to have known of the matters referred to in clause 5 (1) (a) is the day on which a reasonable person in the predecessor’s or agent’s circumstances and with the predecessor’s or agent’s abilities first ought to have known of them.,32,
+13000,1,,s-13,section,,"(1) If a person acknowledges liability in respect of a claim for payment of a liquidated sum, the recovery of personal property, the enforcement of a charge on personal property or relief from enforcement of a charge on personal property, the act or omission on which the claim is based shall be deemed to have taken place on the day on which the acknowledgment was made.
 (2) An acknowledgment of liability in respect of a claim for interest is an acknowledgment of liability in respect of a claim for the principal and for interest falling due after the acknowledgment is made.
 (3) An acknowledgment of liability in respect of a claim to realize on or redeem collateral under a security agreement or to recover money in respect of the collateral is an acknowledgment by any other person who later comes into possession of it.
 (4) A debtor’s performance of an obligation under or in respect of a security agreement is an acknowledgment by the debtor of liability in respect of a claim by the creditor for realization on the collateral under the agreement.
@@ -145,18 +145,18 @@ v. agrees to attend to the potential plaintiff’s interests diligently and to t
 (9) This section does not apply unless the acknowledgment is made to the person with the claim, the person’s agent or an official receiver or trustee acting under the Bankruptcy and Insolvency Act (Canada) before the expiry of the limitation period applicable to the claim.
 (10) Subsections (1), (2), (3), (6) and (7) do not apply unless the acknowledgment is in writing and signed by the person making it or the person’s agent.
 (11) In the case of a claim for payment of a liquidated sum, part payment of the sum by the person against whom the claim is made or by the person’s agent has the same effect as the acknowledgment referred to in subsection (10).",33,"Acknowledging liability resets the claim date for certain debts and property claims. This applies to debtors, creditors, trustees, and people holding the property. The acknowledgment or part payment must happen before the limitation period expires."
-13001,1,13000,s-13-1,subsection,,"(1) If a person acknowledges liability in respect of a claim for payment of a liquidated sum, the recovery of personal property, the enforcement of a charge on personal property or relief from enforcement of a charge on personal property, the act or omission on which the claim is based shall be deemed to have taken place on the day on which the acknowledgment was made.",34,
-13002,1,13000,s-13-2,subsection,,(2) An acknowledgment of liability in respect of a claim for interest is an acknowledgment of liability in respect of a claim for the principal and for interest falling due after the acknowledgment is made.,35,
-13003,1,13000,s-13-3,subsection,,(3) An acknowledgment of liability in respect of a claim to realize on or redeem collateral under a security agreement or to recover money in respect of the collateral is an acknowledgment by any other person who later comes into possession of it.,36,
-13004,1,13000,s-13-4,subsection,,(4) A debtor’s performance of an obligation under or in respect of a security agreement is an acknowledgment by the debtor of liability in respect of a claim by the creditor for realization on the collateral under the agreement.,37,
-13005,1,13000,s-13-5,subsection,,(5) A creditor’s acceptance of a debtor’s payment or performance of an obligation under or in respect of a security agreement is an acknowledgment by the creditor of liability in respect of a claim by the debtor for redemption of the collateral under the agreement.,38,
-13006,1,13000,s-13-6,subsection,,(6) An acknowledgment by a trustee is an acknowledgment by any other person who is or who later becomes a trustee of the same trust.,39,
-13007,1,13000,s-13-7,subsection,,(7) An acknowledgment of liability in respect of a claim to recover or enforce an equitable interest in personal property by a person in possession of it is an acknowledgment by any other person who later comes into possession of it.,40,
-13008,1,13000,s-13-8,subsection,,"(8) Subject to subsections (9) and (10), this section applies to an acknowledgment of liability in respect of a claim for payment of a liquidated sum even though the person making the acknowledgment refuses or does not promise to pay the sum or the balance of the sum still owing.",41,
-13009,1,13000,s-13-9,subsection,,"(9) This section does not apply unless the acknowledgment is made to the person with the claim, the person’s agent or an official receiver or trustee acting under the Bankruptcy and Insolvency Act (Canada) before the expiry of the limitation period applicable to the claim.",42,
-13010,1,13000,s-13-10,subsection,,"(10) Subsections (1), (2), (3), (6) and (7) do not apply unless the acknowledgment is in writing and signed by the person making it or the person’s agent.",43,
-13011,1,13000,s-13-11,subsection,,"(11) In the case of a claim for payment of a liquidated sum, part payment of the sum by the person against whom the claim is made or by the person’s agent has the same effect as the acknowledgment referred to in subsection (10).",44,
-13012,1,,s-14,section,Notice of possible claim,"(1) A person against whom another person may have a claim may serve a notice of possible claim on the other person.
+13001,1,13000,s-13-1,subsection,Acknowledgments,"(1) If a person acknowledges liability in respect of a claim for payment of a liquidated sum, the recovery of personal property, the enforcement of a charge on personal property or relief from enforcement of a charge on personal property, the act or omission on which the claim is based shall be deemed to have taken place on the day on which the acknowledgment was made.",34,
+13002,1,13000,s-13-2,subsection,Interest,(2) An acknowledgment of liability in respect of a claim for interest is an acknowledgment of liability in respect of a claim for the principal and for interest falling due after the acknowledgment is made.,35,
+13003,1,13000,s-13-3,subsection,Collateral,(3) An acknowledgment of liability in respect of a claim to realize on or redeem collateral under a security agreement or to recover money in respect of the collateral is an acknowledgment by any other person who later comes into possession of it.,36,
+13004,1,13000,s-13-4,subsection,Realization,(4) A debtor’s performance of an obligation under or in respect of a security agreement is an acknowledgment by the debtor of liability in respect of a claim by the creditor for realization on the collateral under the agreement.,37,
+13005,1,13000,s-13-5,subsection,Redemption,(5) A creditor’s acceptance of a debtor’s payment or performance of an obligation under or in respect of a security agreement is an acknowledgment by the creditor of liability in respect of a claim by the debtor for redemption of the collateral under the agreement.,38,
+13006,1,13000,s-13-6,subsection,Trustees,(6) An acknowledgment by a trustee is an acknowledgment by any other person who is or who later becomes a trustee of the same trust.,39,
+13007,1,13000,s-13-7,subsection,Personal property,(7) An acknowledgment of liability in respect of a claim to recover or enforce an equitable interest in personal property by a person in possession of it is an acknowledgment by any other person who later comes into possession of it.,40,
+13008,1,13000,s-13-8,subsection,Liquidated sum,"(8) Subject to subsections (9) and (10), this section applies to an acknowledgment of liability in respect of a claim for payment of a liquidated sum even though the person making the acknowledgment refuses or does not promise to pay the sum or the balance of the sum still owing.",41,
+13009,1,13000,s-13-9,subsection,Restricted application,"(9) This section does not apply unless the acknowledgment is made to the person with the claim, the person’s agent or an official receiver or trustee acting under the Bankruptcy and Insolvency Act (Canada) before the expiry of the limitation period applicable to the claim.",42,
+13010,1,13000,s-13-10,subsection,Same,"(10) Subsections (1), (2), (3), (6) and (7) do not apply unless the acknowledgment is in writing and signed by the person making it or the person’s agent.",43,
+13011,1,13000,s-13-11,subsection,Same,"(11) In the case of a claim for payment of a liquidated sum, part payment of the sum by the person against whom the claim is made or by the person’s agent has the same effect as the acknowledgment referred to in subsection (10).",44,
+13012,1,,s-14,section,,"(1) A person against whom another person may have a claim may serve a notice of possible claim on the other person.
 (2) A notice of possible claim shall be in writing and signed by the person issuing it or that person’s lawyer, and shall,
 (a) describe the injury, loss or damage that the issuing person suspects may have occurred;
 (b) identify the act or omission giving rise to the injury, loss or damage;
@@ -169,20 +169,20 @@ v. agrees to attend to the potential plaintiff’s interests diligently and to t
 (b) is incapable of commencing a proceeding because of his or her physical, mental or psychological condition.
 (5) A notice of possible claim is not an acknowledgment for the purpose of section 13.
 (6) A notice of possible claim is not an admission of the validity of the claim.",45,A person may serve a notice of possible claim on another person. Courts may use this notice to determine when a limitation period began. The notice is not an admission or an acknowledgment under another section.
-13013,1,13012,s-14-1,subsection,,(1) A person against whom another person may have a claim may serve a notice of possible claim on the other person.,46,
-13014,1,13012,s-14-2,subsection,,"(2) A notice of possible claim shall be in writing and signed by the person issuing it or that person’s lawyer, and shall,
+13013,1,13012,s-14-1,subsection,Notice of possible claim,(1) A person against whom another person may have a claim may serve a notice of possible claim on the other person.,46,
+13014,1,13012,s-14-2,subsection,Contents,"(2) A notice of possible claim shall be in writing and signed by the person issuing it or that person’s lawyer, and shall,
 (a) describe the injury, loss or damage that the issuing person suspects may have occurred;
 (b) identify the act or omission giving rise to the injury, loss or damage;
 (c) indicate the extent to which the issuing person suspects that the injury, loss or damage may have been caused by the issuing person;
 (d) state that any claim that the other person has could be extinguished because of the expiry of a limitation period; and
 (e) state the issuing person’s name and address for service.",47,
-13015,1,13012,s-14-3,subsection,,(3) The fact that a notice of possible claim has been served on a person may be considered by a court in determining when the limitation period in respect of the person’s claim began to run.,48,
-13016,1,13012,s-14-4,subsection,,"(4) Subsection (3) does not apply to a person who is not represented by a litigation guardian in relation to the claim and who, when served with the notice,
+13015,1,13012,s-14-3,subsection,Effect,(3) The fact that a notice of possible claim has been served on a person may be considered by a court in determining when the limitation period in respect of the person’s claim began to run.,48,
+13016,1,13012,s-14-4,subsection,Exception,"(4) Subsection (3) does not apply to a person who is not represented by a litigation guardian in relation to the claim and who, when served with the notice,
 (a) is a minor; or
 (b) is incapable of commencing a proceeding because of his or her physical, mental or psychological condition.",49,
-13017,1,13012,s-14-5,subsection,,(5) A notice of possible claim is not an acknowledgment for the purpose of section 13.,50,
-13018,1,13012,s-14-6,subsection,,(6) A notice of possible claim is not an admission of the validity of the claim.,51,
-13019,1,,s-15,section,Ultimate limitation periods,"(1) Even if the limitation period established by any other section of this Act in respect of a claim has not expired, no proceeding shall be commenced in respect of the claim after the expiry of a limitation period established by this section.
+13017,1,13012,s-14-5,subsection,Acknowledgment,(5) A notice of possible claim is not an acknowledgment for the purpose of section 13.,50,
+13018,1,13012,s-14-6,subsection,Admission,(6) A notice of possible claim is not an admission of the validity of the claim.,51,
+13019,1,,s-15,section,,"(1) Even if the limitation period established by any other section of this Act in respect of a claim has not expired, no proceeding shall be commenced in respect of the claim after the expiry of a limitation period established by this section.
 (2) No proceeding shall be commenced in respect of any claim after the 15th anniversary of the day on which the act or omission on which the claim is based took place.
 (3) Despite subsection (2), no proceeding against a purchaser of personal property for value acting in good faith shall be commenced in respect of conversion of the property after the second anniversary of the day on which the property was converted.
 (4) The limitation period established by subsection (2) does not run during any time in which,
@@ -203,10 +203,10 @@ v. agrees to attend to the potential plaintiff’s interests diligently and to t
 Claims against good faith purchasers for conversion expire after two years. 
 
 Deadlines pause for unrepresented minors, incapable persons, or wilful concealment."
-13020,1,13019,s-15-1,subsection,,"(1) Even if the limitation period established by any other section of this Act in respect of a claim has not expired, no proceeding shall be commenced in respect of the claim after the expiry of a limitation period established by this section.",53,
-13021,1,13019,s-15-2,subsection,,(2) No proceeding shall be commenced in respect of any claim after the 15th anniversary of the day on which the act or omission on which the claim is based took place.,54,
-13022,1,13019,s-15-3,subsection,,"(3) Despite subsection (2), no proceeding against a purchaser of personal property for value acting in good faith shall be commenced in respect of conversion of the property after the second anniversary of the day on which the property was converted.",55,
-13023,1,13019,s-15-4,subsection,,"(4) The limitation period established by subsection (2) does not run during any time in which,
+13020,1,13019,s-15-1,subsection,Ultimate limitation periods,"(1) Even if the limitation period established by any other section of this Act in respect of a claim has not expired, no proceeding shall be commenced in respect of the claim after the expiry of a limitation period established by this section.",53,
+13021,1,13019,s-15-2,subsection,General,(2) No proceeding shall be commenced in respect of any claim after the 15th anniversary of the day on which the act or omission on which the claim is based took place.,54,
+13022,1,13019,s-15-3,subsection,"Exception, purchasers for value","(3) Despite subsection (2), no proceeding against a purchaser of personal property for value acting in good faith shall be commenced in respect of conversion of the property after the second anniversary of the day on which the property was converted.",55,
+13023,1,13019,s-15-4,subsection,Period not to run,"(4) The limitation period established by subsection (2) does not run during any time in which,
 (a) the person with the claim,
 (i) is incapable of commencing a proceeding in respect of the claim because of his or her physical, mental or psychological condition, and
 (ii) is not represented by a litigation guardian in relation to the claim;
@@ -214,13 +214,13 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 (c) the person against whom the claim is made,
 (i) wilfully conceals from the person with the claim the fact that injury, loss or damage has occurred, that it was caused by or contributed to by an act or omission or that the act or omission was that of the person against whom the claim is made, or
 (ii) wilfully misleads the person with the claim as to the appropriateness of a proceeding as a means of remedying the injury, loss or damage.",56,
-13024,1,13019,s-15-5,subsection,,(5) The burden of proving that subsection (4) applies is on the person with the claim.,57,
-13025,1,13019,s-15-6,subsection,,"(6) For the purposes of this section, the day an act or omission on which a claim is based takes place is,
+13024,1,13019,s-15-5,subsection,Burden,(5) The burden of proving that subsection (4) applies is on the person with the claim.,57,
+13025,1,13019,s-15-6,subsection,Day of occurrence,"(6) For the purposes of this section, the day an act or omission on which a claim is based takes place is,
 (a) in the case of a continuous act or omission, the day on which the act or omission ceases;
 (b) in the case of a series of acts or omissions in respect of the same obligation, the day on which the last act or omission in the series occurs;
 (c) in the case of an act or omission in respect of a demand obligation, the first day on which there is a failure to perform the obligation, once a demand for the performance is made.",58,
-13026,1,13019,s-15-7,subsection,,"(7) Clause (6) (c) applies in respect of every demand obligation created on or after January 1, 2004.",59,
-13027,1,,s-16,section,No limitation period,"(1) There is no limitation period in respect of,
+13026,1,13019,s-15-7,subsection,"Application, demand obligations","(7) Clause (6) (c) applies in respect of every demand obligation created on or after January 1, 2004.",59,
+13027,1,,s-16,section,No limitation period · Conflict with s. 15,"(1) There is no limitation period in respect of,
 (a) a proceeding for a declaration if no consequential relief is sought;
 (b) a proceeding to enforce an order of a court, or any other order that may be enforced in the same way as an order of a court;
 (c) a proceeding to obtain support under the Family Law Act or to enforce a provision for support or maintenance contained in a contract or agreement that could be filed under section 35 of that Act;
@@ -256,7 +256,7 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 (a) the recovery of social assistance payments, student loans, awards, grants, contributions and economic development loans; and
 (b) the reimbursement of money paid in connection with social, health or economic programs or policies as a result of fraud, misrepresentation, error or inadvertence.
 (4) This section and section 17 prevail over anything in section 15.",60,There is no limitation period for certain legal proceedings. This applies to assault victims and people seeking family support. It also covers enforcing court orders and collecting specific Crown debts.
-13028,1,13027,s-16-1,subsection,,"(1) There is no limitation period in respect of,
+13028,1,13027,s-16-1,subsection,No limitation period,"(1) There is no limitation period in respect of,
 (a) a proceeding for a declaration if no consequential relief is sought;
 (b) a proceeding to enforce an order of a court, or any other order that may be enforced in the same way as an order of a court;
 (c) a proceeding to obtain support under the Family Law Act or to enforce a provision for support or maintenance contained in a contract or agreement that could be filed under section 35 of that Act;
@@ -280,24 +280,24 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 (ii) a delivery agent under the Ontario Disability Support Program Act, 1997 or the Ontario Works Act, 1997;
 (k) a proceeding to recover money owing in respect of student loans, medical resident loans, awards or grants made under the Ministry of Training, Colleges and Universities Act, the Canada Student Financial Assistance Act or the Canada Student Loans Act; or
 (l) a proceeding under subsection 4 (1) of the Justice for Victims of Terrorism Act (Canada).",61,
-13029,1,13027,s-16-1.1,subsection,,"(1.1) Clauses (1) (h), (h.1), (h.2) and (l) apply to a proceeding whenever the act on which the claim is based occurred or the proceeding was commenced, and regardless of the expiry of any previously applicable limitation period.",62,
-13030,1,13027,s-16-1.2,subsection,,"(1.2) Subsection (1.1) does not apply in the case of a proceeding that,
+13029,1,13027,s-16-1.1,subsection,Same,"(1.1) Clauses (1) (h), (h.1), (h.2) and (l) apply to a proceeding whenever the act on which the claim is based occurred or the proceeding was commenced, and regardless of the expiry of any previously applicable limitation period.",62,
+13030,1,13027,s-16-1.2,subsection,Same,"(1.2) Subsection (1.1) does not apply in the case of a proceeding that,
 (a) has been dismissed by a court and no further appeal is available; or
 (b) has been settled by the parties and the settlement is legally binding.",63,
-13031,1,13027,s-16-1.3,subsection,,"(1.3) For greater certainty, clauses (1) (h), (h.1) and (h.2) are not limited in any way with respect to the claims that may be made in the proceeding in relation to the applicable act, which may include claims for negligence, for breach of fiduciary or any other duty or for vicarious liability.",64,
-13032,1,13027,s-16-2,subsection,,"(2) Clause (1) (j) applies to proceedings in respect of claims relating to,
+13031,1,13027,s-16-1.3,subsection,Same,"(1.3) For greater certainty, clauses (1) (h), (h.1) and (h.2) are not limited in any way with respect to the claims that may be made in the proceeding in relation to the applicable act, which may include claims for negligence, for breach of fiduciary or any other duty or for vicarious liability.",64,
+13032,1,13027,s-16-2,subsection,Same,"(2) Clause (1) (j) applies to proceedings in respect of claims relating to,
 (a) the administration of social, health or economic programs; or
 (b) the provision of direct or indirect support to members of the public in connection with social, health or economic policy.",65,
-13033,1,13027,s-16-3,subsection,,"(3) Without limiting the generality of subsection (2), clause (1) (j) applies to proceedings in respect of claims for,
+13033,1,13027,s-16-3,subsection,Same,"(3) Without limiting the generality of subsection (2), clause (1) (j) applies to proceedings in respect of claims for,
 (a) the recovery of social assistance payments, student loans, awards, grants, contributions and economic development loans; and
 (b) the reimbursement of money paid in connection with social, health or economic programs or policies as a result of fraud, misrepresentation, error or inadvertence.",66,
-13034,1,13027,s-16-4,subsection,,(4) This section and section 17 prevail over anything in section 15.,67,
+13034,1,13027,s-16-4,subsection,Conflict with s. 15,(4) This section and section 17 prevail over anything in section 15.,67,
 13035,1,,s-17,section,Undiscovered environmental claims,There is no limitation period in respect of an environmental claim that has not been discovered.,68,This rule applies to people with undiscovered environmental claims. There is no limitation period for these claims.
-13036,1,,s-18,section,Contribution and indemnity,"(1) For the purposes of subsection 5 (2) and section 15, in the case of a claim by one alleged wrongdoer against another for contribution and indemnity, the day on which the first alleged wrongdoer was served with the claim in respect of which contribution and indemnity is sought shall be deemed to be the day the act or omission on which that alleged wrongdoer’s claim is based took place.
+13036,1,,s-18,section,Contribution and indemnity · Application,"(1) For the purposes of subsection 5 (2) and section 15, in the case of a claim by one alleged wrongdoer against another for contribution and indemnity, the day on which the first alleged wrongdoer was served with the claim in respect of which contribution and indemnity is sought shall be deemed to be the day the act or omission on which that alleged wrongdoer’s claim is based took place.
 (2) Subsection (1) applies whether the right to contribution and indemnity arises in respect of a tort or otherwise.",69,"This rule applies to alleged wrongdoers seeking contribution and indemnity. For another section, the act happens when they are served. It applies whether the right involves a tort or otherwise."
-13037,1,13036,s-18-1,subsection,,"(1) For the purposes of subsection 5 (2) and section 15, in the case of a claim by one alleged wrongdoer against another for contribution and indemnity, the day on which the first alleged wrongdoer was served with the claim in respect of which contribution and indemnity is sought shall be deemed to be the day the act or omission on which that alleged wrongdoer’s claim is based took place.",70,
-13038,1,13036,s-18-2,subsection,,(2) Subsection (1) applies whether the right to contribution and indemnity arises in respect of a tort or otherwise.,71,
-13039,1,,s-19,section,"Other Acts, etc.","(1) A limitation period set out in or under another Act that applies to a claim to which this Act applies is of no effect unless,
+13037,1,13036,s-18-1,subsection,Contribution and indemnity,"(1) For the purposes of subsection 5 (2) and section 15, in the case of a claim by one alleged wrongdoer against another for contribution and indemnity, the day on which the first alleged wrongdoer was served with the claim in respect of which contribution and indemnity is sought shall be deemed to be the day the act or omission on which that alleged wrongdoer’s claim is based took place.",70,
+13038,1,13036,s-18-2,subsection,Application,(2) Subsection (1) applies whether the right to contribution and indemnity arises in respect of a tort or otherwise.,71,
+13039,1,,s-19,section,,"(1) A limitation period set out in or under another Act that applies to a claim to which this Act applies is of no effect unless,
 (a) the provision establishing it is listed in the Schedule to this Act; or
 (b) the provision establishing it,
 (i) is in existence on January 1, 2004, and
@@ -306,21 +306,21 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 (3) The fact that a provision is listed in the Schedule shall not be construed as a statement that the limitation period established by the provision would otherwise apply to a claim as defined in this Act.
 (4) If there is a conflict between a limitation period established by a provision referred to in subsection (1) and one established by any other provision of this Act, the limitation period established by the provision referred to in subsection (1) prevails.
 (5) Sections 6, 7 and 11 apply, with necessary modifications, to a limitation period established by a provision referred to in subsection (1).",72,Other limitation periods only apply to a claim if listed in this Act. A valid listed period overrides any conflicting period in this Act. Other sections also apply to these listed periods with necessary changes.
-13040,1,13039,s-19-1,subsection,,"(1) A limitation period set out in or under another Act that applies to a claim to which this Act applies is of no effect unless,
+13040,1,13039,s-19-1,subsection,"Other Acts, etc.","(1) A limitation period set out in or under another Act that applies to a claim to which this Act applies is of no effect unless,
 (a) the provision establishing it is listed in the Schedule to this Act; or
 (b) the provision establishing it,
 (i) is in existence on January 1, 2004, and
 (ii) incorporates by reference a provision listed in the Schedule to this Act.",73,
-13041,1,13039,s-19-2,subsection,,(2) Subsection (1) applies despite any other Act.,74,
-13042,1,13039,s-19-3,subsection,,(3) The fact that a provision is listed in the Schedule shall not be construed as a statement that the limitation period established by the provision would otherwise apply to a claim as defined in this Act.,75,
-13043,1,13039,s-19-4,subsection,,"(4) If there is a conflict between a limitation period established by a provision referred to in subsection (1) and one established by any other provision of this Act, the limitation period established by the provision referred to in subsection (1) prevails.",76,
-13044,1,13039,s-19-5,subsection,,"(5) Sections 6, 7 and 11 apply, with necessary modifications, to a limitation period established by a provision referred to in subsection (1).",77,
+13041,1,13039,s-19-2,subsection,Act prevails,(2) Subsection (1) applies despite any other Act.,74,
+13042,1,13039,s-19-3,subsection,Interpretation,(3) The fact that a provision is listed in the Schedule shall not be construed as a statement that the limitation period established by the provision would otherwise apply to a claim as defined in this Act.,75,
+13043,1,13039,s-19-4,subsection,Same,"(4) If there is a conflict between a limitation period established by a provision referred to in subsection (1) and one established by any other provision of this Act, the limitation period established by the provision referred to in subsection (1) prevails.",76,
+13044,1,13039,s-19-5,subsection,Period not to run,"(5) Sections 6, 7 and 11 apply, with necessary modifications, to a limitation period established by a provision referred to in subsection (1).",77,
 13045,1,,s-20,section,Statutory variation of time limits,"This Act does not affect the extension, suspension or other variation of a limitation period or other time limit by or under another Act.",78,"This rule applies to anyone facing time limits under another Act. This Act does not affect extending, suspending, or changing those time limits."
-13046,1,,s-21,section,Adding party,"(1) If a limitation period in respect of a claim against a person has expired, the claim shall not be pursued by adding the person as a party to any existing proceeding.
+13046,1,,s-21,section,Adding party · Misdescription,"(1) If a limitation period in respect of a claim against a person has expired, the claim shall not be pursued by adding the person as a party to any existing proceeding.
 (2) Subsection (1) does not prevent the correction of a misnaming or misdescription of a party.",79,You cannot add a party to an existing proceeding after the limitation period. This rule still allows correcting the misnaming or misdescription of a party.
-13047,1,13046,s-21-1,subsection,,"(1) If a limitation period in respect of a claim against a person has expired, the claim shall not be pursued by adding the person as a party to any existing proceeding.",80,
-13048,1,13046,s-21-2,subsection,,(2) Subsection (1) does not prevent the correction of a misnaming or misdescription of a party.,81,
-13049,1,,s-22,section,Limitation periods apply despite agreements,"(1) A limitation period under this Act applies despite any agreement to vary or exclude it, subject only to the exceptions in subsections (2) to (6).
+13047,1,13046,s-21-1,subsection,Adding party,"(1) If a limitation period in respect of a claim against a person has expired, the claim shall not be pursued by adding the person as a party to any existing proceeding.",80,
+13048,1,13046,s-21-2,subsection,Misdescription,(2) Subsection (1) does not prevent the correction of a misnaming or misdescription of a party.,81,
+13049,1,,s-22,section,Limitation periods apply despite agreements · Exception · Definitions,"(1) A limitation period under this Act applies despite any agreement to vary or exclude it, subject only to the exceptions in subsections (2) to (6).
 (2) A limitation period under this Act may be varied or excluded by an agreement made before January 1, 2004.
 (3) A limitation period under this Act, other than one established by section 15, may be suspended or extended by an agreement made on or after October 19, 2006.
 (4) A limitation period established by section 15 may be suspended or extended by an agreement made on or after October 19, 2006, but only if the relevant claim has been discovered.
@@ -330,18 +330,18 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 (6) In this section,
 “business agreement” means an agreement made by parties none of whom is a consumer as defined in the Consumer Protection Act, 2002; (“accord commercial”)
 “vary” includes extend, shorten and suspend. (“modifier”)",82,"Statutory limitation periods apply to parties despite agreements to change them. However, parties may agree to suspend or extend certain limitation periods. Businesses can also agree to vary or exclude these limitation periods."
-13050,1,13049,s-22-1,subsection,,"(1) A limitation period under this Act applies despite any agreement to vary or exclude it, subject only to the exceptions in subsections (2) to (6).",83,
-13051,1,13049,s-22-2,subsection,,"(2) A limitation period under this Act may be varied or excluded by an agreement made before January 1, 2004.",84,
-13052,1,13049,s-22-3,subsection,,"(3) A limitation period under this Act, other than one established by section 15, may be suspended or extended by an agreement made on or after October 19, 2006.",85,
-13053,1,13049,s-22-4,subsection,,"(4) A limitation period established by section 15 may be suspended or extended by an agreement made on or after October 19, 2006, but only if the relevant claim has been discovered.",86,
-13054,1,13049,s-22-5,subsection,,"(5) The following exceptions apply only in respect of business agreements:
+13050,1,13049,s-22-1,subsection,Limitation periods apply despite agreements,"(1) A limitation period under this Act applies despite any agreement to vary or exclude it, subject only to the exceptions in subsections (2) to (6).",83,
+13051,1,13049,s-22-2,subsection,Exception,"(2) A limitation period under this Act may be varied or excluded by an agreement made before January 1, 2004.",84,
+13052,1,13049,s-22-3,subsection,Same,"(3) A limitation period under this Act, other than one established by section 15, may be suspended or extended by an agreement made on or after October 19, 2006.",85,
+13053,1,13049,s-22-4,subsection,Same,"(4) A limitation period established by section 15 may be suspended or extended by an agreement made on or after October 19, 2006, but only if the relevant claim has been discovered.",86,
+13054,1,13049,s-22-5,subsection,Same,"(5) The following exceptions apply only in respect of business agreements:
 1. A limitation period under this Act, other than one established by section 15, may be varied or excluded by an agreement made on or after October 19, 2006.
 2. A limitation period established by section 15 may be varied by an agreement made on or after October 19, 2006, except that it may be suspended or extended only in accordance with subsection (4).",87,
-13055,1,13049,s-22-6,subsection,,"(6) In this section,
+13055,1,13049,s-22-6,subsection,Definitions,"(6) In this section,
 “business agreement” means an agreement made by parties none of whom is a consumer as defined in the Consumer Protection Act, 2002; (“accord commercial”)
 “vary” includes extend, shorten and suspend. (“modifier”)",88,
 13056,1,,s-23,section,Conflict of laws,"For the purpose of applying the rules regarding conflict of laws, the limitations law of Ontario or any other jurisdiction is substantive law.",89,This rule applies to conflict of laws matters. Limitations laws of Ontario or other jurisdictions are substantive law.
-13057,1,,s-24,section,Definition,"(1) In this section,
+13057,1,,s-24,section,,"(1) In this section,
 “former limitation period” means the limitation period that applied in respect of the claim before January 1, 2004.
 (2) Subject to subsection (2.1), this section applies to claims based on acts or omissions that took place before January 1, 2004 and in respect of which no proceeding has been commenced before that date.
 (2.1) This section does not apply to a claim in respect of which clause 16 (1) (h), (h.1) or (h.2) applies.
@@ -356,21 +356,21 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 (7) Repealed: 2016, c. 2, Sched. 2, s. 5 (3).
 (7.1) For the purposes of this section, clause 45 (1) (g) of the Limitations Act, as it read immediately before its repeal, applies to a claim respecting amounts paid to the Crown or to another public authority for which it is alleged that no valid legal authority existed at the time of payment.
 (8) This section is subject to any agreement to vary or exclude a limitation period that was made before January 1, 2004.",90,"This section applies to claims based on acts before January 1, 2004. It sets whether a former or current limitation period applies. The rules are subject to another section and earlier agreements."
-13058,1,13057,s-24-1,subsection,,"(1) In this section,
+13058,1,13057,s-24-1,subsection,Definition,"(1) In this section,
 “former limitation period” means the limitation period that applied in respect of the claim before January 1, 2004.",91,
-13059,1,13057,s-24-2,subsection,,"(2) Subject to subsection (2.1), this section applies to claims based on acts or omissions that took place before January 1, 2004 and in respect of which no proceeding has been commenced before that date.",92,
-13060,1,13057,s-24-2.1,subsection,,"(2.1) This section does not apply to a claim in respect of which clause 16 (1) (h), (h.1) or (h.2) applies.",93,
-13061,1,13057,s-24-3,subsection,,"(3) If the former limitation period expired before January 1, 2004, no proceeding shall be commenced in respect of the claim.",94,
-13062,1,13057,s-24-4,subsection,,"(4) If the former limitation period did not expire before January 1, 2004 and if no limitation period under this Act would apply were the claim based on an act or omission that took place on or after that date, there is no limitation period.",95,
-13063,1,13057,s-24-5,subsection,,"(5) If the former limitation period did not expire before January 1, 2004 and if a limitation period under this Act would apply were the claim based on an act or omission that took place on or after that date, the following rules apply:
+13059,1,13057,s-24-2,subsection,Application,"(2) Subject to subsection (2.1), this section applies to claims based on acts or omissions that took place before January 1, 2004 and in respect of which no proceeding has been commenced before that date.",92,
+13060,1,13057,s-24-2.1,subsection,Exception,"(2.1) This section does not apply to a claim in respect of which clause 16 (1) (h), (h.1) or (h.2) applies.",93,
+13061,1,13057,s-24-3,subsection,Former limitation period expired,"(3) If the former limitation period expired before January 1, 2004, no proceeding shall be commenced in respect of the claim.",94,
+13062,1,13057,s-24-4,subsection,Former limitation period unexpired,"(4) If the former limitation period did not expire before January 1, 2004 and if no limitation period under this Act would apply were the claim based on an act or omission that took place on or after that date, there is no limitation period.",95,
+13063,1,13057,s-24-5,subsection,Same,"(5) If the former limitation period did not expire before January 1, 2004 and if a limitation period under this Act would apply were the claim based on an act or omission that took place on or after that date, the following rules apply:
 1. If the claim was not discovered before January 1, 2004, this Act applies as if the act or omission had taken place on that date.
 2. If the claim was discovered before January 1, 2004, the former limitation period applies.",96,
-13064,1,13057,s-24-6,subsection,,"(6) If there was no former limitation period and if a limitation period under this Act would apply were the claim based on an act or omission that took place on or after January 1, 2004, the following rules apply:
+13064,1,13057,s-24-6,subsection,No former limitation period,"(6) If there was no former limitation period and if a limitation period under this Act would apply were the claim based on an act or omission that took place on or after January 1, 2004, the following rules apply:
 1. If the claim was not discovered before January 1, 2004, this Act applies as if the act or omission had taken place on that date.
 2. If the claim was discovered before January 1, 2004, there is no limitation period.",97,
 13065,1,13057,s-24-7,subsection,,"(7) Repealed: 2016, c. 2, Sched. 2, s. 5 (3).",98,
-13066,1,13057,s-24-7.1,subsection,,"(7.1) For the purposes of this section, clause 45 (1) (g) of the Limitations Act, as it read immediately before its repeal, applies to a claim respecting amounts paid to the Crown or to another public authority for which it is alleged that no valid legal authority existed at the time of payment.",99,
-13067,1,13057,s-24-8,subsection,,"(8) This section is subject to any agreement to vary or exclude a limitation period that was made before January 1, 2004.",100,
+13066,1,13057,s-24-7.1,subsection,Claims re payments alleged to be ultra vires,"(7.1) For the purposes of this section, clause 45 (1) (g) of the Limitations Act, as it read immediately before its repeal, applies to a claim respecting amounts paid to the Crown or to another public authority for which it is alleged that no valid legal authority existed at the time of payment.",99,
+13067,1,13057,s-24-8,subsection,Agreements,"(8) This section is subject to any agreement to vary or exclude a limitation period that was made before January 1, 2004.",100,
 13068,1,,s-25,section,,[blank],101,
 13069,1,,ss-25-49,section,Agreements,Omitted (amends or repeals other Acts).,102,
 13070,1,,s-26,section,,[blank],103,
@@ -460,7 +460,7 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 “pound” has the same meaning as in the Animals for Research Act; (“fourrière”)
 “regulation” means a regulation made under this Act. (“règlement”)  ;
 (2) In determining whether a dog is a pit bull within the meaning of this Act, a court may have regard to the breed standards established for Staffordshire Bull Terriers, American Staffordshire Terriers or American Pit Bull Terriers by the Canadian Kennel Club, the United Kennel Club, the American Kennel Club or the American Dog Breeders Association.",1,Dog owners include people who keep dogs and guardians of minor owners. Pit bulls include specific terrier breeds and dogs with similar features. Courts may use listed kennel club standards to identify pit bulls.
-13149,4,13148,s-1-1,subsection,,"(1) In this Act,
+13149,4,13148,s-1-1,subsection,Definitions,"(1) In this Act,
 “owner”, when used in relation to a dog, includes a person who possesses or harbours the dog and, where the owner is a minor, the person responsible for the custody of the minor; (“propriétaire”)
 “pit bull” includes,
 (a) a pit bull terrier,
@@ -470,24 +470,24 @@ Deadlines pause for unrepresented minors, incapable persons, or wilful concealme
 (e) a dog that has an appearance and physical characteristics that are substantially similar to those of dogs referred to in any of clauses (a) to (d); (“pit-bull”)
 “pound” has the same meaning as in the Animals for Research Act; (“fourrière”)
 “regulation” means a regulation made under this Act. (“règlement”)  ;",2,
-13150,4,13148,s-1-2,subsection,,"(2) In determining whether a dog is a pit bull within the meaning of this Act, a court may have regard to the breed standards established for Staffordshire Bull Terriers, American Staffordshire Terriers or American Pit Bull Terriers by the Canadian Kennel Club, the United Kennel Club, the American Kennel Club or the American Dog Breeders Association.",3,
-13151,4,,s-2,section,Liability of owner,"(1) The owner of a dog is liable for damages resulting from a bite or attack by the dog on another person or domestic animal.  
+13150,4,13148,s-1-2,subsection,Same,"(2) In determining whether a dog is a pit bull within the meaning of this Act, a court may have regard to the breed standards established for Staffordshire Bull Terriers, American Staffordshire Terriers or American Pit Bull Terriers by the Canadian Kennel Club, the United Kennel Club, the American Kennel Club or the American Dog Breeders Association.",3,
+13151,4,,s-2,section,,"(1) The owner of a dog is liable for damages resulting from a bite or attack by the dog on another person or domestic animal.  
 (2) Where there is more than one owner of a dog, they are jointly and severally liable under this section.  
 (3) The liability of the owner does not depend upon knowledge of the propensity of the dog or fault or negligence on the part of the owner, but the court shall reduce the damages awarded in proportion to the degree, if any, to which the fault or negligence of the plaintiff caused or contributed to the damages.  
 (4) An owner who is liable to pay damages under this section is entitled to recover contribution and indemnity from any other person in proportion to the degree to which the other person’s fault or negligence caused or contributed to the damages.  ",4,Dog owners are liable for damages when their dog bites or attacks. Multiple owners are jointly and severally liable regardless of their own fault. Damages are adjusted based on the fault of the plaintiff or others.
-13152,4,13151,s-2-1,subsection,,(1) The owner of a dog is liable for damages resulting from a bite or attack by the dog on another person or domestic animal.  ,5,
-13153,4,13151,s-2-2,subsection,,"(2) Where there is more than one owner of a dog, they are jointly and severally liable under this section.  ",6,
-13154,4,13151,s-2-3,subsection,,"(3) The liability of the owner does not depend upon knowledge of the propensity of the dog or fault or negligence on the part of the owner, but the court shall reduce the damages awarded in proportion to the degree, if any, to which the fault or negligence of the plaintiff caused or contributed to the damages.  ",7,
-13155,4,13151,s-2-4,subsection,,(4) An owner who is liable to pay damages under this section is entitled to recover contribution and indemnity from any other person in proportion to the degree to which the other person’s fault or negligence caused or contributed to the damages.  ,8,
-13156,4,,s-3,section,Application of Occupiers’ Liability Act,"(1) Where damage is caused by being bitten or attacked by a dog on the premises of the owner, the liability of the owner is determined under this Act and not under the Occupiers’ Liability Act.  
+13152,4,13151,s-2-1,subsection,Liability of owner,(1) The owner of a dog is liable for damages resulting from a bite or attack by the dog on another person or domestic animal.  ,5,
+13153,4,13151,s-2-2,subsection,Where more than one owner,"(2) Where there is more than one owner of a dog, they are jointly and severally liable under this section.  ",6,
+13154,4,13151,s-2-3,subsection,Extent of liability,"(3) The liability of the owner does not depend upon knowledge of the propensity of the dog or fault or negligence on the part of the owner, but the court shall reduce the damages awarded in proportion to the degree, if any, to which the fault or negligence of the plaintiff caused or contributed to the damages.  ",7,
+13155,4,13151,s-2-4,subsection,Contribution by person at fault,(4) An owner who is liable to pay damages under this section is entitled to recover contribution and indemnity from any other person in proportion to the degree to which the other person’s fault or negligence caused or contributed to the damages.  ,8,
+13156,4,,s-3,section,Application of Occupiers’ Liability Act · Protection of persons or property,"(1) Where damage is caused by being bitten or attacked by a dog on the premises of the owner, the liability of the owner is determined under this Act and not under the Occupiers’ Liability Act.  
 (2) Where a person is on premises with the intention of committing, or in the commission of, a criminal act on the premises and incurs damage caused by being bitten or attacked by a dog, the owner is not liable under section 2 unless the keeping of the dog on the premises was unreasonable for the purpose of the protection of persons or property.  ",9,"This Act, not the Occupiers’ Liability Act, determines an owner's bite liability. 
 
 Owners are not liable under another section to someone committing a crime. 
 
 Liability remains if keeping the dog was unreasonable for protection."
-13157,4,13156,s-3-1,subsection,,"(1) Where damage is caused by being bitten or attacked by a dog on the premises of the owner, the liability of the owner is determined under this Act and not under the Occupiers’ Liability Act.  ",10,
-13158,4,13156,s-3-2,subsection,,"(2) Where a person is on premises with the intention of committing, or in the commission of, a criminal act on the premises and incurs damage caused by being bitten or attacked by a dog, the owner is not liable under section 2 unless the keeping of the dog on the premises was unreasonable for the purpose of the protection of persons or property.  ",11,
-13159,4,,s-4,section,Proceedings against owner of dog,"(1) A proceeding may be commenced in the Ontario Court of Justice against an owner of a dog if it is alleged that,
+13157,4,13156,s-3-1,subsection,Application of Occupiers’ Liability Act,"(1) Where damage is caused by being bitten or attacked by a dog on the premises of the owner, the liability of the owner is determined under this Act and not under the Occupiers’ Liability Act.  ",10,
+13158,4,13156,s-3-2,subsection,Protection of persons or property,"(2) Where a person is on premises with the intention of committing, or in the commission of, a criminal act on the premises and incurs damage caused by being bitten or attacked by a dog, the owner is not liable under section 2 unless the keeping of the dog on the premises was unreasonable for the purpose of the protection of persons or property.  ",11,
+13159,4,,s-4,section,,"(1) A proceeding may be commenced in the Ontario Court of Justice against an owner of a dog if it is alleged that,
 (a) the dog has bitten or attacked a person or domestic animal;
 (b) the dog has behaved in a manner that poses a menace to the safety of persons or domestic animals; or
 (c) the owner did not exercise reasonable precautions to prevent the dog from,
@@ -518,26 +518,26 @@ Liability remains if keeping the dog was unreasonable for protection."
 (8) When, in a proceeding under this section, the court finds that the dog is a pit bull and has bitten or attacked a person or domestic animal, or has behaved in a manner that poses a menace to the safety of persons or domestic animals, the court shall make an order under clause (3) (a).
 (9) When, in a proceeding under this section, the court finds that the owner of a pit bull contravened a provision of this Act or the regulations relating to pit bulls or contravened a court order relating to one or more pit bulls, the court shall make an order under clause 3 (a).
 (10) If it is alleged in any proceeding under this section that a dog is a pit bull, the onus of proving that the dog is not a pit bull lies on the owner of the dog.",12,The Ontario Court of Justice can hear proceedings against dangerous dog owners. The court may order dog control measures or order the dog destroyed. Owners must prove their dog is not a pit bull if alleged.
-13160,4,13159,s-4-1,subsection,,"(1) A proceeding may be commenced in the Ontario Court of Justice against an owner of a dog if it is alleged that,
+13160,4,13159,s-4-1,subsection,Proceedings against owner of dog,"(1) A proceeding may be commenced in the Ontario Court of Justice against an owner of a dog if it is alleged that,
 (a) the dog has bitten or attacked a person or domestic animal;
 (b) the dog has behaved in a manner that poses a menace to the safety of persons or domestic animals; or
 (c) the owner did not exercise reasonable precautions to prevent the dog from,
 (i) biting or attacking a person or domestic animal, or
 (ii) behaving in a manner that poses a menace to the safety of persons or domestic animals.",13,
-13161,4,13159,s-4-1.1,subsection,,(1.1) A proceeding may be commenced in the Ontario Court of Justice against a person if it is alleged that the person contravened a provision of this Act or the regulations or a court order made under this Act.,14,
-13162,4,13159,s-4-1.2,subsection,,(1.2) Part IX of the Provincial Offences Act applies to a proceeding under this section.,15,
-13163,4,13159,s-4-1.3,subsection,,(1.3) Findings of fact in a proceeding under this section shall be made on the balance of probabilities.,16,
-13164,4,13159,s-4-2,subsection,,"(2) When a proceeding has been commenced under subsection (1) or (1.1), the Ontario Court of Justice may, pending a determination of whether an order should be made under subsection (3) or pending an appeal of such an order, make an interim order requiring the owner to take measures specified in the interim order for the more effective control of the dog.",17,
-13165,4,13159,s-4-3,subsection,,"(3) If, in a proceeding under subsection (1), the court finds that the dog has bitten or attacked a person or domestic animal or that the dog’s behaviour is such that the dog is a menace to the safety of persons or domestic animals, and the court is satisfied that an order is necessary for the protection of the public, the court may order,
+13161,4,13159,s-4-1.1,subsection,Same,(1.1) A proceeding may be commenced in the Ontario Court of Justice against a person if it is alleged that the person contravened a provision of this Act or the regulations or a court order made under this Act.,14,
+13162,4,13159,s-4-1.2,subsection,Nature of proceeding,(1.2) Part IX of the Provincial Offences Act applies to a proceeding under this section.,15,
+13163,4,13159,s-4-1.3,subsection,Standard of proof,(1.3) Findings of fact in a proceeding under this section shall be made on the balance of probabilities.,16,
+13164,4,13159,s-4-2,subsection,Interim order,"(2) When a proceeding has been commenced under subsection (1) or (1.1), the Ontario Court of Justice may, pending a determination of whether an order should be made under subsection (3) or pending an appeal of such an order, make an interim order requiring the owner to take measures specified in the interim order for the more effective control of the dog.",17,
+13165,4,13159,s-4-3,subsection,Final order,"(3) If, in a proceeding under subsection (1), the court finds that the dog has bitten or attacked a person or domestic animal or that the dog’s behaviour is such that the dog is a menace to the safety of persons or domestic animals, and the court is satisfied that an order is necessary for the protection of the public, the court may order,
 (a) that the dog be destroyed in the manner specified in the order; or
 (b) that the owner of the dog take the measures specified in the order for the more effective control of the dog or for purposes of public safety.",18,
-13166,4,13159,s-4-4,subsection,,"(4) Some examples of measures that may be ordered under subsection (2) or clause (3) (b) are:
+13166,4,13159,s-4-4,subsection,"Examples, measures for more effective control","(4) Some examples of measures that may be ordered under subsection (2) or clause (3) (b) are:
 1. Confining the dog to its owner’s property.
 2. Restraining the dog by means of a leash.
 3. Restraining the dog by means of a muzzle.
 4. Posting warning signs.",19,
-13167,4,13159,s-4-5,subsection,,"(5) If a dog whose destruction has been ordered under clause (3) (a) is not taken into custody immediately, the owner shall restrain the dog by means of a leash and muzzle and such other means as the court may order until the dog is taken into custody.",20,
-13168,4,13159,s-4-6,subsection,,"(6) Except as provided by subsections (8) and (9), in exercising its powers to make an order under subsection (3), the court may take into consideration the following circumstances:
+13167,4,13159,s-4-5,subsection,Automatic restraint order,"(5) If a dog whose destruction has been ordered under clause (3) (a) is not taken into custody immediately, the owner shall restrain the dog by means of a leash and muzzle and such other means as the court may order until the dog is taken into custody.",20,
+13168,4,13159,s-4-6,subsection,Considerations,"(6) Except as provided by subsections (8) and (9), in exercising its powers to make an order under subsection (3), the court may take into consideration the following circumstances:
 1. The dog’s past and present temperament and behaviour.
 2. The seriousness of the injuries caused by the biting or attack.
 3. Unusual contributing circumstances tending to justify the dog’s action.
@@ -545,10 +545,10 @@ Liability remains if keeping the dog was unreasonable for protection."
 5. The dog’s physical potential for inflicting harm.
 6. Precautions taken by the owner to preclude similar attacks in the future.
 7. Any other circumstances that the court considers to be relevant.",21,
-13169,4,13159,s-4-7,subsection,,"(7) The owner of a dog that is subject to an order under clause (3) (b) shall ensure that the dog is neutered or spayed, as the case may be, within 30 days of the making of the order or, if the court specifies a different time period, within the time period specified by the court.",22,
-13170,4,13159,s-4-8,subsection,,"(8) When, in a proceeding under this section, the court finds that the dog is a pit bull and has bitten or attacked a person or domestic animal, or has behaved in a manner that poses a menace to the safety of persons or domestic animals, the court shall make an order under clause (3) (a).",23,
-13171,4,13159,s-4-9,subsection,,"(9) When, in a proceeding under this section, the court finds that the owner of a pit bull contravened a provision of this Act or the regulations relating to pit bulls or contravened a court order relating to one or more pit bulls, the court shall make an order under clause 3 (a).",24,
-13172,4,13159,s-4-10,subsection,,"(10) If it is alleged in any proceeding under this section that a dog is a pit bull, the onus of proving that the dog is not a pit bull lies on the owner of the dog.",25,
+13169,4,13159,s-4-7,subsection,Sterilization requirement,"(7) The owner of a dog that is subject to an order under clause (3) (b) shall ensure that the dog is neutered or spayed, as the case may be, within 30 days of the making of the order or, if the court specifies a different time period, within the time period specified by the court.",22,
+13170,4,13159,s-4-8,subsection,Mandatory order under cl. (3) (a),"(8) When, in a proceeding under this section, the court finds that the dog is a pit bull and has bitten or attacked a person or domestic animal, or has behaved in a manner that poses a menace to the safety of persons or domestic animals, the court shall make an order under clause (3) (a).",23,
+13171,4,13159,s-4-9,subsection,Same,"(9) When, in a proceeding under this section, the court finds that the owner of a pit bull contravened a provision of this Act or the regulations relating to pit bulls or contravened a court order relating to one or more pit bulls, the court shall make an order under clause 3 (a).",24,
+13172,4,13159,s-4-10,subsection,"Onus of proof, pit bulls","(10) If it is alleged in any proceeding under this section that a dog is a pit bull, the onus of proving that the dog is not a pit bull lies on the owner of the dog.",25,
 13173,4,,s-5,section,Order to prohibit dog ownership,"When, in a proceeding under section 4, the court finds that the dog has bitten or attacked a person or domestic animal or that the dog’s behaviour is such that the dog is a menace to the safety of persons or domestic animals, the court may make an order prohibiting the dog’s owner from owning another dog during a specified period of time.",26,"This applies to dog owners in a proceeding under another section. The dog must have bitten, attacked, or threatened people or domestic animals. The court may prohibit the owner from owning another dog for a period."
 13174,4,,s-5.1,section,Owner to prevent dog from attacking,"The owner of a dog shall exercise reasonable precautions to prevent it from,
 (a) biting or attacking a person or domestic animal; or
@@ -561,22 +561,22 @@ Liability remains if keeping the dog was unreasonable for protection."
 (e) allow a pit bull in his or her possession to stray;
 (f) import a pit bull into Ontario; or
 (g) train a pit bull for fighting.",28,"Unless allowed, no person may own, breed, or import pit bulls. No person may transfer them or train them for fighting. People cannot let them stray or abandon them outside designated pounds."
-13176,4,,s-7,section,Ownership of restricted pit bulls,"(1) For the purposes of this Act, a pit bull is a restricted pit bull if,
+13176,4,,s-7,section,Ownership of restricted pit bulls · Controls on restricted pit bulls,"(1) For the purposes of this Act, a pit bull is a restricted pit bull if,
 (a) it is owned by a resident of Ontario on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force; or
 (b) it is born in Ontario before the end of the 90-day period beginning on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force.
 (2) Despite clause 6 (a), a person may own a pit bull if it is a restricted pit bull.
 (3) A person who owns a restricted pit bull shall ensure compliance with the requirements set out in this Act and the regulations that relate to restricted pit bulls, within such time frames as are provided for those requirements in this Act or the regulations.",29,"Despite another section, people may own restricted pit bulls. A pit bull qualifies based on Ontario ownership or birth dates. Owners must follow all legal requirements within the set time frames."
-13177,4,13176,s-7-1,subsection,,"(1) For the purposes of this Act, a pit bull is a restricted pit bull if,
+13177,4,13176,s-7-1,subsection,Ownership of restricted pit bulls,"(1) For the purposes of this Act, a pit bull is a restricted pit bull if,
 (a) it is owned by a resident of Ontario on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force; or
 (b) it is born in Ontario before the end of the 90-day period beginning on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force.",30,
-13178,4,13176,s-7-2,subsection,,"(2) Despite clause 6 (a), a person may own a pit bull if it is a restricted pit bull.",31,
-13179,4,13176,s-7-3,subsection,,"(3) A person who owns a restricted pit bull shall ensure compliance with the requirements set out in this Act and the regulations that relate to restricted pit bulls, within such time frames as are provided for those requirements in this Act or the regulations.",32,
+13178,4,13176,s-7-2,subsection,Same,"(2) Despite clause 6 (a), a person may own a pit bull if it is a restricted pit bull.",31,
+13179,4,13176,s-7-3,subsection,Controls on restricted pit bulls,"(3) A person who owns a restricted pit bull shall ensure compliance with the requirements set out in this Act and the regulations that relate to restricted pit bulls, within such time frames as are provided for those requirements in this Act or the regulations.",32,
 13180,4,,s-8,section,Ownership of pit bull other than restricted,"(1) Despite clause 6 (a), a pound may own a pit bull that is not a restricted pit bull for as long as is reasonably necessary to fulfil its obligations under the Animals for Research Act.
 (2) Despite clause 6 (a), a research facility registered under the Animals for Research Act may own a pit bull that is not a restricted pit bull that is transferred to it under the Animals for Research Act.",33,"A pound may own an unrestricted pit bull to meet research law duties. 
 This rule applies despite restrictions in another section.
 A registered research facility may also own an unrestricted pit bull transferred to it."
-13181,4,13180,s-8-1,subsection,,"(1) Despite clause 6 (a), a pound may own a pit bull that is not a restricted pit bull for as long as is reasonably necessary to fulfil its obligations under the Animals for Research Act.",34,
-13182,4,13180,s-8-2,subsection,,"(2) Despite clause 6 (a), a research facility registered under the Animals for Research Act may own a pit bull that is not a restricted pit bull that is transferred to it under the Animals for Research Act.",35,
+13181,4,13180,s-8-1,subsection,Ownership of pit bull other than restricted,"(1) Despite clause 6 (a), a pound may own a pit bull that is not a restricted pit bull for as long as is reasonably necessary to fulfil its obligations under the Animals for Research Act.",34,
+13182,4,13180,s-8-2,subsection,Same,"(2) Despite clause 6 (a), a research facility registered under the Animals for Research Act may own a pit bull that is not a restricted pit bull that is transferred to it under the Animals for Research Act.",35,
 13183,4,,s-9,section,Transfer of pit bulls,"(1) Despite clause 6 (c) and subject to the regulations, an owner of a restricted pit bull may transfer that pit bull by gift or bequest.
 (2) No person who owned one or more pit bulls on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force shall acquire a pit bull under subsection (1) after that day if the effect of the acquisition would be that the person owns more pit bulls after that day than on that day.
 (3) No person who did not own a pit bull on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force shall acquire more than one pit bull under subsection (1) after that day.
@@ -587,16 +587,16 @@ A registered research facility may also own an unrestricted pit bull transferred
 Individuals cannot acquire more pit bulls than set limits permit. 
 
 Pounds and research facilities are exempt from these limits."
-13184,4,13183,s-9-1,subsection,,"(1) Despite clause 6 (c) and subject to the regulations, an owner of a restricted pit bull may transfer that pit bull by gift or bequest.",37,
-13185,4,13183,s-9-2,subsection,,"(2) No person who owned one or more pit bulls on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force shall acquire a pit bull under subsection (1) after that day if the effect of the acquisition would be that the person owns more pit bulls after that day than on that day.",38,
-13186,4,13183,s-9-3,subsection,,"(3) No person who did not own a pit bull on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force shall acquire more than one pit bull under subsection (1) after that day.",39,
-13187,4,13183,s-9-4,subsection,,"(4) The limits set out in subsections (2) and (3) do not apply to a pound operated by or on behalf of a municipality, Ontario or a designated body or to a research facility within the meaning of the Animals for Research Act.",40,
-13188,4,13183,s-9-5,subsection,,"(5) Despite clause 6 (c), a pit bull may be transferred by its owner to a pound operated by or on behalf of a municipality, Ontario or a designated body.",41,
-13189,4,13183,s-9-6,subsection,,"(6) Despite clause 6 (c), a pit bull may be transferred in accordance with section 20 of the Animals for Research Act.",42,
+13184,4,13183,s-9-1,subsection,Transfer of pit bulls,"(1) Despite clause 6 (c) and subject to the regulations, an owner of a restricted pit bull may transfer that pit bull by gift or bequest.",37,
+13185,4,13183,s-9-2,subsection,Same,"(2) No person who owned one or more pit bulls on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force shall acquire a pit bull under subsection (1) after that day if the effect of the acquisition would be that the person owns more pit bulls after that day than on that day.",38,
+13186,4,13183,s-9-3,subsection,Same,"(3) No person who did not own a pit bull on the day subsection 1 (16) of the Public Safety Related to Dogs Statute Law Amendment Act, 2005 comes into force shall acquire more than one pit bull under subsection (1) after that day.",39,
+13187,4,13183,s-9-4,subsection,Same,"(4) The limits set out in subsections (2) and (3) do not apply to a pound operated by or on behalf of a municipality, Ontario or a designated body or to a research facility within the meaning of the Animals for Research Act.",40,
+13188,4,13183,s-9-5,subsection,Same,"(5) Despite clause 6 (c), a pit bull may be transferred by its owner to a pound operated by or on behalf of a municipality, Ontario or a designated body.",41,
+13189,4,13183,s-9-6,subsection,Same,"(6) Despite clause 6 (c), a pit bull may be transferred in accordance with section 20 of the Animals for Research Act.",42,
 13190,4,,s-10,section,Importation of restricted pit bulls,"(1) For the purposes of clause 6 (f), an individual who leaves Ontario with a restricted pit bull and returns to Ontario with that pit bull within three months is not importing that pit bull into Ontario.
 (2) For the purposes of clause 6 (f), an individual who owns a pit bull on the day referred to in clause 7 (1) (a) and is legally resident in Ontario on that day, but who is not present in Ontario on that day, is not importing a pit bull into Ontario if he or she returns to Ontario with that pit bull within three months of that day.",43,Bringing a restricted pit bull to Ontario within three months is not importing. This applies under another section to people who left with the dog. Absent Ontario residents returning within three months of another section do not import.
-13191,4,13190,s-10-1,subsection,,"(1) For the purposes of clause 6 (f), an individual who leaves Ontario with a restricted pit bull and returns to Ontario with that pit bull within three months is not importing that pit bull into Ontario.",44,
-13192,4,13190,s-10-2,subsection,,"(2) For the purposes of clause 6 (f), an individual who owns a pit bull on the day referred to in clause 7 (1) (a) and is legally resident in Ontario on that day, but who is not present in Ontario on that day, is not importing a pit bull into Ontario if he or she returns to Ontario with that pit bull within three months of that day.",45,
+13191,4,13190,s-10-1,subsection,Importation of restricted pit bulls,"(1) For the purposes of clause 6 (f), an individual who leaves Ontario with a restricted pit bull and returns to Ontario with that pit bull within three months is not importing that pit bull into Ontario.",44,
+13192,4,13190,s-10-2,subsection,Same,"(2) For the purposes of clause 6 (f), an individual who owns a pit bull on the day referred to in clause 7 (1) (a) and is legally resident in Ontario on that day, but who is not present in Ontario on that day, is not importing a pit bull into Ontario if he or she returns to Ontario with that pit bull within three months of that day.",45,
 13193,4,,s-11,section,Municipal by-laws,"Despite section 14 of the Municipal Act, 2001 and section 11 of the City of Toronto Act, 2006, if there is a conflict between a provision of this Act or of a regulation under this or any other Act relating to pit bulls and a provision of a by-law passed by a municipality relating to pit bulls, the provision that is the most restrictive in relation to controls or bans on pit bulls prevails.",46,"This rule applies to municipal by-laws and laws about pit bulls. 
 
 It applies despite what other sections state. 
@@ -631,11 +631,11 @@ It also includes First Nation Officers, auxiliary members, and designated public
 A peace officer may enter property to search for the dog. 
 
 The warrant expires within thirty days and restricts the search times."
-13196,4,13195,s-13-1,subsection,,"(1) Subsection (2) applies where a justice of the peace is satisfied by information on oath or affirmation that there are reasonable grounds to believe that,
+13196,4,13195,s-13-1,subsection,Warrant to seize dog,"(1) Subsection (2) applies where a justice of the peace is satisfied by information on oath or affirmation that there are reasonable grounds to believe that,
 (a) a dog is in any building, receptacle or place, including a dwelling house, other than in a pound operated by or on behalf of a municipality, Ontario or a designated body or in a research facility registered under the Animals for Research Act; and
 (b) it is not desirable in the interests of public safety that the dog be in that location.",49,
-13197,4,13195,s-13-2,subsection,,"(2) In the circumstances described in subsection (1), the justice of the peace may issue a warrant authorizing a peace officer named in the warrant to enter any building, receptacle or place, including a dwelling house, to search for and seize the dog and any muzzle, collar or other equipment for the dog.",50,
-13198,4,13195,s-13-3,subsection,,"(3) Without limiting the generality of clause (1) (b), it is not desirable in the interests of public safety for a dog to be in a location other than in a pound operated by or on behalf of a municipality, Ontario or a designated body or in a research facility registered under the Animals for Research Act if,
+13197,4,13195,s-13-2,subsection,Same,"(2) In the circumstances described in subsection (1), the justice of the peace may issue a warrant authorizing a peace officer named in the warrant to enter any building, receptacle or place, including a dwelling house, to search for and seize the dog and any muzzle, collar or other equipment for the dog.",50,
+13198,4,13195,s-13-3,subsection,Same,"(3) Without limiting the generality of clause (1) (b), it is not desirable in the interests of public safety for a dog to be in a location other than in a pound operated by or on behalf of a municipality, Ontario or a designated body or in a research facility registered under the Animals for Research Act if,
 (a) the dog has on one or more occasions bitten or attacked a person or domestic animal;
 (b) the dog has on one or more occasions behaved in a manner that poses a menace to the safety of persons or domestic animals;
 (c) an owner of the dog has on one or more occasions failed to exercise reasonable precautions to prevent the dog from,
@@ -644,17 +644,17 @@ The warrant expires within thirty days and restricts the search times."
 (d) the dog is a restricted pit bull and an owner of the dog has on one or more occasions failed to comply with one or more of the requirements of this Act or the regulations respecting restricted pit bulls;
 (e) the dog is a pit bull other than a restricted pit bull; or
 (f) there is reason to believe that the dog may cause harm to a person or domestic animal.",51,
-13199,4,13195,s-13-4,subsection,,"(4) A peace officer named in a warrant who is executing a warrant under this section may be accompanied by one or more veterinarians or animal control personnel as are reasonably required to give effect to the safe and humane seizure of the dog, whether the accompanying persons are named in the warrant or not.",52,
-13200,4,13195,s-13-5,subsection,,"(5) Every warrant issued under this section shall name a date on which it expires, which date shall be not later than 30 days after its issue.",53,
-13201,4,13195,s-13-6,subsection,,"(6) Every warrant shall be executed between 6 a.m. and 9 p.m., unless the justice by the warrant otherwise authorizes.",54,
+13199,4,13195,s-13-4,subsection,Same,"(4) A peace officer named in a warrant who is executing a warrant under this section may be accompanied by one or more veterinarians or animal control personnel as are reasonably required to give effect to the safe and humane seizure of the dog, whether the accompanying persons are named in the warrant or not.",52,
+13200,4,13195,s-13-5,subsection,Same,"(5) Every warrant issued under this section shall name a date on which it expires, which date shall be not later than 30 days after its issue.",53,
+13201,4,13195,s-13-6,subsection,Same,"(6) Every warrant shall be executed between 6 a.m. and 9 p.m., unless the justice by the warrant otherwise authorizes.",54,
 13202,4,,s-14,section,Exigent circumstances,"(1) Where the circumstances in clauses 13 (1) (a) and (b) exist and it would be impracticable to obtain a warrant because of exigent circumstances, a peace officer may exercise any of the powers of a peace officer described in section 13.
 (2) In this section, exigent circumstances include circumstances in which the peace officer has reasonable grounds to suspect that entry into any building, receptacle or place, including a dwelling house, is necessary to prevent imminent bodily harm or death to any person or domestic animal.",55,"Peace officers may use powers from another section without a warrant. 
 
 This applies when exigent circumstances make getting a warrant impracticable. 
 
 This includes preventing imminent bodily harm or death to persons or domestic animals."
-13203,4,13202,s-14-1,subsection,,"(1) Where the circumstances in clauses 13 (1) (a) and (b) exist and it would be impracticable to obtain a warrant because of exigent circumstances, a peace officer may exercise any of the powers of a peace officer described in section 13.",56,
-13204,4,13202,s-14-2,subsection,,"(2) In this section, exigent circumstances include circumstances in which the peace officer has reasonable grounds to suspect that entry into any building, receptacle or place, including a dwelling house, is necessary to prevent imminent bodily harm or death to any person or domestic animal.",57,
+13203,4,13202,s-14-1,subsection,Exigent circumstances,"(1) Where the circumstances in clauses 13 (1) (a) and (b) exist and it would be impracticable to obtain a warrant because of exigent circumstances, a peace officer may exercise any of the powers of a peace officer described in section 13.",56,
+13204,4,13202,s-14-2,subsection,Same,"(2) In this section, exigent circumstances include circumstances in which the peace officer has reasonable grounds to suspect that entry into any building, receptacle or place, including a dwelling house, is necessary to prevent imminent bodily harm or death to any person or domestic animal.",57,
 13205,4,,s-15,section,Seizure in public place,"(1) A peace officer may seize a dog in a public place if the officer believes on reasonable grounds that,
 (a) the dog has on one or more occasions bitten or attacked a person or domestic animal;
 (b) the dog has on one or more occasions behaved in a manner that poses a menace to the safety of persons or domestic animals;
@@ -665,7 +665,7 @@ This includes preventing imminent bodily harm or death to persons or domestic an
 (e) the dog is a pit bull other than a restricted pit bull; or
 (f) there is reason to believe that the dog may cause harm to a person or domestic animal.
 (2) Subsection (1) shall not be interpreted to restrict seizure of a dog in a public place if the seizure is otherwise lawful.",58,A peace officer may seize a dog in a public place. Officers must reasonably believe the dog is dangerous or violates pit bull rules. Other lawful seizures of dogs in public places remain allowed.
-13206,4,13205,s-15-1,subsection,,"(1) A peace officer may seize a dog in a public place if the officer believes on reasonable grounds that,
+13206,4,13205,s-15-1,subsection,Seizure in public place,"(1) A peace officer may seize a dog in a public place if the officer believes on reasonable grounds that,
 (a) the dog has on one or more occasions bitten or attacked a person or domestic animal;
 (b) the dog has on one or more occasions behaved in a manner that poses a menace to the safety of persons or domestic animals;
 (c) an owner of the dog has on one or more occasions failed to exercise reasonable precautions to prevent the dog from,
@@ -674,25 +674,25 @@ This includes preventing imminent bodily harm or death to persons or domestic an
 (d) the dog is a restricted pit bull and an owner of the dog has on one or more occasions failed to comply with one or more of the requirements of this Act or the regulations respecting restricted pit bulls;
 (e) the dog is a pit bull other than a restricted pit bull; or
 (f) there is reason to believe that the dog may cause harm to a person or domestic animal.",59,
-13207,4,13205,s-15-2,subsection,,(2) Subsection (1) shall not be interpreted to restrict seizure of a dog in a public place if the seizure is otherwise lawful.,60,
+13207,4,13205,s-15-2,subsection,Same,(2) Subsection (1) shall not be interpreted to restrict seizure of a dog in a public place if the seizure is otherwise lawful.,60,
 13208,4,,s-16,section,Necessary force,A peace officer may use as much force as is necessary to execute a warrant issued under section 13 or to exercise any authority given by section 14 or 15.,61,A peace officer may use necessary force to execute a warrant. This applies to warrants issued under another section. They may also use force when exercising authority under another section.
 13209,4,,s-17,section,Delivery of seized dog to pound,"A peace officer who seizes a dog under section 13, 14 or 15 shall promptly deliver the seized dog to a pound operated by or on behalf of a municipality, Ontario or a designated body.",62,"A peace officer must promptly deliver any dog seized under another section. The dog must go to a pound. It is run by or for Ontario, a municipality, or a designated body."
 13210,4,,s-18,section,Offences,"(1) An individual who contravenes any provision of this Act or the regulations or who contravenes an order made under this Act or the regulations is guilty of an offence and liable, on conviction, to a fine of not more than $10,000 or to imprisonment for a term of not more than six months, or both.
 (2) A corporation that contravenes any provision of this Act or the regulations or that contravenes an order made under this Act or the regulations is guilty of an offence and liable, on conviction, to a fine of not more than $60,000.
 (3) If a person is convicted of an offence under this Act, the court making the conviction may, in addition to any other penalty, order the person convicted to make compensation or restitution in relation to the offence.",63,"Individuals breaking this Act face fines up to $10,000 and six months imprisonment. Corporations breaking this Act face fines up to $60,000. The court may also order convicted parties to pay compensation or restitution."
-13211,4,13210,s-18-1,subsection,,"(1) An individual who contravenes any provision of this Act or the regulations or who contravenes an order made under this Act or the regulations is guilty of an offence and liable, on conviction, to a fine of not more than $10,000 or to imprisonment for a term of not more than six months, or both.",64,
-13212,4,13210,s-18-2,subsection,,"(2) A corporation that contravenes any provision of this Act or the regulations or that contravenes an order made under this Act or the regulations is guilty of an offence and liable, on conviction, to a fine of not more than $60,000.",65,
-13213,4,13210,s-18-3,subsection,,"(3) If a person is convicted of an offence under this Act, the court making the conviction may, in addition to any other penalty, order the person convicted to make compensation or restitution in relation to the offence.",66,
-13214,4,,s-19,section,Identification of pit bull,"(1) A document purporting to be signed by a member of the College of Veterinarians of Ontario stating that a dog is a pit bull within the meaning of this Act is receivable in evidence in a prosecution for an offence under this Act as proof, in the absence of evidence to the contrary, that the dog is a pit bull for the purposes of this Act, without proof of the signature and without proof that the signatory is a member of the College.
+13211,4,13210,s-18-1,subsection,Offences,"(1) An individual who contravenes any provision of this Act or the regulations or who contravenes an order made under this Act or the regulations is guilty of an offence and liable, on conviction, to a fine of not more than $10,000 or to imprisonment for a term of not more than six months, or both.",64,
+13212,4,13210,s-18-2,subsection,Same,"(2) A corporation that contravenes any provision of this Act or the regulations or that contravenes an order made under this Act or the regulations is guilty of an offence and liable, on conviction, to a fine of not more than $60,000.",65,
+13213,4,13210,s-18-3,subsection,Same,"(3) If a person is convicted of an offence under this Act, the court making the conviction may, in addition to any other penalty, order the person convicted to make compensation or restitution in relation to the offence.",66,
+13214,4,,s-19,section,Identification of pit bull · Immunity · Onus of proof,"(1) A document purporting to be signed by a member of the College of Veterinarians of Ontario stating that a dog is a pit bull within the meaning of this Act is receivable in evidence in a prosecution for an offence under this Act as proof, in the absence of evidence to the contrary, that the dog is a pit bull for the purposes of this Act, without proof of the signature and without proof that the signatory is a member of the College.
 (2) No action or other proceeding may be instituted against a member of the College of Veterinarians of Ontario for providing, in good faith, a document described in subsection (1).
 (3) For greater certainty, this section does not remove the onus on the prosecution to prove its case beyond a reasonable doubt.",67,"A signed vet note proves a dog is a pit bull. 
 
 Ontario veterinarians cannot be sued for providing it in good faith. 
 
 The prosecution must still prove its case beyond a reasonable doubt."
-13215,4,13214,s-19-1,subsection,,"(1) A document purporting to be signed by a member of the College of Veterinarians of Ontario stating that a dog is a pit bull within the meaning of this Act is receivable in evidence in a prosecution for an offence under this Act as proof, in the absence of evidence to the contrary, that the dog is a pit bull for the purposes of this Act, without proof of the signature and without proof that the signatory is a member of the College.",68,
-13216,4,13214,s-19-2,subsection,,"(2) No action or other proceeding may be instituted against a member of the College of Veterinarians of Ontario for providing, in good faith, a document described in subsection (1).",69,
-13217,4,13214,s-19-3,subsection,,"(3) For greater certainty, this section does not remove the onus on the prosecution to prove its case beyond a reasonable doubt.",70,
+13215,4,13214,s-19-1,subsection,Identification of pit bull,"(1) A document purporting to be signed by a member of the College of Veterinarians of Ontario stating that a dog is a pit bull within the meaning of this Act is receivable in evidence in a prosecution for an offence under this Act as proof, in the absence of evidence to the contrary, that the dog is a pit bull for the purposes of this Act, without proof of the signature and without proof that the signatory is a member of the College.",68,
+13216,4,13214,s-19-2,subsection,Immunity,"(2) No action or other proceeding may be instituted against a member of the College of Veterinarians of Ontario for providing, in good faith, a document described in subsection (1).",69,
+13217,4,13214,s-19-3,subsection,Onus of proof,"(3) For greater certainty, this section does not remove the onus on the prosecution to prove its case beyond a reasonable doubt.",70,
 13218,4,,s-20,section,Regulations,"(1) The Lieutenant Governor in Council may make regulations respecting the control of pit bulls.
 (2) Without limiting the generality of subsection (1), the Lieutenant Governor in Council may make regulations,
 (a) respecting leashing and muzzling of restricted pit bulls;
@@ -703,16 +703,16 @@ The prosecution must still prove its case beyond a reasonable doubt."
 (f) designating public officers as peace officers for the purposes of this Act.
 (3) Regulations may be general or specific.
 (4) Without limiting the generality of subsection (3), a regulation may be made to apply or not to apply to a person or body specified in the regulation.",71,"The Lieutenant Governor in Council may make regulations to control pit bulls. Rules can cover leashing, muzzling, neutering, dog shows, and enforcement powers. These regulations may be general or apply to specific people or bodies."
-13219,4,13218,s-20-1,subsection,,(1) The Lieutenant Governor in Council may make regulations respecting the control of pit bulls.,72,
-13220,4,13218,s-20-2,subsection,,"(2) Without limiting the generality of subsection (1), the Lieutenant Governor in Council may make regulations,
+13219,4,13218,s-20-1,subsection,Regulations,(1) The Lieutenant Governor in Council may make regulations respecting the control of pit bulls.,72,
+13220,4,13218,s-20-2,subsection,Same,"(2) Without limiting the generality of subsection (1), the Lieutenant Governor in Council may make regulations,
 (a) respecting leashing and muzzling of restricted pit bulls;
 (b) respecting the spaying or neutering of restricted pit bulls;
 (c) authorizing persons or other bodies specified in the regulations to pass and enforce by-laws governing pit bulls for the purposes of unorganized territory or specified parts of unorganized territory in the same ways that a municipality can pass and enforce by-laws governing pit bulls for the purposes of its geographic jurisdiction;
 (d) governing the presence in Ontario of pit bulls in connection with dog shows, including regulations providing for exemptions, subject to any restrictions specified in the regulations, from any provision of this Act or the regulations;
 (e) designating bodies referred to as designated in this Act;
 (f) designating public officers as peace officers for the purposes of this Act.",73,
-13221,4,13218,s-20-3,subsection,,(3) Regulations may be general or specific.,74,
-13222,4,13218,s-20-4,subsection,,"(4) Without limiting the generality of subsection (3), a regulation may be made to apply or not to apply to a person or body specified in the regulation.",75,
+13221,4,13218,s-20-3,subsection,Same,(3) Regulations may be general or specific.,74,
+13222,4,13218,s-20-4,subsection,Same,"(4) Without limiting the generality of subsection (3), a regulation may be made to apply or not to apply to a person or body specified in the regulation.",75,
 26314,14,,article-i,part,Article I — Terminology,"",1,
 26315,14,26314,743-1,section,Definitions,"[Amended 2005-12-07 by By-law 1070-2005; 2006-05-25 by By-law 462-2006; 2009-10-01 by By-law 954-2009, 2010-06-09 by By-law 621-2010 3, 2012-03-07 by By-law 375-2012 4; 2012- 07-13 by By-law 1004-2012; 2015-07-09 by By-law 813-2015 5]
 A. As used in this chapter, the following terms shall have the me",2,"This section defines specific terms used throughout this chapter of the Municipal Code. It applies to anyone using, altering, occupying, or maintaining Toronto streets and sidewalks. Other terms take their meanings from another section or the Highway Traffic Act."
