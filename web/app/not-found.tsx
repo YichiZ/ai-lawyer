@@ -1,11 +1,5 @@
-import Link from "next/link";
+import NotFound from "@/components/NotFound";
 
-export default function NotFound() {
-  return (
-    <div>
-      <h1 className="font-serif text-3xl font-semibold">Not found</h1>
-      <p className="mt-3 text-muted">That law or section is not in the guide.</p>
-      <p className="mt-6"><Link href="/laws">Back to the law library</Link></p>
-    </div>
-  );
+export default function NotFoundPage() {
+  return <NotFound message="That page is not in the guide." href="/" label="Back to the home page" />;
 }
