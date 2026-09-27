@@ -62,6 +62,10 @@ Rules:
 - "claims": each claim is one statement from your answer, the id of the passage that supports it (e.g. "c12"), and a
   quote copied EXACTLY, word for word, from that passage (one sentence or clause, at least a few words).
   Never paraphrase inside a quote. Use only passage ids listed below.
+- Indexed amounts: if a rule's dollar figure is "the greater of X and the prescribed amount", is prescribed by
+  regulation, or is revised or indexed over time, never present the base or dated figure as the current amount. Say
+  the amount is indexed or prescribed, quote the passage that sets or indexes it if one is listed, and say the current
+  figure is published separately and is not in these passages. Never calculate a current amount.
 - If the passages do not answer the question, return an empty claims list and say so in "answer".
 {feedback}
 Question: {question}

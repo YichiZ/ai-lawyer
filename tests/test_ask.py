@@ -103,6 +103,15 @@ def test_verified_answer():
     assert "c1" in llm.prompts[0] and "How long to sue?" in llm.prompts[0]
 
 
+def test_prompt_says_indexed_amounts_are_not_current():
+    """#2: a base figure in "the greater of $X and the prescribed amount" must not be presented as current."""
+    llm = FakeLLM([{"in_scope": True, "answer": "x", "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
+    run_ask("What is the deductible?", [hit("c1", 0.2)], llm)
+    prompt = " ".join(llm.prompts[0].split())
+    assert "never present the base or dated figure as the current amount" in prompt
+    assert "Never calculate a current amount" in prompt
+
+
 def test_retry_once_then_refuse():
     bad = {"in_scope": True, "answer": "x", "claims": [claim("made up words that are not there")]}
     llm = FakeLLM([bad, bad])
