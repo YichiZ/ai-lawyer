@@ -1,4 +1,4 @@
-"""Listwise rerank: gemini-3.5-flash-lite orders the fused top 30 (ids + first ~120 words) in one JSON call.
+"""Listwise rerank: gemini-3.5-flash-lite orders the fused top 20 (ids + first ~120 words) in one JSON call.
 
 Code keeps control: unknown or duplicate ids are ignored, ids the model left out keep their fused order, and any
 failure falls back to the fused order (flagged) — a rerank problem never breaks retrieval.

@@ -2,6 +2,14 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Docs · design.md refreshed to match the code
+
+- **What:** three read-only subagents diffed every section of `docs/design.md` against the code (ingest; retrieval/answering/review; data model/API/web/evals), then an architect subagent reviewed the draft. Claims were spot-checked in code before editing.
+- **Corrected:** Docling was never used (pdftotext + stdlib HTML parser); no weekly A2AJ job or `input/` watcher; situating has no context caching; decision summaries use Flash-Lite, glossary 3.7 Flash; job backoff is 1 → 4 min, then dead on the 3rd failure; the draft retries only when no claim verifies; the grounding gate runs after the rerank; `/search` covers laws + web pages only; schema, endpoints, pages, gold-set sizes (89 + 28), CI jobs and Lighthouse budgets now match.
+- **Added:** `/ask` sequence diagram, a measured-vs-target column, a production eval suite summary, milestone status, **Not built** lists (filters, authority boost, context expansion, decomposition, ⌘K, weekly review report), and risks the review found: drafts are not durable across an API restart, `X-Demo-User` is the only guard on reviewer actions, filtered HNSW at scale.
+- **Validated:** both Mermaid blocks render with mermaid@11; live counts from the dev DB (20 laws + 3 by-laws + 1,660 decisions + 2 web pages, 42,891 chunks, 16 guide sections pending review). No code changed.
+- **Stale code comments fixed:** `app/rerank.py` docstring said "top 30" (code: 20); `app/main.py` comment said rerank "3 s" (code: 2.5 s); `app/jobs.py` docstring listed a 16 min backoff that never runs.
+
 ## 2026-09-27 · Fix · Plain-word /search is reranked, progressively: 'how long to sue' finds the Limitations Act (#41)
 
 - **Root cause:** for "how long to sue", Limitations Act s. 4 is vector rank 5 and not in the keyword top 50 (its text says "proceeding … claim", not "sue"), so fused order (what /search showed) put Insurance Act, SABS and the Rules above it. /ask never had the problem: it reranks.

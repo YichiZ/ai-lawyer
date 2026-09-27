@@ -42,7 +42,7 @@ class VertexAI:
         client = vertex.make_client()
         self.embed_query = vertex.embedder(client, task_type="RETRIEVAL_QUERY")
         self.generate = vertex.json_generator(client)
-        # Interactive rerank fails fast (one 3 s attempt) and falls back to fused order; evals use a patient client.
+        # Interactive rerank fails fast (one 2.5 s attempt) and falls back to fused order; evals use a patient client.
         fast = vertex.make_client(attempts=1, timeout_ms=RERANK_TIMEOUT_MS)
         self.rerank = make_reranker(vertex.json_generator(fast, model=vertex.CHEAP_MODEL))
         self.search_web = lambda q: web_fallback.search_web(q, client, vertex.ANSWER_MODEL)
