@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-09-27T07:33:53+00:00",
-  "corpus_hash": "40a5d57710ea0008e9f29bfcea7beaa850bfa59faf670f754aabc9c7d657baf0",
+  "recorded_at": "2026-09-27T09:41:26+00:00",
+  "corpus_hash": "00646b9d8ab14fe30bc737c3ab08f6153496b69f3aa31c37b36e9c391e100188",
   "gold_hash": "515b7bb4cdc06ef9c19799a53c4ce792b0f065066e5fd3512993ca0352edf4f2",
   "models": {
     "answer": "gemini-3.7-flash",
@@ -8,33 +8,46 @@
     "embedding": "gemini-embedding-2"
   },
   "gate_max_distance": 0.3,
-  "runs": {
-    "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/9c40adb1-1933-4a12-b985-3f484774ad39",
-    "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/86e9030c-e9c7-45d5-8f2d-5e0eb25724c9",
-    "summaries": "summaries - 2026-09-27T07:30:57.757593Z"
-  },
+  "n_runs": 3,
+  "runs": [
+    {
+      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/0772df4a-1681-480a-8f32-0260edd2f028",
+      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/039dfdf3-d575-4a48-9af7-c9a98ccd4970",
+      "summaries": "summaries - 2026-09-27T09:02:00.245252Z"
+    },
+    {
+      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/6c8c609e-88e2-4ed9-894a-9c333c379f87",
+      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/b8af989e-3575-4f32-a5a5-d97329a24a74",
+      "summaries": "summaries - 2026-09-27T09:19:56.661048Z"
+    },
+    {
+      "retrieval": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/7158ef0e-c51c-434a-9864-3e6100e546ca",
+      "answers": "https://us.cloud.langfuse.com/project/cmuhr5jjm053rad0chpar3j5x/datasets/cmuhu62p505bsad0cefumvo3x/runs/5cd36709-0912-461e-8f3e-c8d818dd01de",
+      "summaries": "summaries - 2026-09-27T09:40:37.235940Z"
+    }
+  ],
   "latency_ms": {
     "sources_ms": {
-      "p50": 2889.0,
-      "p95": 3484.5
+      "p50": 2939.0,
+      "p95": 3591.5
     },
     "total_ms": {
-      "p50": 6479.0,
-      "p95": 29270.0
+      "p50": 6392.0,
+      "p95": 30651.5
     }
   },
   "metrics": {
     "retrieval.recall@8": 1.0,
-    "retrieval.mrr": 0.9178,
+    "retrieval.mrr": 0.9078,
     "answers.out_of_scope.refusal_correct": 1.0,
     "answers.in_scope.has_verified_claim": 1.0,
-    "answers.in_scope.verified_claim_rate": 1.0,
-    "answers.in_scope.facts_covered": 0.972,
-    "answers.in_scope.citation_supported": 0.974,
-    "answers.in_scope.faithful": 0.944,
+    "answers.in_scope.verified_claim_rate": 0.9953,
+    "answers.in_scope.facts_covered": 0.9697,
+    "answers.in_scope.citation_supported": 0.9473,
+    "answers.in_scope.faithful": 0.8917,
     "answers.in_scope.no_advice": 1.0,
     "answers.in_scope.refusal_correct": 1.0,
-    "summaries.faithful": 1.0,
+    "summaries.faithful": 0.9733,
     "summaries.no_advice": 1.0,
     "summaries.grade_le_10": 0.46
   }

@@ -274,7 +274,7 @@ Langfuse Cloud is the eval and tracing layer: gold set = Dataset, eval run = Exp
 | Latency, cost | From trace timings and token usage |
 | Reviewer decisions | Scores on the trace: decision, reason, edit distance |
 
-**CI:** GitHub Actions runs `pytest` and the Playwright flows on every push against a small committed fixture corpus (fake model, no Vertex). `make eval` runs locally (needs Vertex + Langfuse): both experiments on the gold set, compared with `evals/baseline.json`; it fails if a metric drops > 2 points (> 5 for the two LLM-judge metrics, which vary by up to 8 points between identical runs), if an item fails, or if the corpus or gold-set hash changed. Use observation-level and experiment evaluators (trace-level ones are being retired in Langfuse v4).
+**CI:** GitHub Actions runs `pytest` and the Playwright flows on every push against a small committed fixture corpus (fake model, no Vertex). `make eval` runs locally (needs Vertex + Langfuse): both experiments on the gold set, compared with `evals/baseline.json`; it fails if a metric drops > 2 points (LLM-judge metrics: > 2 sd of the difference between one run and the baseline's mean of 3 runs, ≈ 6.7 points for faithful, 3.7 for citation support — see docs/evals.md), if an item fails, or if the corpus or gold-set hash changed. Use observation-level and experiment evaluators (trace-level ones are being retired in Langfuse v4).
 
 ## Scaling to 100M pages
 

@@ -24,13 +24,13 @@ web:  ## run the Next.js app on http://localhost:3000 (needs `make api`)
 e2e: up  ## Playwright UI tests (starts its own API with AI_FAKE=1 on :8001 and web on :3001)
 	npm --prefix web run e2e
 
-eval: up  ## gold-set experiments in Langfuse; fails on a > 2-point drop vs evals/baseline.json (local only)
+eval: up  ## gold-set experiments in Langfuse; fails on a regression vs evals/baseline.json (2 points; judge metrics 2 sd) (local only)
 	uv run --env-file .env -m scripts.eval gate
 
 eval-suite: up  ## production eval suite: pinpoint, search, safety, abstention, robustness, glossary (local; ~$1)
 	uv run --env-file .env -m scripts.eval_suite
 
-eval-baseline: up  ## run the experiments and record evals/baseline.json (deliberate; commit the result)
+eval-baseline: up  ## record evals/baseline.json as the mean of 3 full runs (deliberate; commit the result)
 	uv run --env-file .env -m scripts.eval record
 
 ci-fixture: up  ## re-export the small CI corpus (tests/fixtures/corpus) from the dev DB
