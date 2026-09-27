@@ -1,7 +1,7 @@
 """Citation extraction (Phase 5.4): decision → decision (A2AJ lists) and decision → statute section (regex)."""
 import re
 
-STATUTES = {  # name pattern → slug (the 12 v0 laws that decisions cite by name)
+STATUTES = {  # name pattern → slug (library statutes that decisions cite by name)
     r"Limitations Act,? 2002": "limitations-act-2002",
     r"Negligence Act": "negligence-act",
     r"Occupiers[’']? Liability Act": "occupiers-liability-act",
@@ -13,6 +13,11 @@ STATUTES = {  # name pattern → slug (the 12 v0 laws that decisions cite by nam
     r"City of Toronto Act,? 2006": "city-of-toronto-act-2006",
     r"Workplace Safety and Insurance Act,? 1997": "workplace-safety-and-insurance-act-1997",
     r"Statutory Accident Benefits Schedule": "statutory-accident-benefits-schedule",
+    r"Municipal Act,? 2001": "municipal-act-2001",
+    r"Trespass to Property Act": "trespass-to-property-act",
+    r"Motor Vehicle Accident Claims Act": "motor-vehicle-accident-claims-act",
+    r"Compulsory Automobile Insurance Act": "compulsory-automobile-insurance-act",
+    r"Health Insurance Act": "health-insurance-act",
 }
 _NAME = "(?P<name>" + "|".join(f"(?:{p})" for p in STATUTES) + ")"
 _SEC = r"(?:s\.|ss\.|sections?)\s*(?P<num>\d+(?:\.\d+)?)(?P<subs>(?:\s?\(\w{1,4}\))*)"

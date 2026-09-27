@@ -1,4 +1,4 @@
-"""Load the 12 v0 laws from input/a2aj/ into documents + sections. Idempotent.
+"""Load the library laws (ingest.v0.V0) from input/a2aj/ into documents + sections. Idempotent.
 
 Run: make db && uv run -m scripts.load_statutes
 """

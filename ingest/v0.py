@@ -25,6 +25,17 @@ V0 = (
     V0Law("family-law-act", "Family Law Act", "RSO 1990, c F3", "LEGISLATION-ON"),
     V0Law("city-of-toronto-act-2006", "City of Toronto Act, 2006", "SO 2006, c 11, Sched A", "LEGISLATION-ON"),
     V0Law("workplace-safety-and-insurance-act-1997", "Workplace Safety and Insurance Act, 1997", "SO 1997, c 16, Sched A", "LEGISLATION-ON"),
+    V0Law("municipal-act-2001", "Municipal Act, 2001", "SO 2001, c 25", "LEGISLATION-ON"),
+    V0Law("trespass-to-property-act", "Trespass to Property Act", "RSO 1990, c T21", "LEGISLATION-ON"),
+    V0Law("motor-vehicle-accident-claims-act", "Motor Vehicle Accident Claims Act", "RSO 1990, c M41", "LEGISLATION-ON"),
+    V0Law("compulsory-automobile-insurance-act", "Compulsory Automobile Insurance Act", "RSO 1990, c C25", "LEGISLATION-ON"),
+    V0Law("health-insurance-act", "Health Insurance Act", "RSO 1990, c H6", "LEGISLATION-ON"),
+    V0Law("court-proceedings-for-automobile-accidents", "Court Proceedings for Automobile Accidents That Occur on or after November 1, 1996",
+          "O Reg 461/96", "REGULATIONS-ON"),
+    V0Law("minimum-maintenance-standards-municipal-highways", "Minimum Maintenance Standards for Municipal Highways",
+          "O Reg 239/02", "REGULATIONS-ON"),
+    V0Law("minimum-maintenance-standards-toronto-highways", "Minimum Maintenance Standards for Highways in the City of Toronto",
+          "O Reg 612/06", "REGULATIONS-ON"),
 )
 
 
