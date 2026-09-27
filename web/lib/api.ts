@@ -242,6 +242,8 @@ export const listGuides = () => get<GuideSummary[]>("/guides");
 export const getGuide = (slug: string) =>
   get<{ slug: string; title: string; intro: string; sections: GuideSection[] }>(`/guides/${encodeURIComponent(slug)}`);
 export const getGlossary = () => get<GlossaryEntry[]>("/glossary");
+export const listRecentAnswers = (limit = 5) =>
+  get<{ id: number; question: string; reviewed_by: string | null; reviewed_at: string }[]>(`/answers?limit=${limit}`);
 export const suggest = (q: string) => get<Suggestion[]>(`/suggest?q=${encodeURIComponent(q)}`);
 
 // Fused order (fast); `rerank` asks for the same hits in the reranked order, which takes ~1.5 s (#41).
