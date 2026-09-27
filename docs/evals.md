@@ -2,22 +2,39 @@
 
 Two layers:
 1. **The regression gate** (`make eval`): retrieval, answers and summaries on the 62-question gold set, compared with
-   `evals/baseline.json`. It fails on a drop of more than 2 points (5 points for LLM-judge metrics).
+   `evals/baseline.json`. It fails on a drop of more than 2 points; LLM-judge metrics use a tolerance sized from
+   their measured noise (below).
 2. **The production suite** (`make eval-suite`): six evals that target the failure modes that would hurt a real
    researcher. The plan is in [evals-plan.md](evals-plan.md).
 
 All evals run locally with Vertex AI through ADC. Results are saved to `evals/runs/`.
 
-## Current regression gate (baseline 2026-09-26)
+## Current regression gate (baseline 2026-09-27, mean of 3 runs)
 
 | Metric | Value |
 |---|---|
-| retrieval recall@8 / MRR | 1.000 / 0.909 |
-| answers: verified-claim rate · facts covered · citation supported · faithful (judge) · no advice | 1.000 · 0.976 · 0.946 · 0.855 · 1.000 |
+| retrieval recall@8 / MRR | 1.000 / 0.908 |
+| answers: verified-claim rate · facts covered · citation supported · faithful (judge) · no advice | 0.995 · 0.970 · 0.947 · 0.892 · 1.000 |
 | refusals: in-scope answered · out-of-scope refused | 1.000 · 1.000 (18 out-of-scope, #19) |
-| section summaries: faithful · grade ≤ 10 | 0.980 · 0.58 |
+| section summaries: faithful · grade ≤ 10 | 0.973 · 0.46 |
 | decision summaries (30-item judge) | faithful 0.967, grade 13.4 |
 | case-law retrieval (unverified gold, not gated) | recall@8 0.857, MRR 0.587 |
+
+### How the gate handles judge noise (#31)
+
+- **Where the noise is.** Re-judging the same 71 drafts 5 times moves faithful by sd 0.007 (0.901–0.915) and
+  citation support by sd 0.009. Across 10 full runs (new drafts each time) faithful has sd 0.029 (0.871–0.957) and
+  citation support sd 0.016. Summaries faithful (fixed summaries, so judge only) has sd 0.015. Almost all the noise
+  comes from the drafts, so averaging judge passes would not help. Averaging full runs does.
+- **Baseline = mean of 3 full runs** (`make eval-baseline`, ~$1.5).
+- **Tolerance = 2 sd of the difference of means**, using the measured per-run sd (`RUN_SD` in `evals/baseline.py`):
+  `2·sd·√(1/n_gate + 1/n_baseline)`, never below 2 points. One gate run against a 3-run baseline allows 6.7 points for
+  faithful, 3.7 for citation support and 3.5 for summaries faithful. `gate --runs 2` tightens faithful to 5.3. Code
+  metrics (and no_advice, which has not varied) stay at 2 points. The old flat 5 points failed about 1 single-vs-single
+  comparison in 9 on faithful by chance alone.
+- **No ratchet.** `record` keeps the old value of a judge metric when the new mean is within noise (up or down), and
+  refuses to write a drop beyond noise unless `--accept-drop`. Before, each re-record took one run's draw, and
+  0.943 became 0.900 in #2.
 
 ## Production suite: first run (2026-09-26)
 

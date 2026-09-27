@@ -2,6 +2,22 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Eval gate sized to measured judge noise; re-records stop ratcheting the baseline (#31)
+
+- **Measured first:**
+  - **Judge only:** re-judged the 71 saved drafts of run 20260927T083113Z 5 times: faithful 0.901–0.915 (sd 0.007), citation_supported 0.942–0.964 (sd 0.009), no_advice 1.0. Run 081311Z judged 3 times: faithful sd 0.012, citation sd 0.005. Only 2–3 items flip between passes; 5–6 are unfaithful on every pass (mv-10 and proc-06 in both runs).
+  - **Full runs** (new drafts each time), 10 saved runs of 70–71 items: faithful 0.871–0.957 (sd 0.029), citation_supported sd 0.016. Summaries faithful, judge only on fixed summaries: sd 0.015 over 10 runs.
+  - **Conclusion:** the noise comes from the drafts, not the judge. The original judge scored 083113Z at 0.873, and its 5 re-judges averaged 0.907. Averaging N judge passes would cut a ~1-point component, so it was not built.
+- **Design (`evals/baseline.py`, `scripts/eval.py`):**
+  - **(b) Baseline = mean of 3 full runs:** `record --runs N`, default 3. `--from-latest` averages the newest N saved runs. `baseline.json` gains `n_runs`, and `runs` is now a list.
+  - **(c) Judge tolerance = 2 sd of the difference of means:** `RUN_SD` holds the measured per-run sd, and the tolerance is `2·sd·√(1/n_gate + 1/n_base)`, never below 2 points. One gate run vs a 3-run baseline allows 6.7 points for faithful, 3.7 for citation and 3.5 for summaries faithful. `gate --runs 2` gives 5.3 for faithful. Code metrics and no_advice stay at 2 points.
+  - **Why the flat 5 points was worse:** with it, single-vs-single faithful failed by chance about 11 % of the time. The new tolerance is 2 sd, so about 2 % per metric.
+  - **No ratchet:** `record` keeps the old judge value when the new mean is within noise, in either direction; `max(old, new)` would drift upward and cause false failures later. It refuses a drop beyond noise unless `--accept-drop`, and prints each decision.
+- **Re-baseline:** `record --runs 3 --accept-drop` on the current corpus (00646b9d, which fixes the stale hash). `--accept-drop` was needed because the old 0.944 was one high draw, and the new mean is within noise of it, so it would have been kept. Runs: faithful 0.873 / 0.901 / 0.901 → **0.892**; citation 0.932 / 0.952 / 0.958 → **0.947**; summaries faithful 0.973; MRR 0.908; facts_covered 0.970; verified_claim_rate 0.995; everything else 1.0. With #42's two runs, the new corpus has 5 runs at faithful mean 0.890, vs 0.914 for the old corpus's 10 runs. That is a small, within-noise dip; watch it.
+- **Gate on the unchanged corpus:** `no regression vs baseline`, exit 0. faithful 0.944, citation 0.968, summaries faithful 0.96, MRR 0.911, facts_covered 0.979.
+- **Tests:** 8 new pure-function tests in `tests/test_baseline.py`: tolerance formula and floor, run-count-dependent compare, average, keep within noise (both directions), refuse and `--accept-drop`, raise beyond noise, first record, and an old single-run baseline counting as 1. pytest 484 passed. Also smoke-tested `gate`/`record --from-latest --runs 2` on #42's saved runs.
+- **Spend ≈ $2.1:** 4 full runs at ~$0.5 each, plus ~570 Flash-Lite re-judge calls.
+
 ## 2026-09-27 · Fix · Section headings no longer borrow the first subsection's marginal note (#9)
 
 - **Root cause:** A2AJ's Markdown puts one `###` marginal note above each subsection (e-Laws notes subsections, not sections); `locate_sections` kept only the note above the section's first line, so Insurance Act s. 267.5 was titled "Income loss and loss of earning capacity" although it also holds the non-pecuniary threshold (5) and the deductible (7). A second `###` stacked above that note is a cross-heading spanning several sections (e.g. "Protection from liability"), not a section heading, so the data has no real section-level heading for a section with subsections.
