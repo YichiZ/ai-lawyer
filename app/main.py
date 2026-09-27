@@ -267,6 +267,8 @@ class ReviewRequest(BaseModel):
 
 @app.get("/review/queue")
 def review_queue(conn: Conn, _: Reviewer):
+    for answer_id in ask.fail_stale_drafts(conn):
+        log.warning("answer %s: draft lost (API restarted mid-draft?), flagged failed", answer_id)
     items = review.queue(conn)
     return envelope(items, meta={"total": len(items)})
 

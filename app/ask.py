@@ -298,6 +298,9 @@ def library_titles(conn: psycopg.Connection) -> list[str]:
             for v in row if v]
 
 
+STALE_DRAFT = "15 minutes"  # drafts take ~70 s at p95 with retries; older NULL drafts were lost
+
+
 def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None, hits: list[Retrieved],
                    timings: dict, trace_id: str | None) -> int:
     """The answer row as soon as sources are known; the draft is written later (see complete_draft)."""
@@ -342,6 +345,17 @@ def fail_draft(conn: psycopg.Connection, answer_id: int, error: str) -> None:
             ("This answer could not be drafted automatically. Reject it and ask the researcher to try again.",
              json.dumps({"status": "failed", "error": error[:300]}), answer_id),
         )
+
+
+def fail_stale_drafts(conn: psycopg.Connection, older_than: str = STALE_DRAFT) -> list[int]:
+    """Drafting runs in the API process: a restart mid-draft leaves the draft NULL forever. Flag such answers failed
+    so the reviewer sees them (a late draft still overwrites the placeholder)."""
+    ids = [r[0] for r in conn.execute(
+        "SELECT id FROM answers WHERE status = 'pending_review' AND draft_markdown IS NULL"
+        " AND created_at < now() - %s::interval", (older_than,)).fetchall()]
+    for answer_id in ids:
+        fail_draft(conn, answer_id, "drafting was interrupted (API restarted?)")
+    return ids
 
 
 def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, result: AskResult,
