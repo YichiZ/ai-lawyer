@@ -3,6 +3,7 @@ limitation period	limitations-act-2002	s-4
 basic limitation period	limitations-act-2002	s-4
 ultimate limitation period	limitations-act-2002	s-15
 discovered	limitations-act-2002	s-5
+discoverability	limitations-act-2002	s-5
 claim	limitations-act-2002	s-1
 proceeding	limitations-act-2002	s-4
 potential defendant
@@ -12,7 +13,7 @@ occupier
 premises
 duty of care	occupiers-liability-act	s-3
 risks willingly assumed	occupiers-liability-act	s-4
-trespass	occupiers-liability-act	s-4
+trespass	trespass-to-property-act	s-2
 recreational activity	occupiers-liability-act	s-4
 snow or ice	occupiers-liability-act	s-6.1
 independent contractor	occupiers-liability-act	s-6
@@ -20,11 +21,12 @@ negligence	negligence-act	s-1
 contributory negligence	negligence-act	s-3
 degree of fault	negligence-act	s-1
 jointly and severally liable	negligence-act	s-1
+joint and several liability	negligence-act	s-1
 contribution and indemnity	negligence-act	s-1
 gross negligence	city-of-toronto-act-2006	s-42
 state of repair	city-of-toronto-act-2006	s-42
 written notice	city-of-toronto-act-2006	s-42
-city clerk	city-of-toronto-act-2006	s-42
+city clerk	city-of-toronto-act-2006	s-42-6
 reasonable excuse	city-of-toronto-act-2006	s-42
 highway
 sidewalk	toronto-municipal-code-719	719-2
@@ -32,7 +34,7 @@ bite or attack	dog-owners-liability-act	s-2
 owner of a dog	dog-owners-liability-act	s-1
 pit bull
 strict liability	dog-owners-liability-act	s-2
-damages	dog-owners-liability-act	s-2
+damages	courts-of-justice-act	s-116-1
 automobile
 motor vehicle
 owner's consent	highway-traffic-act	s-192
@@ -46,12 +48,14 @@ catastrophic impairment	statutory-accident-benefits-schedule	s-3.1
 income replacement benefit	statutory-accident-benefits-schedule	s-5
 attendant care benefit	statutory-accident-benefits-schedule	s-19
 insurer
-permanent serious impairment	insurance-act	s-267.5
-permanent serious disfigurement	insurance-act	s-267.5
-non-pecuniary loss	insurance-act	s-267.5
-deductible	insurance-act	s-267.5
+permanent serious impairment	court-proceedings-for-automobile-accidents	s-4.2
+permanent serious disfigurement	insurance-act	s-267.5-5
+non-pecuniary loss	insurance-act	s-267.5-7
+threshold	insurance-act	s-267.5-5
+protected defendant
+deductible	insurance-act	s-267.5-7
 licence appeal tribunal	insurance-act	s-280
-tort	insurance-act	s-267.5
+tort	negligence-act	s-2
 worker
 employer
 schedule 1 employer
@@ -59,7 +63,7 @@ schedule 2 employer
 right of action	workplace-safety-and-insurance-act-1997	s-26
 occupational disease
 survivor
-spouse
+spouse	family-law-act	s-29
 dependant
 guidance, care and companionship	family-law-act	s-61
 action
@@ -76,7 +80,7 @@ prejudgment interest	courts-of-justice-act	s-128
 future care costs
 medical malpractice action
 jury	courts-of-justice-act	s-108
-mediation	limitations-act-2002	s-11
-settlement	rules-of-civil-procedure	r-49.01
+mediation	rules-of-civil-procedure	r-24.1.01
+settlement	rules-of-civil-procedure	r-49.02
 costs	courts-of-justice-act	s-131
 municipality

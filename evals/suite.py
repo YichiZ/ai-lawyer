@@ -5,6 +5,7 @@ from typing import Callable
 
 from app.authorities import SECONDARY_LABEL, unsourced_authorities  # detector shared with the product (#18)
 from evals.gold import norm
+from ingest.glossary_build import is_non_answer  # noqa: F401 — detector shared with the glossary builder (#4)
 
 THRESHOLDS = {
     "pinpoint": {"precision": 0.98},
@@ -120,16 +121,6 @@ def jaccard(a: list, b: list) -> float:
 
 
 # 6. glossary -----------------------------------------------------------------------------------------------------
-
-NON_ANSWER_RE = re.compile(
-    r"based on the (?:provided|given) text|the (?:provided|given) text (?:does not|doesn't)|not (?:explicitly )?defined"
-    r"|does not (?:provide|contain|include) a definition|no definition|cannot (?:be )?determine|i (?:can't|cannot)"
-    r"|is not (?:explicitly )?(?:mentioned|stated)", re.IGNORECASE)
-
-
-def is_non_answer(definition: str) -> bool:
-    return bool(NON_ANSWER_RE.search(definition or ""))
-
 
 GLOSSARY_SCHEMA = {
     "type": "object",
