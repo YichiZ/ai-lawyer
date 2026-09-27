@@ -8,6 +8,8 @@ import re
 import psycopg
 from psycopg.rows import dict_row
 
+from app.ask import retrieve, retrieve_web
+from app.format import subtitle
 from ingest.statutes import display_pinpoint
 
 SUGGEST_LIMIT = 8
@@ -71,7 +73,7 @@ def _section(r: dict) -> dict:
 def _document(r: dict) -> dict:
     """A title match: decisions open their case page, everything else its law page (issue #12)."""
     kind = "case" if r["kind"] == "decision" else "law"
-    return {"type": kind, "slug": r["slug"], "title": r["title"], "display": r["citation"], "heading": None,
+    return {"type": kind, "slug": r["slug"], "title": r["title"], "display": subtitle(r), "heading": None,
             "url": f"/{kind}s/{r['slug']}"}
 
 
@@ -96,7 +98,7 @@ def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> lis
         ).fetchall()
         return [_section(r) for r in rows]
     laws = cur.execute(
-        "SELECT slug, title, citation, kind FROM documents WHERE %s <%% lower(title)"
+        "SELECT slug, title, citation, kind, url FROM documents WHERE %s <%% lower(title)"
         " ORDER BY word_similarity(%s, lower(title)) DESC, title LIMIT 3", (q.lower(), q.lower()),
     ).fetchall()
     sections = cur.execute(
@@ -108,12 +110,18 @@ def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> lis
     return ([_document(r) for r in laws] + [_section(r) for r in sections])[:limit]
 
 
+def search_hits(conn: psycopg.Connection, q: str, query_vector: list[float]) -> list:
+    """The law top SEARCH_TOP_K, then the close web pages in their own lane (as /ask retrieves them)."""
+    return retrieve(conn, q, query_vector, top_k=SEARCH_TOP_K) + retrieve_web(conn, q, query_vector)
+
+
 def group_by_law(hits: list) -> list[dict]:
     """Retrieved hits (in rank order) grouped by law, groups ordered by their best hit."""
     groups: dict[str, dict] = {}
     for h in hits:
         s = h.source
-        g = groups.setdefault(s["slug"], {"slug": s["slug"], "title": s["title"], "hits": []})
+        g = groups.setdefault(s["slug"], {"slug": s["slug"], "title": s["title"], "kind": s["kind"],
+                                          "subtitle": s.get("subtitle"), "hits": []})
         g["hits"].append({"pinpoint": s["pinpoint"], "display": s["display"], "citation": s["citation"],
                           "snippet": s["snippet"], "url": s["url"]})
     return list(groups.values())

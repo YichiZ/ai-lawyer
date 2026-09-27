@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { KIND_LABELS, formatDate, listLaws } from "@/lib/api";
+import { KIND_LABELS, asOf, listLaws, plural } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Law library" };
 
@@ -9,7 +9,7 @@ export default async function LawLibrary() {
   return (
     <div>
       <h1 className="font-serif text-3xl font-semibold">Law library</h1>
-      <p className="mt-2 text-muted">Every statute, regulation and by-law in the guide.</p>
+      <p className="mt-2 text-muted">Every statute, regulation and by-law in the guide, and the official web pages reviewers added.</p>
       {groups.map((group) => (
         <section key={group.kind} className="mt-10" aria-labelledby={`kind-${group.kind}`}>
           <h2 id={`kind-${group.kind}`} className="font-serif text-2xl font-semibold">
@@ -22,10 +22,10 @@ export default async function LawLibrary() {
                   <Link href={`/laws/${doc.slug}`} className="font-serif text-lg">
                     {doc.title}
                   </Link>
-                  {doc.citation && <span className="pinpoint ml-3 text-sm text-muted">{doc.citation}</span>}
+                  {doc.subtitle && <span className="pinpoint ml-3 text-sm text-muted">{doc.subtitle}</span>}
                 </div>
                 <div className="text-sm text-muted">
-                  {doc.section_count} sections · as of {formatDate(doc.in_force_from)}
+                  {plural(doc.section_count, "section")} · {asOf(doc)}
                   {doc.reproduction === "excerpt" && " · excerpts only"}
                 </div>
               </li>

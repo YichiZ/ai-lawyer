@@ -15,9 +15,8 @@ from psycopg.rows import dict_row
 
 from app import tracing
 from app.authorities import SECONDARY_LABEL, secondary_statutes
-from app.format import mcgill_citation
+from app.format import mcgill_citation, subtitle
 from app.laws import excerpt
-from ingest.chunks import LAW_KINDS
 from ingest.statutes import display_pinpoint
 
 # Fusion tuned on the Phase 3 gold sweep (3.3): k 60 / equal weights buried vector #1 hits under keyword noise.
@@ -33,6 +32,11 @@ TOP_K = 8
 GATE_MAX_DISTANCE = 0.30
 MIN_QUOTE_CHARS = 12
 NOT_FOUND_SOURCES = 3
+# Law retrieval searches statutes, regulations and by-laws only. Web pages a reviewer added (ingest.chunks.LAW_KINDS
+# still includes them for the batch jobs) get their own small lane, like decisions: in the law lane an ontario.ca
+# Small Claims page outranked Limitations Act s. 4 for "how long to sue" (gold lim-01 MRR 1.0 -> 0.5, issue #8).
+RETRIEVAL_KINDS = ["statute", "regulation", "bylaw"]
+WEB_K = 2  # web pages shown after the law hits, only when as close to the question as the grounding gate requires
 
 Generate = Callable[[str, dict], dict]  # (prompt, response JSON schema) -> parsed JSON
 
@@ -178,8 +182,8 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
     """`refine` narrows each verified claim's source (e.g. to the subsection holding the quote) before composing.
     The grounding gate looks at law hits only (its threshold was calibrated on them). `library_titles` (see
     library_titles()) keeps laws we hold from being labelled as quoted only by a decision."""
-    best = min((h.distance for h in hits if h.distance is not None and h.source.get("kind") != "decision"),
-               default=None)
+    best = min((h.distance for h in hits
+                if h.distance is not None and h.source.get("kind") not in ("decision", "web")), default=None)
     if best is None or best > GATE_MAX_DISTANCE:
         return _not_found(hits)
 
@@ -217,14 +221,21 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
 def retrieve_for_answer(conn: psycopg.Connection, question: str, query_vector: list[float],
                         rerank: Callable[[str, list, int], list] | None = None) -> list[Retrieved]:
-    """What the answer model reads: the law top TOP_K, then the decision top CASE_K, each ranked separately."""
+    """What the answer model reads: the law top TOP_K, the close web pages, then the decision top CASE_K, each ranked
+    separately."""
     laws = retrieve(conn, question, query_vector, rerank=rerank)
     cases = retrieve(conn, question, query_vector, top_k=CASE_K, rerank=rerank, kinds=["decision"])
-    return laws + cases
+    return laws + retrieve_web(conn, question, query_vector) + cases
+
+
+def retrieve_web(conn: psycopg.Connection, question: str, query_vector: list[float]) -> list[Retrieved]:
+    """The web-page lane: the fused top WEB_K, dropping any page farther than the grounding gate allows."""
+    hits = retrieve(conn, question, query_vector, top_k=WEB_K, kinds=["web"])
+    return [h for h in hits if h.distance is not None and h.distance <= GATE_MAX_DISTANCE]
 
 
 def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDIDATES,
-                    kinds: list[str] = LAW_KINDS) -> list[int]:
+                    kinds: list[str] = RETRIEVAL_KINDS) -> list[int]:
     """Chunk ids by ts_rank_cd over any of the question's terms (all-terms-first was tried in 3.3, not kept)."""
     return [r[0] for r in conn.execute(
         "WITH t AS (SELECT replace(plainto_tsquery('english', %s)::text, '&', '|')::tsquery AS q)"
@@ -235,7 +246,7 @@ def keyword_ranking(conn: psycopg.Connection, question: str, limit: int = CANDID
 
 
 def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: int = CANDIDATES,
-                   kinds: list[str] = LAW_KINDS) -> list[tuple[int, float]]:
+                   kinds: list[str] = RETRIEVAL_KINDS) -> list[tuple[int, float]]:
     """(chunk id, cosine distance), nearest first."""
     register_vector(conn)
     vec = HalfVector(query_vector)
@@ -246,12 +257,12 @@ def vector_ranking(conn: psycopg.Connection, query_vector: list[float], limit: i
     )]
 
 
-ALL_KINDS = LAW_KINDS + ["decision"]
+ALL_KINDS = RETRIEVAL_KINDS + ["decision"]
 CASE_K = 4  # decisions searched separately: mixing them into law retrieval dropped statute recall@8 1.000 -> 0.935
 
 
 def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float], top_k: int = TOP_K,
-             rerank: Callable[[str, list, int], list] | None = None, kinds: list[str] = LAW_KINDS) -> list[Retrieved]:
+             rerank: Callable[[str, list, int], list] | None = None, kinds: list[str] = RETRIEVAL_KINDS) -> list[Retrieved]:
     """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with weighted RRF; the top_k best.
     With `rerank`, the fused top RERANK_CANDIDATES are reordered by the reranker before cutting to top_k."""
     from app.rerank import RERANK_CANDIDATES
@@ -264,7 +275,7 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
     fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]], weights=[KEYWORD_WEIGHT, 1.0])[:RERANK_CANDIDATES if rerank else top_k]
     ids = [int(cid[1:]) for cid, _ in fused]
     rows = {r["id"]: r for r in cur.execute(
-        "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction"
+        "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url"
         " FROM chunks c JOIN documents d ON d.id = c.document_id WHERE c.id = ANY(%s)", (ids,),
     ).fetchall()}
     hits = []
@@ -275,7 +286,7 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
         source = {
             "chunk_id": cid, "slug": r["slug"], "title": r["title"], "pinpoint": pin,
             "display": display_pinpoint(pin), "citation": mcgill_citation(r, pin),
-            "snippet": excerpt(r["text"]), "url": url, "kind": r["kind"],
+            "snippet": excerpt(r["text"]), "url": url, "kind": r["kind"], "subtitle": subtitle(r),
         }
         hits.append(Retrieved(cid, r["text"], distance.get(cid), source, score))
     return rerank(question, hits, top_k) if rerank else hits

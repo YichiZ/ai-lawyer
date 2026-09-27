@@ -26,5 +26,8 @@ test("no library match → opt-in web search → labelled answer flagged for rev
   // Official sources can be added to the library (queued for the ingest worker).
   const source = item.getByRole("region", { name: "Web sources" }).getByRole("listitem").filter({ hasText: "ontario.ca" });
   await source.getByRole("button", { name: "Add to library" }).click();
+  await expect(source.getByRole("status")).toBeEmpty(); // nothing queued until the reviewer confirms scope
+  await source.getByRole("checkbox", { name: "This page is about Ontario personal-injury law" }).check();
+  await source.getByRole("button", { name: "Add to library" }).click();
   await expect(source.getByRole("status")).toContainText(/Queued|Adding|Added/);
 });

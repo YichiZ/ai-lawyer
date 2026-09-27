@@ -10,6 +10,8 @@ export interface DocumentSummary {
   citation: string | null;
   kind: Kind;
   in_force_from: string | null;
+  date: string | null; // web pages: the day the page was fetched
+  subtitle: string | null; // citation, or a web page's domain
   reproduction: "full" | "excerpt";
   section_count: number;
 }
@@ -174,7 +176,8 @@ export const ask = (question: string, role: Role) =>
   post<{ answer_id: number; status: string; sources: Source[] }>("/ask", { question }, role);
 export const askWeb = (question: string, role: Role) =>
   post<{ answer_id: number; status: string }>("/ask/web", { question }, role);
-export const ingestUrl = (url: string, role: Role) => post<IngestJob>("/ingest", { url }, role);
+export const ingestUrl = (url: string, inScope: boolean, role: Role) =>
+  post<IngestJob>("/ingest", { url, in_scope: inScope }, role);
 export const getIngestJob = (id: string) => get<IngestJob>(`/ingest/${id}`, "reviewer");
 export const getAnswer = (id: number, role: Role) => get<Answer>(`/answers/${id}`, role);
 export const getQueue = (role: Role) => get<QueueItem[]>("/review/queue", role);
@@ -193,6 +196,8 @@ export interface Suggestion {
 export interface SearchGroup {
   slug: string;
   title: string;
+  kind: Kind;
+  subtitle: string | null;
   hits: { pinpoint: string; display: string; citation: Source["citation"]; snippet: string; url: string }[];
 }
 
@@ -264,6 +269,13 @@ export function formatDate(iso: string | null): string {
   if (!iso) return "unknown date";
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
 }
+
+/** "as of <in-force date>" for laws; "fetched <date>" for web pages, which have no in-force date. */
+export function asOf(doc: Pick<DocumentSummary, "kind" | "in_force_from" | "date">): string {
+  return doc.kind === "web" ? `fetched ${formatDate(doc.date)}` : `as of ${formatDate(doc.in_force_from)}`;
+}
+
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export function formatTimestamp(iso: string | null | undefined): string {
   if (!iso) return "unknown date";

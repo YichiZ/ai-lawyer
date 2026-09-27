@@ -10,7 +10,7 @@ from pgvector.psycopg import register_vector
 from ingest.statutes import display_pinpoint
 
 # ponytail: ~800 tokens at ~4 chars/token; switch to count_tokens if a model limit gets tight.
-LAW_KINDS = ["statute", "regulation", "bylaw", "web"]  # web: official pages a reviewer added (6.2); decisions separately
+LAW_KINDS = ["statute", "regulation", "bylaw", "web"]  # batch jobs (situate, summarize); retrieval: app.ask.RETRIEVAL_KINDS
 CHUNK_CHAR_LIMIT = 3200
 SKIP_TEXTS = {"[blank]"}  # A2AJ placeholders for sections covered by a range entry ("25-49 Omitted ...")
 DECISION_CHUNK_CHARS = 2000  # ~500 tokens of whole paragraphs (design: decision windows)

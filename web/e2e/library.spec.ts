@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 
 test("library → law → section, with official text, provenance and copyable citation", async ({ page, context }) => {
@@ -27,6 +28,31 @@ test("Toronto by-law sections show an excerpt and a link, never the full text", 
   const text = await page.locator(".law-text").innerText();
   expect(text.length).toBeLessThanOrEqual(320);
   expect(text.startsWith("A. An officer")).toBe(true);
+});
+
+function sql(statement: string, ...params: string[]) {
+  const script = "import json, os, sys, psycopg\n" +
+    "url = os.environ.get('DATABASE_URL', 'postgresql://postgres:dev@localhost:5432/ai_lawyer')\n" +
+    "with psycopg.connect(url, autocommit=True) as c: c.execute(sys.argv[1], json.loads(sys.argv[2]))";
+  execFileSync("uv", ["run", "python", "-c", script, statement, JSON.stringify(params)], { cwd: "..", stdio: "inherit" });
+}
+
+test("an added web page shows its title, domain, fetched date and a singular section count (#8)", async ({ page }) => {
+  const slug = `web-e2e-${Date.now()}`;
+  sql("WITH d AS (INSERT INTO documents (sha256, kind, slug, title, citation, url, source, date, reproduction)" +
+      " VALUES (%s, 'web', %s, 'E2E slip and fall page', 'online: ontario.ca <https://www.ontario.ca/page/e2e>'," +
+      " 'https://www.ontario.ca/page/e2e', 'web:ontario.ca', '2026-09-26', 'full') RETURNING id)" +
+      " INSERT INTO sections (document_id, pinpoint, kind, heading, text, sort_order)" +
+      " SELECT id, 'sec-1', 'section', 'Introduction', 'Give notice.', 1 FROM d", slug, slug);
+  try {
+    await page.goto("/laws");
+    const item = page.getByRole("listitem").filter({ has: page.getByRole("link", { name: "E2E slip and fall page" }) });
+    await expect(item).toContainText("ontario.ca");
+    await expect(item).not.toContainText("<https://");
+    await expect(item).toContainText("1 section · fetched September 26, 2026");
+  } finally {
+    sql("DELETE FROM documents WHERE slug = %s", slug);
+  }
 });
 
 test("unknown section shows the not-found page", async ({ page }) => {

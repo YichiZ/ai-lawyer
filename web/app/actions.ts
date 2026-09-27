@@ -88,10 +88,12 @@ export async function askWebAction(question: string, _: FormState): Promise<Form
 
 export type IngestState = { error?: string; job?: IngestJob };
 
-export async function ingestAction(url: string, prev: IngestState): Promise<IngestState> {
-  // First submit queues the page; later submits refresh the job's status.
+export async function ingestAction(url: string, prev: IngestState, form: FormData): Promise<IngestState> {
+  // First submit queues the page (once the reviewer confirms it is in scope); later submits refresh the job's status.
+  const inScope = form.get("in_scope") === "on";
+  if (!prev.job && !inScope) return { error: "Confirm the page is about Ontario personal-injury law first." };
   try {
-    const job = prev.job ? await getIngestJob(prev.job.id) : await ingestUrl(url, await currentRole());
+    const job = prev.job ? await getIngestJob(prev.job.id) : await ingestUrl(url, inScope, await currentRole());
     return job ? { job } : { error: "The page could not be queued." };
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "The page could not be queued. Please try again." };

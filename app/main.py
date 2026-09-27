@@ -94,7 +94,7 @@ def require_reviewer(user: User) -> dict:
 
 
 Reviewer = Annotated[dict, Depends(require_reviewer)]
-Slug = Annotated[str, Path(pattern=SLUG, max_length=100)]
+Slug = Annotated[str, Path(pattern=SLUG, max_length=120)]  # web page slugs are capped at 120 (ingest/web.py)
 Pinpoint = Annotated[str, Path(pattern=SLUG, max_length=100)]
 
 
@@ -142,6 +142,18 @@ def get_law(slug: Slug, conn: Conn):
     return envelope({"document": {k: v for k, v in doc.items() if k != "id"}, "tree": tree})
 
 
+@app.delete("/laws/{slug}")
+def delete_law(slug: Slug, conn: Conn, reviewer: Reviewer):
+    """Remove a web page from the library (its sections and chunks go with it). Other laws are never removed here."""
+    kind = laws.delete_web_page(conn, slug)
+    if kind is None:
+        raise NotFound(f"No law '{slug}'")
+    if kind != "web":
+        raise HTTPException(status_code=409, detail="Only web pages can be removed from the library")
+    log.info("web page %s removed by %s", slug, reviewer["name"])
+    return envelope({"slug": slug, "deleted": True})
+
+
 @app.get("/laws/{slug}/{pinpoint}")
 def get_section(slug: Slug, pinpoint: Pinpoint, conn: Conn):
     doc = laws.get_document(conn, slug)
@@ -169,7 +181,8 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: Backg
             # Fused candidates now (fast); the reranker orders them in the background, before drafting.
             candidates = ask.retrieve(conn, question, query_vector, top_k=RERANK_CANDIDATES)
             case_candidates = ask.retrieve(conn, question, query_vector, top_k=RERANK_CANDIDATES, kinds=["decision"])
-            hits = candidates[:ask.TOP_K] + case_candidates[:ask.CASE_K]
+            pages = ask.retrieve_web(conn, question, query_vector)
+            hits = candidates[:ask.TOP_K] + pages + case_candidates[:ask.CASE_K]
             span.update(output=[{"chunk_id": h.chunk_id, "citation": h.source["citation"]["text"], "rrf": h.score,
                                  "distance": h.distance} for h in hits])
         timings = {"sources": round((time.perf_counter() - t0) * 1000)}
@@ -178,7 +191,7 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: Backg
             answer_id = ask.create_pending(conn, question, user["id"], hits, timings, trace_id)
         root.update(output={"answer_id": answer_id, "status": "drafting"}, metadata={"timings_ms": timings})
     background.add_task(draft_answer, connect, answer_id, question, candidates, ai.generate, trace_id,
-                        getattr(ai, "rerank", None), case_candidates)
+                        getattr(ai, "rerank", None), case_candidates, pages)
     log.info("ask %s: sources in %s ms, drafting in background", answer_id, timings["sources"])
     best = min((h.distance for h in candidates if h.distance is not None), default=None)
     library_match = best is not None and best <= ask.GATE_MAX_DISTANCE  # False → the UI offers the web fallback
@@ -215,13 +228,14 @@ def draft_web_answer(connect, answer_id: int, question: str, search_web) -> None
 
 
 def draft_answer(connect, answer_id: int, question: str, candidates: list, generate, trace_id: str | None,
-                 rerank=None, case_candidates: list | None = None) -> None:
+                 rerank=None, case_candidates: list | None = None, pages: list | None = None) -> None:
     """Background: rerank the candidates, generate + verify the draft, store it (or flag the failure for review)."""
     t0 = time.perf_counter()
     context = {"trace_context": {"trace_id": trace_id}} if trace_id else {}
     with tracing.observe("draft", input={"answer_id": answer_id}, **context) as span, connect() as conn:
         try:
             hits = rerank(question, candidates, ask.TOP_K) if rerank else candidates[:ask.TOP_K]
+            hits += pages or []
             cases = case_candidates or []
             hits += rerank(question, cases, ask.CASE_K) if rerank and cases else cases[:ask.CASE_K]
             result = ask.run_ask(question, hits, generate, refine=lambda claims: ask.pinpoint_claims(conn, claims),
@@ -292,7 +306,7 @@ def get_suggest(q: Annotated[str, Query(min_length=2, max_length=200)], conn: Co
 @app.get("/search")
 def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Conn, ai: AI):
     """Hybrid retrieval grouped by law. Question-shaped queries get meta.ask_this so the UI can offer 'Ask this'."""
-    hits = ask.retrieve(conn, q.strip(), ai.embed_query(q.strip()), top_k=search.SEARCH_TOP_K)
+    hits = search.search_hits(conn, q.strip(), ai.embed_query(q.strip()))
     groups = search.group_by_law(hits)
     return envelope(groups, meta={"total": len(hits), "ask_this": search.is_question(q)})
 
@@ -326,16 +340,17 @@ def get_case(slug: Slug, conn: Conn):
 
 class IngestRequest(BaseModel):
     url: str = Field(min_length=10, max_length=2000)
+    in_scope: Literal[True]  # the reviewer confirms the page is about Ontario personal-injury law (#8)
 
 
 @app.post("/ingest")
 def post_ingest(body: IngestRequest, conn: Conn, queue: JobQueue, reviewer: Reviewer):
-    """Reviewer adds an official web page to the library; a worker fetches, loads, chunks and embeds it."""
+    """Reviewer adds an official web page they confirmed is in scope; a worker fetches, loads, chunks and embeds it."""
     url = body.url.strip()
     if web.site_of(url) is None:
         raise HTTPException(status_code=422, detail=f"Only https pages on {', '.join(web.ALLOWED_DOMAINS)} can be "
                                                     "added to the library")
-    job_id = queue.enqueue(conn, "web_page", url)
+    job_id = queue.enqueue(conn, "web_page", url, confirmed_by=reviewer["id"])
     log.info("ingest %s queued by %s: %s", job_id, reviewer["name"], url)
     return envelope(jobs.get_job(conn, job_id), status=202)
 

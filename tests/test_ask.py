@@ -168,11 +168,12 @@ def test_weighted_rrf_can_favour_vector_list():
     assert weighted[0] == "v1"
 
 
-def test_gate_ignores_decision_hits():
-    near_decision = Retrieved("c9", "A court said something.", 0.05, {"citation": {"title": "T", "reference": "R"}, "kind": "decision"})
+@pytest.mark.parametrize("kind", ["decision", "web"])
+def test_gate_ignores_decision_and_web_hits(kind):
+    near = Retrieved("c9", "Something related.", 0.05, {"citation": {"title": "T", "reference": "R"}, "kind": kind})
     far_law = hit("c1", GATE_MAX_DISTANCE + 0.1)
     llm = FakeLLM([])
-    assert run_ask("q?", [far_law, near_decision], llm).status == "not_found" and llm.prompts == []
+    assert run_ask("q?", [far_law, near], llm).status == "not_found" and llm.prompts == []
 
 
 CRINSON = "No action shall be maintained unless notice in writing of the claim is served within 10 days after the occurrence."

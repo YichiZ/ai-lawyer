@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { TreeNode, formatDate, getLaw, sourceLabel } from "@/lib/api";
+import { TreeNode, asOf, getLaw, sourceLabel } from "@/lib/api";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -46,7 +46,7 @@ export default async function LawPage({ params }: Props) {
       </nav>
       <h1 className="mt-2 font-serif text-3xl font-semibold">{doc.title}</h1>
       <p className="mt-2 text-sm text-muted">
-        {doc.citation && <span className="pinpoint">{doc.citation}</span>} · as of {formatDate(doc.in_force_from)} ·
+        {doc.subtitle && <span className="pinpoint">{doc.subtitle}</span>} · {asOf(doc)} ·
         Source: {sourceLabel(doc)}
         {doc.url && (
           <>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDate, getSection, sourceLabel } from "@/lib/api";
+import { asOf, getSection, sourceLabel } from "@/lib/api";
 import CopyCitation from "./CopyCitation";
 
 type Props = { params: Promise<{ slug: string; pinpoint: string }> };
@@ -39,7 +39,7 @@ export default async function SectionPage({ params }: Props) {
       </header>
 
       <p className="mt-3 text-sm text-muted">
-        {s.full_text ? "Unofficial copy of the official text" : "Excerpt only"} as of {formatDate(doc.in_force_from)} ·
+        {s.full_text ? "Unofficial copy of the official text" : "Excerpt only"} {asOf(doc)} ·
         Source: {sourceLabel(doc)}
         {doc.url && (
           <>
