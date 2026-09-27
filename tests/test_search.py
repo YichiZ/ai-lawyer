@@ -1,5 +1,6 @@
 import pytest
 
+from app import search
 from app.search import is_question, parse_citation
 
 
@@ -127,6 +128,35 @@ def test_search_groups_by_law_and_offers_ask(client):
     assert groups[0]["slug"] == "test-act" and groups[0]["title"] == "Test Act"
     assert {"display", "snippet", "url"} <= set(groups[0]["hits"][0])
     assert meta["ask_this"] is True
+
+
+class RerankingAI(FakeAI):
+    def __init__(self):
+        self.seen, self.embeds = [], 0
+
+    def embed_query(self, text):
+        self.embeds += 1
+        return super().embed_query(text)
+
+    def rerank(self, question, hits, top_k):
+        self.seen.append({"question": question, "n": len(hits), "top_k": top_k})
+        return list(reversed(hits))[:top_k]
+
+
+def test_search_is_fused_and_rerank_true_reorders_the_same_hits(client, conn):
+    """/search answers fast in fused order; ?rerank=true runs the /ask reranker on the fused candidates (#41)."""
+    ai = RerankingAI()
+    app.dependency_overrides[get_ai] = lambda: ai
+    q = "how long to sue"
+    fused = [h.source["url"] for h in search.search_hits(conn, q, [0.01] * 1536)]
+    urls = lambda body: [h["url"] for g in body["data"] for h in g["hits"]]  # noqa: E731
+
+    fast = client.get("/search", params={"q": q}).json()
+    assert urls(fast) == fused and fast["meta"]["reranked"] is False and ai.seen == []
+    reranked = client.get("/search", params={"q": q, "rerank": "true"}).json()
+    assert ai.seen == [{"question": q, "n": len(fused), "top_k": search.SEARCH_TOP_K}]
+    assert urls(reranked) == fused[::-1] and reranked["meta"]["reranked"] is True
+    assert ai.embeds == 1  # the follow-up rerank request reuses the query embedding
 
 
 def test_search_citation_query_is_not_a_question(client):

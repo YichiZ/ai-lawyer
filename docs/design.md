@@ -152,13 +152,13 @@ Measured in Phase 3 against the gold set (`docs/iterations.md` has every delta, 
 2. **Retrieve** — top 50 keyword (terms OR'ed, `ts_rank_cd`) + top 50 pgvector.
 3. **Fuse** — weighted reciprocal rank fusion, `score = Σ w / (10 + rank)`, keyword weight 0.3, vector 1.0. (k 60 with equal weights buried vector #1 hits under broad keyword matches: recall@8 0.887 → 1.000, MRR 0.624 → 0.847.)
 4. **Chunk context** — gemini-3.5-flash-lite writes 1–2 situating sentences per chunk (law title + Part outline); used in the embedding input only. Fused MRR 0.847 → 0.895.
-5. **Rerank** — gemini-3.5-flash-lite orders the fused top 20 (ids + first ~120 words) in one JSON call; keep top 8; it may reorder but not drop the fused top 3; errors/timeouts (2.5 s deadline) fall back to fused order. MRR ~0.91–0.92. Runs in the background before drafting, so it adds nothing to the researcher's wait. (Top 30 was slower and no better.)
+5. **Rerank** — gemini-3.5-flash-lite orders the fused top 20 (ids + first ~120 words) in one JSON call; keep top 8; it may reorder but not drop the fused top 3; errors/timeouts (2.5 s deadline) fall back to fused order. MRR ~0.91–0.92. Runs in the background before drafting, so it adds nothing to the researcher's wait. (Top 30 was slower and no better.) `/search` is progressive: the page renders the fused results at once, then fetches `/search?rerank=true` (same hits, reranked with the same fast client and fallback; the query embedding is cached per process) and swaps the list in place. Fused order put Limitations Act s. 4 5th for "how long to sue" (#41). First results p50 0.3 s, reranked order p50 1.6 s. The swap remounts the list instead of moving nodes: moving them measured CLS 0.19, the remount 0.
 6. **Authority boost** — (Phase 5) small boost for SCC/ONCA and often-cited decisions; demote overturned ones.
 7. **Expand context** — attach section heading or neighbouring paragraphs.
 
 **Lanes.** Each kind of source is ranked on its own and never competes with the laws: the law lane (statutes, regulations, by-laws: `RETRIEVAL_KINDS`) gives the top 8; decisions the top 4 (mixing them in dropped statute recall@8 1.000 → 0.935); web pages a reviewer added the fused top 2, kept only within the grounding-gate distance (0.30), because in the law lane an ontario.ca Small Claims page outranked Limitations Act s. 4 for "how long to sue" (#8). The grounding gate reads law hits only. `/search` lists the law groups first, then web pages labelled "Official web page · domain". The batch jobs (situate, summarize) still process web pages (`ingest.chunks.LAW_KINDS`).
 
-Tried and dropped: a curated synonym table on the keyword side (no gain once fusion was fixed).
+Tried and dropped: a curated synonym table on the keyword side (no gain once fusion was fixed; re-tried for #41, it did not fix "how long to sue": `ts_rank_cd` favours long chunks, so s. 4 stayed out of the keyword top 50, and length normalization that fixed it cost fused MRR 0.864 → 0.846).
 
 ## Answering
 
@@ -300,7 +300,7 @@ At scale: binary-quantized first pass + halfvec rescore; shard or move vectors p
 | Release | Human review of every answer | Auto-release | Mirrors supervised legal work; review data improves evals |
 | Product | Guide + library + search | Chatbot only | Browsing builds understanding and trust |
 | Chunking | Sections and paragraphs | Fixed windows | Pinpoint citations |
-| Search | Hybrid + synonyms + RRF | Pure vector | Legal terms and everyday words both matter |
+| Search | Hybrid + RRF + rerank | Pure vector | Legal terms and everyday words both matter |
 | Store | Postgres 18 for data, vectors and job records | Pinecone | One system for search and metadata |
 | Queue | Redis Streams, job state in Postgres | Procrastinate (Postgres queue) | Faster dispatch and worker scale-out; costs a second service and non-transactional enqueue, covered by the reconciler |
 | Parsing | A2AJ + Docling | PyMuPDF | OCR/layout in one tool; MIT vs AGPL |
