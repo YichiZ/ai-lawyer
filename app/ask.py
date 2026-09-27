@@ -298,6 +298,9 @@ def library_titles(conn: psycopg.Connection) -> list[str]:
             for v in row if v]
 
 
+STALE_DRAFT = "15 minutes"  # drafts take ~70 s at p95 with retries; older NULL drafts were lost
+
+
 def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None, hits: list[Retrieved],
                    timings: dict, trace_id: str | None) -> int:
     """The answer row as soon as sources are known; the draft is written later (see complete_draft)."""
@@ -329,19 +332,34 @@ def complete_draft(conn: psycopg.Connection, answer_id: int, result: AskResult, 
     with conn.transaction():
         conn.execute(
             "UPDATE answers SET draft_markdown = %s, claims = %s,"
-            " flags = jsonb_set(flags || %s::jsonb, '{timings_ms,draft}', to_jsonb(%s::int)) WHERE id = %s",
+            " flags = jsonb_set(flags || %s::jsonb, '{timings_ms,draft}', to_jsonb(%s::int))"
+            " WHERE id = %s AND status = 'pending_review'",  # a draft landing after review must not change it
             (result.draft_markdown, json.dumps(result.claims), json.dumps(patch), draft_ms, answer_id),
         )
+
+
+FAILED_DRAFT = "This answer could not be drafted automatically. Reject it and ask the researcher to try again."
 
 
 def fail_draft(conn: psycopg.Connection, answer_id: int, error: str) -> None:
     """Drafting failed after retries: the reviewer sees a flagged placeholder to reject (or the researcher re-asks)."""
     with conn.transaction():
         conn.execute(
-            "UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb WHERE id = %s",
-            ("This answer could not be drafted automatically. Reject it and ask the researcher to try again.",
-             json.dumps({"status": "failed", "error": error[:300]}), answer_id),
+            "UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb"
+            " WHERE id = %s AND status = 'pending_review'",
+            (FAILED_DRAFT, json.dumps({"status": "failed", "error": error[:300]}), answer_id),
         )
+
+
+def fail_stale_drafts(conn: psycopg.Connection, older_than: str = STALE_DRAFT) -> list[int]:
+    """Drafting runs in the API process: a restart mid-draft leaves the draft NULL forever. Flag such answers failed
+    so the reviewer sees them (a late draft still overwrites the placeholder)."""
+    return [r[0] for r in conn.execute(  # one statement: a draft that lands first is never overwritten
+        "UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb"
+        " WHERE status = 'pending_review' AND draft_markdown IS NULL AND created_at < now() - %s::interval"
+        " RETURNING id",
+        (FAILED_DRAFT, json.dumps({"status": "failed", "error": "drafting was interrupted (API restarted?)"}),
+         older_than)).fetchall()]
 
 
 def store_answer(conn: psycopg.Connection, question: str, asked_by: int | None, result: AskResult,

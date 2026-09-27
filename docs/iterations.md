@@ -2,6 +2,13 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · Drafts lost to an API restart reach the review queue
+
+- **Root cause:** `POST /ask` (and `/ask/web`) drafts in FastAPI `BackgroundTasks` inside the API process. A restart mid-draft left the answer `pending_review` with `draft_markdown` NULL forever: hidden from the queue, 409 "still drafting" on review. Nothing recovered it, unlike ingest jobs (reconciler).
+- **Fix:** `ask.fail_stale_drafts` flags NULL drafts older than `STALE_DRAFT` (15 min; drafts take ~70 s at p95 with retries) with the existing `fail_draft` placeholder; `GET /review/queue` runs it before listing, so it covers restarts without a startup hook or timer. A draft that finishes late still overwrites the placeholder. Moving drafting onto the Redis queue (durable, re-draftable) was the heavier option; not taken.
+- **Review (PR #48):** two races. The sweep read ids then wrote per row, so a draft landing in between was overwritten → one `UPDATE … WHERE draft_markdown IS NULL … RETURNING id`. Once flagged answers are reviewable, a late `complete_draft` could rewrite a rejected answer → `complete_draft`, `fail_draft` and the web draft only write `pending_review` rows.
+- **Tests:** a stale NULL-draft answer shows in the queue as `failed` and can be rejected; a fresh one stays hidden; the sweep skips a drafted row and a late draft leaves a rejected answer alone (each red without its fix). pytest 510 passed.
+- **Validated:** uvicorn (`AI_FAKE=1`, :8002) on a scratch DB with a 20-min-old NULL-draft row: `/review/queue` listed it `draft_status: failed`, `risk: [failed]`, placeholder text; log: `answer 52: draft lost (API restarted mid-draft?), flagged failed`.
 ## 2026-09-27 · Docs · design.md refreshed to match the code
 
 - **What:** three read-only subagents diffed every section of `docs/design.md` against the code (ingest; retrieval/answering/review; data model/API/web/evals), then an architect subagent reviewed the draft. Claims were spot-checked in code before editing.

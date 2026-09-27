@@ -215,6 +215,41 @@ def test_answer_still_drafting_cannot_be_reviewed_and_is_not_queued(client, conn
     assert r.status_code == 409 and "drafting" in r.json()["error"]["message"]
 
 
+def test_draft_lost_to_a_restart_is_flagged_failed_and_queued(client, conn):
+    from app.ask import create_pending
+
+    fresh = create_pending(conn, "Drafting now?", None, [], {"sources": 1}, None)
+    lost = create_pending(conn, "Lost in a restart?", None, [], {"sources": 1}, None)
+    conn.execute("UPDATE answers SET created_at = now() - interval '1 hour' WHERE id = %s", (lost,))
+    queue = client.get("/review/queue", headers={"X-Demo-User": "reviewer"}).json()["data"]
+    item = next(i for i in queue if i["id"] == lost)
+    assert item["draft_status"] == "failed" and "failed" in item["risk"] and "could not be drafted" in item["draft_markdown"]
+    assert all(i["id"] != fresh for i in queue)
+    r = client.post(f"/answers/{lost}/review", headers={"X-Demo-User": "reviewer"},
+                    json={"decision": "reject", "reason": "out_of_scope"})
+    assert r.status_code == 200 and r.json()["data"]["status"] == "rejected"
+
+
+def test_stale_sweep_and_late_drafts_never_overwrite(conn):
+    from app.ask import AskResult, complete_draft, create_pending, fail_stale_drafts
+    from app.review import decide
+
+    done = create_pending(conn, "Drafted just in time?", None, [], {"sources": 1}, None)
+    conn.execute("UPDATE answers SET created_at = now() - interval '1 hour', draft_markdown = 'Real draft.'"
+                 " WHERE id = %s", (done,))
+    assert done not in fail_stale_drafts(conn)
+    assert conn.execute("SELECT draft_markdown FROM answers WHERE id = %s", (done,)).fetchone()[0] == "Real draft."
+
+    lost = create_pending(conn, "Rejected, then drafted?", None, [], {"sources": 1}, None)
+    conn.execute("UPDATE answers SET created_at = now() - interval '1 hour' WHERE id = %s", (lost,))
+    assert fail_stale_drafts(conn) == [lost]
+    reviewer = conn.execute("SELECT id FROM users WHERE role = 'reviewer' LIMIT 1").fetchone()[0]
+    assert decide(conn, lost, reviewer, "reject", None, None, "out_of_scope") == "rejected"
+    complete_draft(conn, lost, AskResult(draft_markdown="Late draft.", claims=[], status="drafted"), 1)
+    assert "could not be drafted" in conn.execute("SELECT draft_markdown FROM answers WHERE id = %s",
+                                                  (lost,)).fetchone()[0]
+
+
 def test_rerank_runs_in_background_and_updates_sources(ask_client, conn):
     client, fake = ask_client
     seen = {}

@@ -348,7 +348,7 @@ At scale: binary-quantized first pass + halfvec rescore; shard or move vectors p
 - Readability: 46% of section summaries and 1/30 decision summaries reach grade ≤ 10 (a decision-summary rewrite is ~$3.50).
 - 16 topic-guide sections await human review; guides show sources only until approved.
 - Judges are not yet calibrated against human labels.
-- Drafts are not durable: they run in the API process, so a restart mid-draft leaves an answer with no draft, hidden from the queue, with nothing to recover it → re-draft stale rows at startup, or move drafting onto the Redis queue.
+- Drafts are not durable: they run in the API process, so a restart mid-draft leaves an answer with no draft → reading the review queue flags drafts missing after 15 min `failed` (`ask.fail_stale_drafts`), so the reviewer rejects them and the researcher re-asks. Move drafting onto the Redis queue if lost drafts become common.
 - Not deployable publicly as is: the `X-Demo-User` header is the only guard on reviewer actions, `POST /ingest` (a server-side fetch) and `DELETE /laws/{slug}`; the domain allowlist and 1 req/s limit are the only brakes on ingest.
 - Summaries oversimplify → judge + review + official text beside · Ontario trial-level gap → stated in UI · law changes → manual refetch, hash-triggered reloads that keep summaries · Redis loses or stalls jobs → AOF, `noeviction`, Postgres job records + reconciler, sweeper.
 
