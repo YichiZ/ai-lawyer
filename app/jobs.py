@@ -1,7 +1,7 @@
 """Ingest job queue (docs/design.md → Job queue): Redis Streams dispatch, Postgres `ingest_jobs` the durable record.
 
 Enqueue writes the row, then XADDs the job id. Workers XREADGROUP, run the job, update the row and XACK. Failures back
-off (1, 4, 16 min) and are re-dispatched by the reconciler; the third failure marks the row dead and copies the id to
+off (1, then 4 min) and are re-dispatched by the reconciler; the third failure marks the row dead and copies the id to
 `<stream>:dead`. The sweeper XAUTOCLAIMs entries a crashed worker left pending; the reconciler re-adds queued rows
 that Redis lost. Redis may lose anything — Postgres decides what runs.
 """
