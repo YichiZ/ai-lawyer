@@ -12,13 +12,16 @@ from pathlib import Path
 
 from ingest.statutes import ParsedLaw
 
-PARSER_VERSION = 3  # 2: rejoin PDF-wrapped lines; 3: pdftotext -layout keeps labels beside their paragraphs
+PARSER_VERSION = 4  # 2: rejoin PDF-wrapped lines; 3: pdftotext -layout keeps labels beside their paragraphs;
+# 4: headings stop at a footnote number, a quoted period or the first paragraph line (#21)
 MONTH = r"(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}"
 ARTICLE = re.compile(r"^ARTICLE ([IVXLC]+)$")
 LABEL = re.compile(r"^(?:[A-Z]{1,2}\.|\(\w{1,4}\))$")  # "A." or "(1)" alone on a line
 # A line starts a new paragraph at a label ("A. ", "(1) "), a defined term ("SIDEWALK - ") or a "[history]" note;
 # any other line is a PDF wrap of the previous one.
 PARAGRAPH_START = re.compile(r"^(?:(?:[A-Z]{1,2}\.|\(\w{1,4}\))\s|[A-Z][A-Z0-9 ,.'’/()&-]*[A-Z)] - |\[)")
+# A heading ends with "." or '."', optionally followed by a footnote number ("Signs. 12", "conditioning.28").
+HEADING_END = re.compile(r"""\.["”]?(?P<footnote>\s*\d{1,3})?$""")
 
 
 def pdf_text(path: Path) -> str:
@@ -84,9 +87,13 @@ def parse_chapter(raw: str, chapter: str, title: str, pdf_sha256: str, url: str,
             continue
         if m := section_re.match(line):
             heading = m.group(2)
-            while heading and not heading.endswith(".") and i + 1 < len(lines) and not section_re.match(lines[i + 1]):
+            while (heading and not HEADING_END.search(heading) and i + 1 < len(lines)
+                   and not (section_re.match(lines[i + 1]) or LABEL.match(lines[i + 1])
+                            or PARAGRAPH_START.match(lines[i + 1]))):
                 i += 1
                 heading = f"{heading} {lines[i]}"
+            if (end := HEADING_END.search(heading)) and end["footnote"]:
+                heading = heading[:end.start("footnote")]
             if article and article[0] not in seen:
                 add({"pinpoint": article[0], "kind": "part", "heading": article[1], "text": "", "parent": None})
             current = {"pinpoint": f"{chapter}-{m.group(1)}", "kind": "section", "heading": heading.rstrip("."),
