@@ -154,12 +154,35 @@ def test_ask_returns_sources_and_pending_answer_without_draft(ask_client, conn):
     assert len(fake.prompts) == 1
 
 
-@pytest.mark.parametrize("body", [{"question": "hi"}, {"question": "x" * 1001}, {}])
-def test_ask_validates_question(ask_client, body):
+@pytest.mark.parametrize("body, message", [
+    ({"question": "hi"}, "Question must be at least 5 characters."),
+    ({"question": "x" * 1001}, "Question must be at most 1,000 characters."),
+    ({}, "Question is required."),
+])
+def test_ask_validates_question(ask_client, body, message):
     client, fake = ask_client
     r = client.post("/ask", json=body)
-    assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
+    assert r.status_code == 422 and r.json()["error"] == {"code": "invalid_request", "message": message}
     assert fake.prompts == []
+
+
+@pytest.mark.parametrize("method, path, kwargs, message", [
+    ("get", "/search", {"params": {"q": "a"}}, "Search text must be at least 2 characters."),
+    ("get", "/laws/Test_Act", {}, "Slug contains characters that are not allowed."),
+    ("get", "/answers/abc", {}, "Answer ID must be a whole number."),
+    ("post", "/answers/1/review", {"json": {"decision": "maybe"}},
+     "Decision must be one of 'approve', 'edit' or 'reject'."),
+    ("post", "/answers/1/review", {"json": {"decision": "reject"}}, "A rejection needs a reason."),
+    ("post", "/answers/1/review", {"json": {"decision": "edit", "final_markdown": "Better."}},
+     "An edit needs the edited answer (final_markdown) and a note."),
+    ("post", "/ingest", {"json": {"url": "https://www.ontario.ca/x", "in_scope": False}}, "in_scope must be true."),
+    ("post", "/ingest", {"content": "{not json", "headers": {"Content-Type": "application/json"}},
+     "Request body is not valid JSON."),
+])
+def test_validation_errors_are_readable(client, method, path, kwargs, message):
+    headers = {**REVIEWER, **kwargs.pop("headers", {})}
+    r = getattr(client, method)(path, headers=headers, **kwargs)
+    assert r.status_code == 422 and r.json()["error"] == {"code": "invalid_request", "message": message}
 
 
 def test_ask_is_traced_and_trace_id_stored(ask_client, conn, monkeypatch):

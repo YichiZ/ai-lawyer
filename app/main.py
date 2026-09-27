@@ -115,10 +115,41 @@ async def http_error(_: Request, exc: HTTPException):
     return envelope(error={"code": code, "message": str(exc.detail)}, status=exc.status_code)
 
 
+FIELD_LABELS = {"question": "Question", "q": "Search text", "decision": "Decision", "reason": "Reason",
+                "final_markdown": "Edited answer (final_markdown)", "note": "Note", "url": "URL",
+                "x-demo-user": "X-Demo-User header", "slug": "Slug", "pinpoint": "Section pinpoint", "answer_id": "Answer ID"}
+
+
+def validation_message(e: dict) -> str:
+    """One readable sentence per pydantic error (#15), naming the field and its constraint."""
+    names = [p for p in e["loc"] if isinstance(p, str) and p not in ("body", "query", "path", "header")]
+    label = FIELD_LABELS.get(names[-1], names[-1]) if names else "Request body"
+    ctx, kind = e.get("ctx") or {}, e["type"]
+    if kind == "missing":
+        return f"{label} is required."
+    if kind == "string_too_short":
+        return f"{label} must be at least {ctx['min_length']:,} characters."
+    if kind == "string_too_long":
+        return f"{label} must be at most {ctx['max_length']:,} characters."
+    if kind == "literal_error":
+        return f"{label} must be true." if ctx["expected"] == "True" else f"{label} must be one of {ctx['expected']}."
+    if kind == "string_pattern_mismatch":
+        return f"{label} contains characters that are not allowed."
+    if kind == "int_parsing":
+        return f"{label} must be a whole number."
+    if kind == "json_invalid":
+        return "Request body is not valid JSON."
+    if kind in ("model_attributes_type", "dict_type"):
+        return "Request body must be a JSON object."
+    if kind == "value_error":  # our own model validators raise complete sentences
+        return e["msg"].removeprefix("Value error, ")
+    return f"{label}: {e['msg']}."
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError):
-    fields = ", ".join(".".join(str(p) for p in e["loc"]) for e in exc.errors())
-    return envelope(error={"code": "invalid_request", "message": f"Invalid value for: {fields}"}, status=422)
+    message = " ".join(dict.fromkeys(validation_message(e) for e in exc.errors()))
+    return envelope(error={"code": "invalid_request", "message": message}, status=422)
 
 
 @app.exception_handler(Exception)
@@ -260,9 +291,9 @@ class ReviewRequest(BaseModel):
     @model_validator(mode="after")
     def required_fields(self):
         if self.decision == "edit" and not ((self.final_markdown or "").strip() and (self.note or "").strip()):
-            raise ValueError("edit needs final_markdown and a note")
+            raise ValueError("An edit needs the edited answer (final_markdown) and a note.")
         if self.decision == "reject" and not self.reason:
-            raise ValueError("reject needs a reason")
+            raise ValueError("A rejection needs a reason.")
         return self
 
 
