@@ -37,8 +37,8 @@ The 95 % intervals are Wilson intervals. With datasets this small, treat a singl
 | **abstention** secondary answers labelled and flagged (6) | 1.000 | reported | 0.61–1.00 | ✅ | #18 |
 | **robustness** recall@8 on lay / legal / typo rewordings (36) | 1.000 | ≥ 0.90 | 0.90–1.00 | ✅ | |
 | **robustness** top-8 overlap with the original question | 0.573 | reported | | ℹ️ | |
-| **glossary** non-answers (81) | 0.235 | ≤ 0.02 | 0.16–0.34 | ❌ | #4 |
-| **glossary** faithful, among real definitions (62) | 0.968 | ≥ 0.95 | 0.89–0.99 | ✅ | #4 |
+| **glossary** non-answers (85; was 19/81 = 0.235 before #4) | 0.000 | ≤ 0.02 | 0.00–0.04 | ✅ | #4 fixed |
+| **glossary** faithful (85; was 0.968 among 62 real definitions) | 0.976 | ≥ 0.95 | 0.92–0.99 | ✅ | #4 fixed |
 
 Cost of the run: about 105 gemini-3.7-flash drafts and about 110 Flash-Lite calls (under $1). Time: about 10 minutes.
 
@@ -67,7 +67,11 @@ Cost of the run: about 105 gemini-3.7-flash drafts and about 110 Flash-Lite call
 - **Retrieval is robust to rewording.** Recall stays at 1.0 on lay, legal and misspelled variants, even when the
   top-8 overlap with the original question drops to 0.07. Fusion plus rerank recovers the right provision.
 - **Glossary is the weakest content.** 23.5 % of definitions are model non-answers ("The provided text does not
-  define…"). Several more are narrowed to one source: "damages" is defined only as a dog owner's liability.
+  define…"). Several more are narrowed to one source: "damages" is defined only as a dog owner's liability. **Fixed
+  (2026-09-27, #4):** the builder checks every definition with the shared non-answer detector plus a source-reference
+  check, retries once, and never stores a failure; a law's own definition wins over the curated section. 0 non-answers
+  in 85 (6 core terms added); faithful 0.976–1.000 over 4 judge runs (only "city clerk" and "municipality" flagged,
+  for adding a general role / "local government").
 
 ## How the scorers were checked
 

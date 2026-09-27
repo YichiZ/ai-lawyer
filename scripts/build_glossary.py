@@ -1,6 +1,8 @@
 """Phase 4.3: write glossary definitions for the curated terms, then judge each against its source text.
 
-Run: uv run --env-file .env -m scripts.build_glossary
+Run: uv run --env-file .env -m scripts.build_glossary [--redo "term one;term two"]
+Writes missing definitions, rewrites stored ones that fail the non-answer / source-reference check, and rewrites the
+--redo terms (e.g. ones the judge found unfaithful or too narrow).
 """
 import os
 import sys
@@ -19,10 +21,13 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:dev@localho
 
 
 def main() -> int:
+    redo = frozenset()
+    if "--redo" in sys.argv:
+        redo = frozenset(t.strip().lower() for t in sys.argv[sys.argv.index("--redo") + 1].split(";") if t.strip())
     client = batch_client()
     terms = load_terms()
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
-        calls = upsert_definitions(conn, terms, text_generator(client, model=ANSWER_MODEL))
+        calls = upsert_definitions(conn, terms, text_generator(client, model=ANSWER_MODEL), redo=redo)
         rows = conn.execute(
             "SELECT g.term, g.plain_definition, d.title, g.source_pinpoint, s.text FROM glossary_terms g"
             " JOIN documents d ON d.slug = g.source_slug JOIN sections s ON s.document_id = d.id AND s.pinpoint = g.source_pinpoint"
