@@ -2,6 +2,16 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+## 2026-09-27 · Fix · By-law headings stop before footnotes and body text (#21)
+
+- **Root cause:** `parse_chapter` joined heading lines until one ended with ".". A footnote number after the period (`Signs. 12`, `conditioning.28`, `streets. 29`), a quoted period (`"highway."`) or a heading with no period (`Transition` then `A.`) never matched, so the heading swallowed the body up to the next period, and the section text lost those lines.
+- **Fix:** a heading ends at `.` or `."` plus an optional footnote number (dropped), or before a line that starts a paragraph (label, defined term, `[history]`). `PARSER_VERSION` 3 → 4.
+- **Scan (all 142 parsed rows, ch. 629/719/743, old vs new parser):** exactly 6 headings changed, the rest identical: 629-15 Signs (was 224 chars), 629-32 Services and utilities (268), 629-38 Heating and air conditioning (208), 719-7 Use of the word "highway." (235), 719-8 Transition (518), 743-9 Fouling and obstruction streets (448). Longest by-law heading now 90 chars (719-4.1, genuine).
+- **Reload:** `load_toronto` updated all 3 in place (sections = TOC: 58 / 9 / 59); summaries (76) and citations (10,976) kept. `embed_chunks`: 7 chunks changed (chunk counts unchanged), `contextualize_chunks` estimate $0.00 → 7 situated + re-embedded. Spend < $0.01.
+- **Excerpt rule:** in-process `GET /laws/toronto-municipal-code-743/743-9` → heading "Fouling and obstruction streets", text 301 chars (`EXCERPT_CHARS` 300 + "…"), `full_text` false.
+- **Retrieval eval (1 run):** recall@8 1.000 (baseline 1.000), MRR 0.914 (baseline 0.919, −0.5, within 2 points). Baseline **not** re-recorded (corpus hash changed; only retrieval ran — the next full gate re-records).
+- **Tests:** heading layouts from the real PDFs with short synthetic text (red before the fix). pytest 512 passed.
+
 ## 2026-09-27 · Fix · Claims stay within their quotes: faithful 0.892 → 0.965 (#43)
 
 - **Root cause:** quote verification checks each quote is verbatim in its chunk, not that the claim stays within the quote. Spot check before (3 drafts each): **mv-10** 0/3 faithful, every draft cites s. 258.3(4) ("shall inform … of the obligation under subsection (2)") for "give a copy to their insurer within seven days", a detail only in s. 258.3(2); **proc-06** 0/3, "Schedule 1 or Schedule 2 employers" cited to s. 28(1) (Schedule 1 only), "Part X" cited to s. 114(1).
