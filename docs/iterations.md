@@ -2,6 +2,11 @@
 
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
+
+## 2026-09-27 · Decision · By-law summaries stay (#16)
+
+- **What:** the user decided that AI plain-language summaries of excerpt-only Toronto Municipal Code sections stay: a summary is our own paraphrase, not a reproduction; the section text itself remains excerpt-only with the official link. Recorded in docs/design.md (Acquisition table).
+
 ## 2026-09-26 · Fix · 8 missing injury-law instruments added to the library (#6)
 
 - **What:** `ingest/v0.py` gains Municipal Act, 2001; Trespass to Property Act; Motor Vehicle Accident Claims Act; Compulsory Automobile Insurance Act; Health Insurance Act; O. Reg. 461/96, 239/02, 612/06 (all from the A2AJ Parquet already on disk, matched by citation; the parser needed no change). `ingest/citations.py` links decisions to the 5 new statutes (the Health Insurance Act and CAIA had been read as the Insurance Act); search takes MA/TPA/MVACA/CAIA/HIA. `contextualize_pending` and `summarize_pending` now skip decisions: both selected every pending row, so their estimates were $21.12 and $59.09 instead of $0.51 and $0.70. The abstention eval counts a regulation named by its citation ("O. Reg. 239/02") as sourced when the cited section's citation carries it. 8 gold items (city-11–13, slip-11, mv-12–14, proc-12).

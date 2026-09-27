@@ -97,7 +97,7 @@ A2AJ's open Parquet datasets are the primary source; the web and Chrome flow onl
 | Source | What | Access | Stage |
 | --- | --- | --- | --- |
 | [a2aj/canadian-laws](https://huggingface.co/datasets/a2aj/canadian-laws) | ~20 Ontario injury statutes and regulations, pre-split into sections | Hugging Face Parquet, weekly | v0 |
-| toronto.ca | Toronto Municipal Code ch. 719 (Snow and Ice Removal), 743 (Streets and Sidewalks), 629 (Property Standards) | Approved download (2.6 MB PDFs, text layer, `pdftotext`); **City copyright: local index only — UI shows excerpts + link, never full text** (`documents.reproduction = 'excerpt'`) | v0 |
+| toronto.ca | Toronto Municipal Code ch. 719 (Snow and Ice Removal), 743 (Streets and Sidewalks), 629 (Property Standards) | Approved download (2.6 MB PDFs, text layer, `pdftotext`); **City copyright: local index only — UI shows excerpts + link, never full text** (`documents.reproduction = 'excerpt'`). Plain-language summaries of these sections stay (decided 2026-09-27, #16): they are our own paraphrase of the rule, not a reproduction, and are labelled AI-written with the official link | v0 |
 | [a2aj/canadian-case-law](https://huggingface.co/datasets/a2aj/canadian-case-law) | ONCA (24,131 decisions, 1998–2026) and SCC (10,893, 1877–2026), filtered to injury topics | Hugging Face Parquet, with citation lists | v1 |
 | [CanLII API](https://github.com/canlii/API_documentation/blob/master/EN.md) | Superior Court and LAT case metadata and links | API key, per request | v1, links only |
 | CanLII full text | Superior Court and LAT decisions | Bulk download prohibited by [CanLII terms](https://www.canlii.org/info/terms.html) | Not requested |
