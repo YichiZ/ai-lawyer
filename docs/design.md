@@ -2,7 +2,7 @@
 
 Sep 25, 2026 · Yichi Zhang · Live version: https://claude.ai/artifact/1eXMcx8vLmKPCRgCxgPpLn
 
-We will build a research guide to Ontario personal-injury law, plaintiff side and Toronto-focused, for paralegals and law students: browse every relevant law, search it in everyday or legal words, and ask research questions whose answers a human reviewer approves before release. It is a portfolio demo. v0 covers 12 statutes and regulations (2,946 sections); v1 adds Ontario Court of Appeal and Supreme Court of Canada decisions from the open A2AJ dataset.
+We will build a research guide to Ontario personal-injury law, plaintiff side and Toronto-focused, for paralegals and law students: browse every relevant law, search it in everyday or legal words, and ask research questions whose answers a human reviewer approves before release. It is a portfolio demo. v0 covered 12 statutes and regulations (2,946 sections), since grown to 20 (3,871 sections: 15 statutes, 5 regulations); v1 adds Ontario Court of Appeal and Supreme Court of Canada decisions from the open A2AJ dataset.
 
 ## Goals and non-goals
 
@@ -103,6 +103,8 @@ A2AJ's open Parquet datasets are the primary source; the web and Chrome flow onl
 | CanLII full text | Superior Court and LAT decisions | Bulk download prohibited by [CanLII terms](https://www.canlii.org/info/terms.html) | Not requested |
 
 **v0 statutes and regulations:** Limitations Act, 2002 · Negligence Act · Occupiers' Liability Act · Dog Owners' Liability Act · Insurance Act and O. Reg. 34/10 (SABS) · Highway Traffic Act (liability parts) · Courts of Justice Act · Rules of Civil Procedure (R.R.O. 1990, Reg. 194) · Family Law Act (Part V) · City of Toronto Act, 2006 (notice to the city) · Workplace Safety and Insurance Act, 1997.
+
+**Added after v0 (issue #6):** Municipal Act, 2001 (s. 44 non-repair and notice outside Toronto) · Trespass to Property Act · Motor Vehicle Accident Claims Act · Compulsory Automobile Insurance Act · Health Insurance Act (ss. 30–31 OHIP subrogation) · O. Reg. 461/96 (court proceedings for auto accidents; "permanent serious impairment") · O. Reg. 239/02 and O. Reg. 612/06 (minimum maintenance standards for municipal and Toronto highways).
 
 **Case filter (v1):** keep decisions that cite a v0 statute (A2AJ citation lists) or match injury terms. Expected: a few thousand decisions — to confirm.
 
