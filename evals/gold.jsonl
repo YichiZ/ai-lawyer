@@ -84,3 +84,6 @@
 {"id": "oos-13", "question": "What are my rights as a tenant if my landlord wants to evict me for personal use?", "topic": "out-of-scope", "expected": [], "facts": [], "must_refuse": true}
 {"id": "oos-14", "question": "How does no-fault auto insurance work in Michigan?", "topic": "out-of-scope", "expected": [], "facts": [], "must_refuse": true}
 {"id": "oos-15", "question": "How much child support will I have to pay after separation?", "topic": "out-of-scope", "expected": [], "facts": [], "must_refuse": true}
+{"id": "oos-16", "question": "What is the sentence for impaired driving causing bodily harm in Ontario?", "topic": "out-of-scope", "expected": [], "facts": [], "must_refuse": true}
+{"id": "oos-17", "question": "Can I get more spousal support from my ex because a car accident injury stopped me working?", "topic": "out-of-scope", "expected": [], "facts": [], "must_refuse": true}
+{"id": "oos-18", "question": "What are the penalties for careless driving causing injury?", "topic": "out-of-scope", "expected": [], "facts": [], "must_refuse": true}

@@ -8,6 +8,7 @@ from app.ask import (
     compose_draft,
     library_titles,
     normalize,
+    out_of_scope_message,
     result_flags,
     rrf,
     run_ask,
@@ -135,6 +136,21 @@ def test_out_of_scope_refusal():
     result = run_ask("BC speeding ticket appeal?", [hit("c1", 0.2)], llm)
     assert result.status == "out_of_scope" and len(llm.prompts) == 1
     assert "British Columbia traffic law" in result.draft_markdown
+
+
+@pytest.mark.parametrize("note, topic", [
+    ("criminal sentencing", "Criminal sentencing"),
+    ("British Columbia traffic law.", "British Columbia traffic law"),
+    ("Sentencing for criminal offences (such as impaired driving under the Criminal Code) falls under federal "
+     "criminal law rather than Ontario personal-injury law.",
+     "Sentencing for criminal offences (such as impaired driving under the Criminal Code)"),
+    ("family law other than Family Law Act s. 61 claims; spousal support", "Family law other than Family Law Act s. 61 claims"),
+    ("", "Another area of law"),
+    (None, "Another area of law"),
+])
+def test_out_of_scope_message_is_one_clean_sentence(note, topic):
+    assert out_of_scope_message(note) == (
+        f"This guide covers Ontario personal-injury law only. Topic of this question: {topic}.")
 
 
 def test_refine_runs_on_verified_claims_before_composing():
