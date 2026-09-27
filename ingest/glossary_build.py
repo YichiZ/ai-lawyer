@@ -99,20 +99,69 @@ def _defines(text: str, term: str) -> bool:
     return any(f"“{term}” {verb}".lower() in text.lower() for verb in ("means", "includes"))
 
 
+NAME_ONLY_WORDS = 15  # a definition this short that points elsewhere only names the term (#36)
+POINTER_RE = re.compile(r"\b(?:established|continued|created|constituted|as defined|within the meaning)\b", re.IGNORECASE)
+
+
+def _names_only(text: str, term: str) -> bool:
+    """The law's “term” means … clause is short, restates the term and points elsewhere, e.g. “Licence Appeal
+    Tribunal” means the Licence Appeal Tribunal established under … — a curated section that says what the thing does
+    is richer. (“claim” means a claim to remedy an injury is a real definition.)"""
+    m = re.search(rf"“{re.escape(term)}” (?:means|includes)\s+(.*?)(?:\(“|;|$)", text, re.IGNORECASE | re.DOTALL)
+    clause = m.group(1) if m else ""
+    return term.lower() in clause.lower() and len(clause.split()) <= NAME_ONLY_WORDS and bool(POINTER_RE.search(clause))
+
+
+def _curated(conn: psycopg.Connection, slug: str, spec: str):
+    """(slug, spec, text) of the curated section(s): `spec` is one pinpoint or several joined by "+" (e.g.
+    "s-29+s-1-1": a definition plus the one it refers to), texts in that order; None if the first is missing."""
+    pins = spec.split("+")
+    texts = dict(conn.execute("SELECT s.pinpoint, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
+                              " WHERE d.slug = %s AND s.pinpoint = ANY(%s)", (slug, pins)).fetchall())
+    if pins[0] not in texts:
+        return None
+    if len(pins) == 1:
+        return slug, spec, texts[spec]
+    return slug, spec, "\n\n".join(f"{display_pinpoint(p)}:\n{texts[p]}" for p in pins if p in texts)
+
+
 def resolve_source(conn: psycopg.Connection, term: str, slug: str | None, pinpoint: str | None):
-    """(slug, pinpoint, text), first match of: the curated section if it defines “term”; another section of the
-    curated law that defines it; any law's definition (library order); the curated section; None."""
-    pinned = None
-    if slug:
-        row = conn.execute("SELECT d.slug, s.pinpoint, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
-                           " WHERE d.slug = %s AND s.pinpoint = %s", (slug, pinpoint)).fetchone()
-        pinned = tuple(row) if row else None
-        if pinned and _defines(pinned[2], term):
-            return pinned
-        same_law = _defining_section(conn, term, slug)
-        if same_law:
-            return same_law
-    return _defining_section(conn, term) or pinned
+    """(slug, pinpoint spec, text), first match of: the curated section if it defines “term”; another section of the
+    curated law that defines it; any law's definition (library order); the curated section; None. A definition that
+    only names the term (`_names_only`) never beats a curated section."""
+    pinned = _curated(conn, slug, pinpoint) if slug and pinpoint else None
+    if pinned and _defines(pinned[2], term):
+        return pinned
+    found = (_defining_section(conn, term, slug) if slug else None) or _defining_section(conn, term)
+    if found and pinned and _names_only(found[2], term):
+        return pinned
+    return found or pinned
+
+
+def where(title: str, spec: str) -> str:
+    return f"{title}, {' and '.join(display_pinpoint(p) for p in spec.split('+'))}"
+
+
+def judged_sources(conn: psycopg.Connection, terms=None) -> list[tuple]:
+    """(term, definition, where, source text or None) for every stored definition, with the text of the curated
+    extra sections ("s-29+s-1-1") the definition was written from, for the judges."""
+    curated = {t.lower(): (s, p) for t, s, p in (terms if terms is not None else load_terms()) if p}
+    out = []
+    for term, definition, slug, pin, title in conn.execute(
+            "SELECT g.term, g.plain_definition, g.source_slug, g.source_pinpoint, d.title FROM glossary_terms g"
+            " LEFT JOIN documents d ON d.slug = g.source_slug ORDER BY g.term").fetchall():
+        c_slug, c_spec = curated.get(term.lower(), (None, None))
+        spec = c_spec if c_slug == slug and c_spec and c_spec.split("+")[0] == pin else pin
+        src = _curated(conn, slug, spec) if slug and spec else None
+        out.append((term, definition, where(title or "", spec or ""), src[2] if src else None))
+    return out
+
+
+def prune(conn: psycopg.Connection, terms) -> list[str]:
+    """Delete stored definitions whose term is no longer curated (their glossary links go with them)."""
+    keep = [t.lower() for t, _, _ in terms]
+    return [r[0] for r in conn.execute("DELETE FROM glossary_terms WHERE NOT lower(term) = ANY(%s) RETURNING term",
+                                       (keep,)).fetchall()]
 
 
 def build_prompt(term: str, where: str, text: str) -> str:
@@ -149,7 +198,7 @@ def upsert_definitions(conn: psycopg.Connection, terms, generate: Callable[[str]
             print(f"glossary: no source section for {term!r}", flush=True)
             continue
         title = conn.execute("SELECT title FROM documents WHERE slug = %s", (src[0],)).fetchone()[0]
-        jobs.append((term, src[0], src[1], build_prompt(term, f"{title}, {display_pinpoint(src[1])}", src[2])))
+        jobs.append((term, src[0], src[1].split("+")[0], build_prompt(term, where(title, src[1]), src[2])))
     with ThreadPoolExecutor(max_workers=workers) as pool:
         results = list(pool.map(lambda j: define(j[0], j[3], generate), jobs))
     with conn.transaction():

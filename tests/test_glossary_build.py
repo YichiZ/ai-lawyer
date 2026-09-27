@@ -1,4 +1,5 @@
-from ingest.glossary_build import build_prompt, define, is_non_answer, load_terms, rejection, resolve_source, upsert_definitions
+from ingest.glossary_build import (build_prompt, define, is_non_answer, judged_sources, load_terms, prune, rejection,
+                                   resolve_source, upsert_definitions)
 from ingest.statutes import load_document, parse_law
 from ingest.v0 import V0Law
 from test_statutes import LAW, row
@@ -140,3 +141,37 @@ def test_resolve_source_takes_the_laws_first_definition_not_a_later_subsection(c
     assert resolve_source(conn, "claim", None, None)[:2] == ("test-act", "s-1")
     conn.execute("UPDATE sections SET text = 'In this Act, nothing.' WHERE pinpoint = 's-1'")
     assert resolve_source(conn, "claim", None, None)[:2] == ("test-act", later)
+
+
+def test_a_definition_that_only_names_the_term_does_not_beat_the_curated_section(conn):  # #36
+    load_law(conn, "test-act", "“tribunal” means the Tribunal established under the Tribunal Act, 1999. (“tribunal”)")
+    assert resolve_source(conn, "tribunal", "test-act", "s-4")[:2] == ("test-act", "s-4")
+    assert resolve_source(conn, "tribunal", None, None)[:2] == ("test-act", "s-1")  # nothing curated: the name it is
+    conn.execute("UPDATE sections SET text = '“tribunal” means the body that hears disputes about benefits;'"
+                 " WHERE pinpoint = 's-1'")  # a real definition still wins
+    assert resolve_source(conn, "tribunal", "test-act", "s-4")[:2] == ("test-act", "s-1")
+    load_law(conn, "claim-act", "“claim” means a claim to remedy an injury;")  # restates the term but defines it
+    assert resolve_source(conn, "claim", "claim-act", "s-4")[:2] == ("claim-act", "s-1")
+
+
+def test_a_curated_source_can_join_a_definition_and_the_one_it_refers_to(conn, tmp_path):  # #36
+    load_law(conn, "test-act", "“spouse” means either of two persons who are married to each other;")
+    conn.execute("UPDATE sections SET text = '“spouse” means a spouse as defined in section 1, and in addition includes"
+                 " two persons who have cohabited;' WHERE pinpoint = 's-4'")
+    (tmp_path / "t.tsv").write_text("spouse\ttest-act\ts-4+s-1\n")
+    assert load_terms(tmp_path / "t.tsv") == [("spouse", "test-act", "s-4+s-1")]
+    slug, spec, text = resolve_source(conn, "spouse", "test-act", "s-4+s-1")
+    assert (slug, spec) == ("test-act", "s-4+s-1")
+    assert text.index("s. 4:\n") < text.index("cohabited") < text.index("s. 1:\n") < text.index("married to each other")
+    prompts = []
+    upsert_definitions(conn, [("spouse", "test-act", "s-4+s-1")], lambda p: prompts.append(p) or GOOD, workers=1)
+    assert ", s. 4 and s. 1" in prompts[0] and "married to each other" in prompts[0]
+    assert conn.execute("SELECT source_pinpoint FROM glossary_terms WHERE term = 'spouse'").fetchone()[0] == "s-4"
+    [(term, definition, where, judged)] = judged_sources(conn, [("spouse", "test-act", "s-4+s-1")])
+    assert where.endswith("s. 4 and s. 1") and judged == text  # the judges see both provisions
+
+
+def test_prune_removes_terms_no_longer_curated(conn):  # #36
+    conn.execute("INSERT INTO glossary_terms (term, plain_definition) VALUES ('claim', 'x'), ('Snow or Ice', 'y')")
+    assert prune(conn, [("claim", None, None)]) == ["Snow or Ice"]
+    assert [r[0] for r in conn.execute("SELECT term FROM glossary_terms")] == ["claim"]
