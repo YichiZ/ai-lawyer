@@ -42,7 +42,7 @@ class VertexAI:
         client = vertex.make_client()
         self.embed_query = vertex.embedder(client, task_type="RETRIEVAL_QUERY")
         self.generate = vertex.json_generator(client)
-        # Interactive rerank fails fast (one 3 s attempt) and falls back to fused order; evals use a patient client.
+        # Interactive rerank fails fast (one 2.5 s attempt) and falls back to fused order; evals use a patient client.
         fast = vertex.make_client(attempts=1, timeout_ms=RERANK_TIMEOUT_MS)
         self.rerank = make_reranker(vertex.json_generator(fast, model=vertex.CHEAP_MODEL))
         self.search_web = lambda q: web_fallback.search_web(q, client, vertex.ANSWER_MODEL)
@@ -218,7 +218,8 @@ def draft_web_answer(connect, answer_id: int, question: str, search_web) -> None
         try:
             text, sources = search_web(question)
             status = "web" if sources else "not_found"
-            conn.execute("UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb WHERE id = %s",
+            conn.execute("UPDATE answers SET draft_markdown = %s, flags = flags || %s::jsonb"
+                         " WHERE id = %s AND status = 'pending_review'",
                          (web_fallback.compose_web_draft(text, sources),
                           json.dumps({"status": status, "web_sources": sources}), answer_id))
             span.update(output={"status": status, "sources": len(sources)})
@@ -267,6 +268,8 @@ class ReviewRequest(BaseModel):
 
 @app.get("/review/queue")
 def review_queue(conn: Conn, _: Reviewer):
+    for answer_id in ask.fail_stale_drafts(conn):
+        log.warning("answer %s: draft lost (API restarted mid-draft?), flagged failed", answer_id)
     items = review.queue(conn)
     return envelope(items, meta={"total": len(items)})
 
