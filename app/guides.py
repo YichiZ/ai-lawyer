@@ -3,6 +3,8 @@ sources (like the Ask page), never the draft."""
 import psycopg
 from psycopg.rows import dict_row
 
+from app.review import released_claims
+
 
 def list_guides(conn: psycopg.Connection) -> list[dict]:
     return conn.cursor(row_factory=dict_row).execute(
@@ -28,7 +30,7 @@ def get_guide(conn: psycopg.Connection, slug: str) -> dict | None:
         s = {"heading": r["heading"], "question": r["question"], "answer_id": r["answer_id"],
              "status": r["status"] or "not_drafted"}
         if r["status"] in ("approved", "edited"):
-            s |= {"final_markdown": r["final_markdown"], "claims": r["claims"], "reviewed_by": r["reviewed_by"],
+            s |= {"final_markdown": r["final_markdown"], "claims": released_claims(r), "reviewed_by": r["reviewed_by"],
                   "reviewed_at": r["reviewed_at"], "edited": r["status"] == "edited"}
         elif r["status"] == "pending_review":
             s["sources"] = r["flags"].get("sources", [])

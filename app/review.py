@@ -2,6 +2,7 @@
 import difflib
 import json
 import os
+import re
 from pathlib import Path
 
 import psycopg
@@ -114,16 +115,29 @@ def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | No
     if a["status"] == "pending_review":
         view["message"] = "Awaiting review"
     elif a["status"] in ("approved", "edited"):
-        view |= {"final_markdown": a["final_markdown"], "claims": a["claims"], "edited": a["status"] == "edited",
+        view |= {"final_markdown": a["final_markdown"], "claims": released_claims(a), "edited": a["status"] == "edited",
                  "reviewed_by": a["reviewer_name"], "reviewed_at": a["reviewed_at"]}
     else:
         view |= {"review_reason": a["review_reason"], "reviewed_by": a["reviewer_name"], "reviewed_at": a["reviewed_at"]}
     if role == "reviewer":
-        view |= {"draft_markdown": a["draft_markdown"], "claims": a["claims"], "review_note": a["review_note"],
+        # "claims" stay the ones shown under the text (kept claims once released, #57); the draft's are draft_claims
+        view |= {"draft_markdown": a["draft_markdown"], "claims": view.get("claims", a["claims"]),
+                 "draft_claims": a["claims"], "review_note": a["review_note"],
                  "risk": risk_reasons(a["flags"]), "dropped_claims": a["flags"].get("dropped_claims", [])}
     if view.get("claims"):
         view["sources"] = hide_quoted_snippets(view["sources"], view["claims"], excerpt_only_slugs(conn))
     return view
+
+
+def released_claims(a: dict) -> list[dict]:
+    """Claims a researcher sees: all of an approved answer's; of an edited one, only those whose quote the reviewer
+    kept in the final text (#57). Computed at read time so the draft's claims stay whole for reviewers and evals."""
+    if a["status"] != "edited":
+        return a["claims"]
+    from app.ask import normalize
+
+    final = normalize(re.sub(r"(?m)^\s*>\s?", "", a["final_markdown"] or ""))  # a reflowed quote keeps its > marks
+    return [c for c in a["claims"] if normalize(c.get("quote", "")) in final]
 
 
 def hide_quoted_snippets(sources: list[dict], claims: list[dict], excerpt_slugs: set[str]) -> list[dict]:

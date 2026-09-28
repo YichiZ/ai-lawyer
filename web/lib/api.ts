@@ -143,6 +143,7 @@ export interface Answer {
   reviewed_at?: string;
   review_reason?: string;
   draft_markdown?: string;
+  draft_claims?: Claim[];
   review_note?: string;
   risk?: string[];
   dropped_claims?: Claim[];

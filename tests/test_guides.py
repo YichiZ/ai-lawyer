@@ -52,3 +52,11 @@ def test_pending_section_shows_its_sources(client):
 
 def test_unknown_guide_404(client):
     assert client.get("/guides/nope").status_code == 404
+
+
+def test_edited_section_shows_only_kept_claims(client, conn):
+    """#57: a guide section edited to drop its quote shows no citation for it."""
+    conn.execute("UPDATE answers SET status = 'edited', final_markdown = 'Two years, reworded.'"
+                 " WHERE question = 'What is the deadline?'")
+    first = client.get("/guides/limitation-periods").json()["data"]["sections"][0]
+    assert first["edited"] is True and first["claims"] == []
