@@ -61,3 +61,10 @@ test("heading typeahead and full search with Ask this", async ({ page }) => {
   await expect(page).toHaveURL(/\/ask\?q=/);
   await expect(page.getByLabel("Your research question")).toHaveValue("How long do I have to sue after an injury?");
 });
+
+test("an over-long search says it is too long, not that nothing matched (#58)", async ({ page }) => {
+  await page.goto(`/search?q=${"a".repeat(501)}`);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Search text must be at most 500 characters.");
+  await expect(page.getByText("No matching sections")).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: /Search laws/ })).toHaveAttribute("maxlength", "500");
+});

@@ -3,6 +3,13 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · Over-long searches say they're too long (#58)
+
+- **Problem:** `web/lib/api.ts` turned every GET 422 into `null` (meant for bad slugs → 404), so a search over 500 characters rendered "No matching sections in the laws we cover.", telling a researcher the library had nothing.
+- **What:** `requestEnvelope` takes `missingOn422` (default: GETs, as before); `search()` passes `false` and returns the API's 422 message as `error`, which `/search` shows as an alert ("Search text must be at most 500 characters.") instead of results. The header `SearchBox` has `maxLength={500}`; `rerankedSearchAction` returns `null` (keep what's shown) on an input error. The typeahead already skips queries over 200 characters (`suggestAction`), so it needs no change.
+- **Tests:** Playwright `search.spec.ts`: `/search?q=<501 × a>` shows the length alert, no "No matching sections", and the search box has `maxlength=500`. e2e 44 passed on a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+
+
 ## 2026-09-28 · Fix · A web page that released answers cite can't be removed (#64)
 
 - **Problem:** `DELETE /laws/{slug}` deleted a web page without checking references. Answers keep sources/claims as JSON (`flags.sources[].slug`, `claims[].source.slug`), not foreign keys, so approved answer 390 kept a link to `/laws/web-…/sec-8` that 404'd.
