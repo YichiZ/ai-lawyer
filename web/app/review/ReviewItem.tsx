@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { reviewAction, type FormState } from "@/app/actions";
 import Markdown from "@/components/Markdown";
 import AddToLibrary from "./AddToLibrary";
@@ -20,6 +20,16 @@ const RISK_LABELS: Record<string, string> = {
 export default function ReviewItem({ item }: { item: QueueItem }) {
   const [state, action, pending] = useActionState<FormState, FormData>(reviewAction.bind(null, item.id), {});
   const [decision, setDecision] = useState<"approve" | "edit" | "reject">("approve");
+
+  // #70: dispatch by hand, not via <form action>. React 19 resets a form after its action runs, which unchecks the
+  // controlled radios and restores the textarea/note, so a resubmit after an error sent `approve` with the draft.
+  // Without the reset the entered text survives, and the decision sent is always the one shown.
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    form.set("decision", decision);
+    startTransition(() => action(form));
+  }
 
   return (
     <article className="rounded-sm border border-rule p-5" aria-labelledby={`q-${item.id}`}>
@@ -91,7 +101,7 @@ export default function ReviewItem({ item }: { item: QueueItem }) {
         </details>
       )}
 
-      <form action={action} className="mt-5 space-y-3">
+      <form onSubmit={submit} className="mt-5 space-y-3">
         <fieldset className="flex flex-wrap gap-4">
           <legend className="sr-only">Decision</legend>
           {(["approve", "edit", "reject"] as const).map((d) => (
