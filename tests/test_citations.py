@@ -1,6 +1,41 @@
 import pytest
 
-from ingest.citations import statute_refs
+from ingest.citations import internal_refs, statute_refs
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("revised in accordance with clause 268 (1.4) (b).", ["s-268-1.4"]),
+        ("the limits in subsection 18 (3) apply", ["s-18-3"]),
+        ("the benefit under section 30, if purchased", ["s-30"]),
+        ("paragraph 3 of subsection 28 (1)", ["s-28-1"]),
+        ("subparagraph i of paragraph 2 of subsection 3 (1)", ["s-3-1"]),
+        ("section 5 of this Act", ["s-5"]),
+        ("section 30 ... section 30", ["s-30"]),
+        # a list or range resolves its first item only (ceiling), and only when the whole list is in this law
+        ("subsection 18 (3) and section 18", ["s-18-3"]),
+        ("sections 25 to 49", ["s-25"]),
+        ("sections 3, 4 and 5 of this Act", ["s-3"]),
+        ("sections 3, 4 and 5 of the Negligence Act", []),
+        ("section 5 and section 6 of the Act", []),
+        ("sections 25 to 49 of the said Act", []),
+        ("section 7 or 8 of Ontario Regulation 34/10", []),
+        # another law's provision, or a relative reference within the same section: not followed (#61)
+        ("section 280 of the Act", []),
+        ("subsection 5 (1) of the Act", []),
+        ("clause 3 (1) (a) of Ontario Regulation 34/10", []),
+        ("Despite subsection (2), none.", []),
+    ],
+)
+def test_internal_refs(text, expected):
+    assert [pin for pin, _ in internal_refs(text)] == expected
+
+
+def test_internal_refs_mark_provisions_that_set_the_terms():
+    text = ("the amounts in subsection 7 (1) shall be revised in accordance with clause 268 (1.4) (b), "
+            "subject to paragraph 3 of subsection 28 (1); see clause 268 (1.4) (a)")
+    assert internal_refs(text) == [("s-7-1", False), ("s-268-1.4", True), ("s-28-1", True)]
 
 
 @pytest.mark.parametrize(

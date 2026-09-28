@@ -114,8 +114,9 @@ export interface Source {
   citation: { title: string; reference: string; text: string };
   snippet: string;
   url: string;
-  score?: number;
+  score?: number | null;
   distance?: number | null;
+  referenced_by_display?: string | null; // a provision another source refers to (#61)
 }
 
 export interface Claim {

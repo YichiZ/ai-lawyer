@@ -5,7 +5,7 @@ names, and that chunk must be one we retrieved.
 """
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable
 
 import psycopg
@@ -17,6 +17,7 @@ from app import tracing
 from app.authorities import SECONDARY_LABEL, secondary_statutes
 from app.format import mcgill_citation, subtitle
 from app.laws import excerpt
+from ingest.citations import internal_refs
 from ingest.statutes import display_pinpoint
 
 # Fusion tuned on the Phase 3 gold sweep (3.3): k 60 / equal weights buried vector #1 hits under keyword noise.
@@ -37,6 +38,8 @@ NOT_FOUND_SOURCES = 3
 # Small Claims page outranked Limitations Act s. 4 for "how long to sue" (gold lim-01 MRR 1.0 -> 0.5, issue #8).
 RETRIEVAL_KINDS = ["statute", "regulation", "bylaw"]
 WEB_K = 2  # web pages shown after the law hits, only when as close to the question as the grounding gate requires
+CROSS_REF_K = 2  # chunks added per answer for provisions a retrieved law chunk refers to (#61)
+REPEALED = re.compile(r"\s*(?:\([\w.]+\)\s*)?\[?(?:Repealed|Revoked)\b[^\n]*$", re.IGNORECASE)  # a stub, not a rule
 
 Generate = Callable[[str, dict], dict]  # (prompt, response JSON schema) -> parsed JSON
 
@@ -89,6 +92,9 @@ Rules:
   quote it, leave it out. Never combine two provisions in one claim: a provision that refers to another ("the
   obligation under subsection (2)") is one claim, and what the other provision says is a second claim with its own
   quote. Do not summarize a list more broadly than the quote does, and do not leave out a condition the quote sets.
+- A passage marked "referred to by [cN]" holds a provision that passage cN refers to. If you state what cN says
+  and it applies that provision ("in accordance with clause ..."), also state the conditions that provision sets
+  (e.g. its opening words), each in its own claim quoting them, or do not state cN at all.
 - Indexed amounts: if a rule's dollar figure is "the greater of X and the prescribed amount", is prescribed by
   regulation, or is revised or indexed over time, never present the base or dated figure as the current amount. Say
   the amount is indexed or prescribed, quote the passage that sets or indexes it if one is listed, and say the current
@@ -159,6 +165,11 @@ def _cite(source: dict) -> str:
     return f"*{c['title']}*, {c['reference']}" if c["title"] else c["reference"]
 
 
+def _referred(h: "Retrieved") -> str:
+    by = h.source.get("referenced_by")
+    return f" (referred to by [{by}])" if by else ""
+
+
 def compose_draft(answer: str, claims: list[dict]) -> str:
     """claims carry their "source" (see run_ask), so each quote is cited at its most precise pinpoint."""
     parts = [answer.strip(), "", "**What the law says**", ""]
@@ -198,7 +209,7 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
     chunks = {h.chunk_id: h.text for h in hits}
     sources = {h.chunk_id: h.source for h in hits}
-    passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}\n{h.text}" for h in hits)
+    passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_referred(h)}\n{h.text}" for h in hits)
     all_dropped, feedback, advice = [], "", False
     for attempt in range(2):
         prompt = PROMPT.format(question=question, passages=passages, feedback=feedback)
@@ -231,10 +242,10 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 def retrieve_for_answer(conn: psycopg.Connection, question: str, query_vector: list[float],
                         rerank: Callable[[str, list, int], list] | None = None) -> list[Retrieved]:
     """What the answer model reads: the law top TOP_K, the close web pages, then the decision top CASE_K, each ranked
-    separately."""
+    separately, then the provisions the law hits refer to (with_cross_references)."""
     laws = retrieve(conn, question, query_vector, rerank=rerank)
     cases = retrieve(conn, question, query_vector, top_k=CASE_K, rerank=rerank, kinds=["decision"])
-    return laws + retrieve_web(conn, question, query_vector) + cases
+    return with_cross_references(conn, laws + retrieve_web(conn, question, query_vector) + cases)
 
 
 def retrieve_web(conn: psycopg.Connection, question: str, query_vector: list[float]) -> list[Retrieved]:
@@ -287,18 +298,57 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
         "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url"
         " FROM chunks c JOIN documents d ON d.id = c.document_id WHERE c.id = ANY(%s)", (ids,),
     ).fetchall()}
-    hits = []
-    for cid, score in fused:
-        r = rows[int(cid[1:])]
-        pin = r["pinpoint"]
-        url = f"/cases/{r['slug']}#{pin}" if r["kind"] == "decision" else f"/laws/{r['slug']}/{pin}"
-        source = {
-            "chunk_id": cid, "slug": r["slug"], "title": r["title"], "pinpoint": pin,
-            "display": display_pinpoint(pin), "citation": mcgill_citation(r, pin),
-            "snippet": excerpt(r["text"]), "url": url, "kind": r["kind"], "subtitle": subtitle(r),
-        }
-        hits.append(Retrieved(cid, r["text"], distance.get(cid), source, score))
+    hits = [Retrieved(cid, rows[int(cid[1:])]["text"], distance.get(cid), _source(cid, rows[int(cid[1:])]), score)
+            for cid, score in fused]
     return rerank(question, hits, top_k) if rerank else hits
+
+
+def _source(cid: str, r: dict) -> dict:
+    pin = r["pinpoint"]
+    url = f"/cases/{r['slug']}#{pin}" if r["kind"] == "decision" else f"/laws/{r['slug']}/{pin}"
+    return {
+        "chunk_id": cid, "slug": r["slug"], "title": r["title"], "pinpoint": pin,
+        "display": display_pinpoint(pin), "citation": mcgill_citation(r, pin),
+        "snippet": excerpt(r["text"]), "url": url, "kind": r["kind"], "subtitle": subtitle(r),
+    }
+
+
+def with_cross_references(conn: psycopg.Connection, hits: list[Retrieved], cap: int = CROSS_REF_K) -> list[Retrieved]:
+    """`hits` plus, at the end, up to `cap` chunks holding provisions of the same law that a retrieved statute or
+    regulation chunk refers to ("in accordance with clause 268 (1.4) (b)"), one hop (#61). A condition set in the
+    referenced provision is then in the passages. References that set the citing provision's terms ("in accordance
+    with", "subject to") come first, then the rest; each group in rank order. The added hits have no distance or score
+    (the grounding gate ignores them) and name the chunk that referred to them in source["referenced_by"]; a referenced
+    chunk that was already retrieved keeps its place and only gets that label."""
+    cur = conn.cursor(row_factory=dict_row)
+    seen, added, labels = {h.chunk_id for h in hits}, [], {}
+    refs = [(h, pin, terms) for h in hits if h.source.get("kind") in ("statute", "regulation")
+            for pin, terms in internal_refs(h.text)]
+    for h, pin, _ in sorted(refs, key=lambda ref: not ref[2]):  # stable: rank order within each group
+        if len(added) >= cap:
+            break
+        r = cur.execute(  # the subsection's chunk, else (subsection not stored) the section's first chunk
+            "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url,"
+            " s.text AS target_text FROM sections s JOIN documents d ON d.id = s.document_id"
+            " JOIN chunks c ON c.document_id = d.id AND s.id = ANY(c.section_ids)"  # document_id: index, not seq scan
+            " WHERE d.slug = %s AND s.pinpoint = ANY(%s) ORDER BY s.pinpoint = %s DESC, c.id LIMIT 1",
+            (h.source["slug"], [pin, "-".join(pin.split("-")[:2])], pin)).fetchone()
+        cid = f"c{r['id']}" if r else None
+        if cid is None or cid == h.chunk_id or REPEALED.match(r["target_text"]):
+            continue
+        if cid in seen:  # already a passage: label it so the model still links the two
+            labels.setdefault(cid, h)
+            continue
+        seen.add(cid)
+        added.append(Retrieved(cid, r["text"], None, {**_source(cid, r), **_referred_by(h)}))
+    labelled = [replace(h, source={**h.source, **_referred_by(labels[h.chunk_id])})
+                if h.chunk_id in labels and "referenced_by" not in h.source else h for h in hits]
+    return labelled + added
+
+
+def _referred_by(h: Retrieved) -> dict:
+    """The referring passage: its chunk id for the prompt label, its pinpoint for the answer page."""
+    return {"referenced_by": h.chunk_id, "referenced_by_display": h.source.get("display")}
 
 
 def library_titles(conn: psycopg.Connection) -> list[str]:
