@@ -253,3 +253,95 @@ def test_advice_seeking_kept_when_unverified():
 def test_result_flags_carry_advice_seeking():
     flags = result_flags(AskResult("drafted", "d", advice_seeking=True))
     assert flags["advice_seeking"] is True and flags["status"] == "drafted"
+
+
+# --- cross-references (#61) ---
+
+def _law_with_references(conn):
+    import json
+
+    from ingest.statutes import load_document, parse_law
+    from test_load_statutes import _chunks
+    from test_statutes import LAW, SECTIONS, row
+
+    s4 = ("Unless this Act provides otherwise, a proceeding shall not be commenced after the second anniversary, "
+          "subject to subsection 15 (2), section 1 and section 3 of the Negligence Act.")
+    load_document(conn, parse_law(row(unofficial_sections_en=json.dumps({**SECTIONS, "4": s4})), LAW))
+    chunks = _chunks(conn, "test-act")
+    text = conn.execute("SELECT text FROM chunks WHERE id = %s", (int(chunks["s-4"][1:]),)).fetchone()[0]
+    return chunks, text
+
+
+def _law_hit(cid, text, kind="statute"):
+    return Retrieved(cid, text, 0.1, {"slug": "test-act", "kind": kind, "citation": {"title": "T", "reference": "R"}})
+
+
+def test_cross_references_add_the_referenced_chunks_once_in_order(conn):
+    from app.ask import with_cross_references
+
+    chunks, s4 = _law_with_references(conn)
+    hits = [_law_hit(chunks["s-4"], s4), _law_hit(chunks["s-4"], s4)]  # the same references twice: added once
+    out = with_cross_references(conn, hits)
+    added = out[len(hits):]
+    assert [h.chunk_id for h in added] == [chunks["s-15"], chunks["s-1"]]  # s. 3 of the Negligence Act ignored
+    assert all(h.distance is None and h.source["referenced_by"] == chunks["s-4"] for h in added)
+    assert added[0].source["url"] == "/laws/test-act/s-15" and "15th anniversary" in added[0].text
+    assert out[:2] == hits and len(hits) == 2  # appended after the ranked hits; input not mutated
+
+
+def test_cross_references_respect_the_cap_and_skip_retrieved_chunks(conn):
+    from app.ask import with_cross_references
+
+    chunks, s4 = _law_with_references(conn)
+    assert [h.chunk_id for h in with_cross_references(conn, [_law_hit(chunks["s-4"], s4)], cap=1)] == [chunks["s-4"], chunks["s-15"]]
+    already = [_law_hit(chunks["s-4"], s4), _law_hit(chunks["s-15"], "no references")]
+    out = with_cross_references(conn, already)
+    assert [h.chunk_id for h in out] == [chunks["s-4"], chunks["s-15"], chunks["s-1"]]
+    assert out[1].source["referenced_by"] == chunks["s-4"] and out[1].distance == 0.1  # labelled, rank kept
+    assert "referenced_by" not in out[0].source and "referenced_by" not in already[1].source  # not mutated
+
+
+def test_cross_reference_to_its_own_chunk_is_ignored(conn):
+    from app.ask import with_cross_references
+
+    chunks, _ = _law_with_references(conn)
+    hits = [_law_hit(chunks["s-15"], "subject to subsection 15 (2)")]
+    assert with_cross_references(conn, hits) == hits
+
+
+def test_cross_references_that_set_the_terms_come_first(conn):
+    """mv-16: the top hit (SABS s. 30(1)) lists many amounts by reference and used up the cap before s. 268.1(3)'s
+    "in accordance with clause 268 (1.4) (b)" was reached."""
+    from app.ask import with_cross_references
+
+    chunks, _ = _law_with_references(conn)
+    hits = [_law_hit("c999998", "the amounts in section 1 and section 4"),
+            _law_hit("c999999", "revised in accordance with clause 15 (2) (a)")]
+    assert [h.chunk_id for h in with_cross_references(conn, hits, cap=1)][2:] == [chunks["s-15"]]
+
+
+@pytest.mark.parametrize("kind", ["decision", "web"])
+def test_cross_references_only_from_laws(conn, kind):
+    from app.ask import with_cross_references
+
+    _law_with_references(conn)
+    hits = [_law_hit("c999999", "the limit in subsection 15 (2)", kind)]
+    assert with_cross_references(conn, hits) == hits
+
+
+def test_retrieve_for_answer_appends_cross_references(conn, monkeypatch):
+    from app import ask
+
+    chunks, s4 = _law_with_references(conn)
+    monkeypatch.setattr(ask, "retrieve", lambda conn, q, v, top_k=8, rerank=None, kinds=None:
+                        [_law_hit(chunks["s-4"], s4)] if kinds is None else [])
+    out = ask.retrieve_for_answer(conn, "how long?", [0.01] * 1536)
+    assert [h.chunk_id for h in out] == [chunks["s-4"], chunks["s-15"], chunks["s-1"]]
+
+
+def test_referenced_passage_is_labelled_for_the_model():
+    llm = FakeLLM([{"in_scope": True, "answer": "x", "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
+    ref = Retrieved("c2", CHUNKS["c2"], None, {"citation": {"title": "T", "reference": "R"}, "referenced_by": "c1"})
+    run_ask("How long to sue?", [hit("c1", 0.2), ref], llm)
+    assert "[c2] *T*, R (referred to by [c1])" in llm.prompts[0]
+    assert 'A passage marked "referred to by [cN]"' in llm.prompts[0]

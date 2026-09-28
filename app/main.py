@@ -270,6 +270,7 @@ def draft_answer(connect, answer_id: int, question: str, candidates: list, gener
             hits += pages or []
             cases = case_candidates or []
             hits += rerank(question, cases, ask.CASE_K) if rerank and cases else cases[:ask.CASE_K]
+            hits = ask.with_cross_references(conn, hits)
             result = ask.run_ask(question, hits, generate, refine=lambda claims: ask.pinpoint_claims(conn, claims),
                                  library_titles=ask.library_titles(conn))
             ask.complete_draft(conn, answer_id, result, round((time.perf_counter() - t0) * 1000), hits)
