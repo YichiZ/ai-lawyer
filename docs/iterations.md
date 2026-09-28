@@ -3,6 +3,15 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · The review form keeps the chosen decision after a failed submit (#70)
+
+- **Problem:** in the review queue, an Edit submitted without a note (or a Reject without a reason) returned an error, and the resubmit approved the unedited draft: the radios showed nothing checked (the fields for Edit stayed, driven by state) and the form posted `decision=approve`, the radio that was checked at mount. Guardrail: an unedited draft reached researchers under an "edit answer" button.
+- **Root cause (confirmed in Playwright):** React 19 resets a `<form action={fn}>` after the action runs. The reset restores the DOM defaults: the controlled radios' `checked` is reset to the mount-time attribute while the `decision` state is unchanged, so React never re-applies it; the uncontrolled textarea goes back to the draft and the note/reason empty.
+- **What:** `web/app/review/ReviewItem.tsx` submits with `onSubmit` (`preventDefault`, `FormData`, `startTransition(() => action(form))`), so there is no automatic reset; and it sets `decision` from state on the submitted `FormData`, so the decision sent is always the one shown. The server action and API already refuse an edit without text + note and a reject without a reason.
+- **Tests:** the edit e2e no longer reloads after the error: it fills the revised text with a blank note, gets the error, checks Edit is still checked and the revised text survived, adds the note and checks the researcher sees the edited text. New e2e: Reject with no reason (`required` removed to reach the server check) → error → Reject still checked → pick a reason → researcher sees the rejection. Both failed before the fix ("edit"/"reject" unchecked after the error). Playwright 43 passed on a fresh `ai_lawyer_ci` (axe included); `tsc --noEmit` clean.
+- **Not changed:** `AskForm` also resets after an error (the typed question goes back to the default) and `AddToLibrary` unchecks its scope box; both are UX only and fail safe.
+
+
 ## 2026-09-28 · Fix · Edited answers show only the citations the reviewer kept (#57)
 
 - **Problem:** `get_answer` returned the draft's `claims` for `edited` answers too, and `decide` replaces only `final_markdown`, so a quote the reviewer edited out still showed as a citation chip (with its highlighted passage) under the edited text; guide sections did the same.
