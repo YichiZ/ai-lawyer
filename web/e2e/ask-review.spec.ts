@@ -127,3 +127,14 @@ test("reject without a reason shows an error; picking one then rejects (#70)", a
   await expect(page.getByText("A reviewer did not release this answer (Gives legal advice)")).toBeVisible();
   await expect(page.getByText("[Test answer]")).toHaveCount(0);
 });
+
+test("a too-short question shows an error and keeps the typed text (#72)", async ({ page }) => {
+  await page.goto("/ask");
+  const box = page.getByLabel("Your research question");
+  const typed = "   abc   "; // passes the browser's minLength (5); 3 characters once trimmed
+  await box.fill(typed);
+  await page.getByRole("button", { name: "Ask" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Please write a question of at least 5 characters.");
+  await expect(box).toHaveValue(typed);
+  await expect(page).toHaveURL(/\/ask$/);
+});

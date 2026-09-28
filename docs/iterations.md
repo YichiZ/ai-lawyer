@@ -3,6 +3,13 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · The ask form keeps the question after an error (#72)
+
+- **Problem:** React 19 resets a `<form action={fn}>` after the action runs, even when it returns an error, so the Ask form's textarea emptied after "question too short" / API unavailable and the researcher lost what they typed. `AddToLibrary`'s scope checkbox unchecked the same way.
+- **What:** both forms submit via `onSubmit` + `preventDefault` + `startTransition(() => action(formData))`, as `ReviewItem` does since #70; the success path (redirect to the answer, job status) is unchanged.
+- **Tests:** Playwright `ask-review.spec.ts`: `"   abc   "` (passes the browser's `minLength`, 3 characters once trimmed) → the error alert, the textarea still holds the typed text, still on `/ask`; it failed before the fix (value `""`). The ask → answer redirect and the add-to-library flow are covered by the existing specs. e2e 44 passed on a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+
+
 ## 2026-09-28 · Fix · A web page that released answers cite can't be removed (#64)
 
 - **Problem:** `DELETE /laws/{slug}` deleted a web page without checking references. Answers keep sources/claims as JSON (`flags.sources[].slug`, `claims[].source.slug`), not foreign keys, so approved answer 390 kept a link to `/laws/web-…/sec-8` that 404'd.
