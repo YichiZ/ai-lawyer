@@ -26,6 +26,14 @@
 {"id": "jump-26", "kind": "jump", "query": "2008 SCC 27", "expected_url": "/cases/2008-scc-27"}
 {"id": "jump-27", "kind": "jump", "query": "Galota v. Festival Hall", "expected_url": "/cases/2016-onca-585"}
 {"id": "jump-28", "kind": "jump", "query": "Clements v. Clements", "expected_url": "/cases/2012-scc-32"}
+{"id": "jump-29", "kind": "jump", "query": "2010 ONCA 44 at para 52", "expected_url": "/cases/2010-onca-44#para-52"}
+{"id": "jump-30", "kind": "jump", "query": "Crinson v. Toronto (City), 2010 ONCA 44 at para 52", "expected_url": "/cases/2010-onca-44#para-52"}
+{"id": "jump-31", "kind": "jump", "query": "2010 ONCA 44, at para 52", "expected_url": "/cases/2010-onca-44#para-52"}
+{"id": "jump-32", "kind": "jump", "query": "2010 ONCA 44, para 52", "expected_url": "/cases/2010-onca-44#para-52"}
+{"id": "jump-33", "kind": "jump", "query": "2010 ONCA 44 para. 52", "expected_url": "/cases/2010-onca-44#para-52"}
+{"id": "jump-34", "kind": "jump", "query": "Clements v. Clements, 2012 SCC 32, at paras 46-47", "expected_url": "/cases/2012-scc-32#para-46"}
+{"id": "jump-35", "kind": "jump", "query": "[1982] 1 SCR 175", "expected_url": "/cases/1982-1-scr-175"}
+{"id": "jump-36", "kind": "jump", "query": "[1982] 1 S.C.R. 175", "expected_url": "/cases/1982-1-scr-175"}
 {"id": "hit-01", "kind": "hit", "query": "slip and fall on ice", "expected_slug": "occupiers-liability-act"}
 {"id": "hit-02", "kind": "hit", "query": "how long to sue", "expected_slug": "limitations-act-2002"}
 {"id": "hit-03", "kind": "hit", "query": "dog bit my child", "expected_slug": "dog-owners-liability-act"}
