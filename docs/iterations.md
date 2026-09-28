@@ -3,6 +3,14 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · Typeahead understands McGill and SCR case citations (#63)
+
+- **Problem:** `NEUTRAL` was anchored at `^` and only took `YYYY ONCA|SCC N [at para N]`, so the McGill form (style of cause first), `, at para`, `, para`, `para.` and SCR report citations (`[1982] 1 SCR 175`, how 224 older SCC decisions are stored in `neutral_citation`) returned `[]`; a string that started like a citation but didn't resolve also returned `[]`.
+- **What:** `app/search.py` `CASE_CITATION` is searched anywhere in the query: a neutral citation or `[YYYY] V S.C.R. P` (dots/spacing optional, normalized to the stored `[YYYY] V SCR P`), then an optional pinpoint (`,`, `at`, `para`/`paras`, `.`; the first number of a range) → `/cases/<slug>#para-N`. An unknown citation no longer returns `[]`: it is cut from the query and the rest (the style of cause) goes to the normal title/heading lanes.
+- **Tests:** 12 parametrized positive forms (issue list, paras ranges, SCR variants, SCR with pinpoint) and 5 negatives (unknown citation, `12023 ONCA 9`, `2023 ONCA 91`, wrong volume, SCR without brackets); an unresolved citation with a known style of cause falls back to the title. pytest 609 passed (ADC hidden). Dev DB (read-only): all 6 issue queries jump (`#para-52` / `1982-1-scr-175`); statute jumps unchanged.
+- **Eval:** 8 case-citation jump items added to `evals/data/search.jsonl` (expected paragraphs checked in the dev DB): search jump accuracy 1.0 (36 jumps), hit@3 1.0, n 48.
+
+
 ## 2026-09-28 · Fix · Released web answers list their sources as real links (#62)
 
 - **Problem:** `compose_web_draft` appended the sources to `draft_markdown` as `[title](url)` lines; the site's `Markdown` renderer has no links, so an approved web answer showed the raw text and researchers could not open a source (reviewers saw real links from `flags.web_sources`).

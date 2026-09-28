@@ -20,7 +20,10 @@ CITATION = re.compile(rf"^\s*(?P<law>.*?)[\s,]*(?<![a-z]){PINPOINT}\s*$", re.IGN
 CITATION_LAW_LAST = re.compile(  # s. 7 limitations act, section 7 of the Limitations Act (issue #20)
     rf"^\s*{PINPOINT}[\s,]+(?:of\b\s*)?(?:the\b\s*)?(?P<law>[a-z].*?)?\s*$", re.IGNORECASE)
 WHOLE_RULE = re.compile(r"^\d+(?:\.\d)?$")  # Rule 76, Rule 24.1 (a Part); subrules are 76.01, 24.1.01
-NEUTRAL = re.compile(r"^\s*(\d{4})\s+(ONCA|SCC)\s+(\d+)(?:\s+at\s+para\.?\s*(\d+))?\s*$", re.IGNORECASE)
+CASE_CITATION = re.compile(  # anywhere in q: "Crinson v. Toronto (City), 2010 ONCA 44, at para 52", "[1982] 1 S.C.R. 175" (#63)
+    r"(?<![\w\[])(?:(?P<year>\d{4})\s+(?P<court>ONCA|SCC)\s+(?P<num>\d+)"
+    r"|\[(?P<ryear>\d{4})\]\s*(?P<vol>\d)\s*S\.?\s*C\.?\s*R\.?\s*(?P<page>\d+))\b"
+    r"(?:\s*,?\s*(?:at\s+)?paras?\b\.?\s*(?P<para>\d+))?", re.IGNORECASE)
 QUESTION_WORDS = ("how", "what", "when", "where", "who", "why", "which", "can", "could", "do", "does", "did", "is",
                   "are", "am", "should", "if", "will", "may", "must")
 ABBREVIATIONS = {
@@ -79,17 +82,25 @@ def _document(r: dict) -> dict:
             "url": f"/{kind}s/{r['slug']}"}
 
 
+def _case(cur: psycopg.Cursor, m: re.Match) -> dict | None:
+    """The decision a neutral ("2024 ONCA 123") or SCR ("[1982] 1 SCR 175") citation names, at its paragraph."""
+    citation = (f"{m['year']} {m['court'].upper()} {m['num']}" if m["year"]
+                else f"[{m['ryear']}] {m['vol']} SCR {m['page']}")
+    r = cur.execute("SELECT slug, title FROM documents WHERE neutral_citation = %s", (citation,)).fetchone()
+    if not r:
+        return None
+    para = m["para"]
+    return {"type": "case", "slug": r["slug"], "title": r["title"],
+            "display": citation + (f" at para {para}" if para else ""), "heading": None,
+            "url": f"/cases/{r['slug']}" + (f"#para-{para}" if para else "")}
+
+
 def suggest(conn: psycopg.Connection, q: str, limit: int = SUGGEST_LIMIT) -> list[dict]:
     cur = conn.cursor(row_factory=dict_row)
-    if m := NEUTRAL.match(q):  # "2024 ONCA 123 [at para 45]" jumps to the decision (or paragraph)
-        citation = f"{m.group(1)} {m.group(2).upper()} {m.group(3)}"
-        r = cur.execute("SELECT slug, title FROM documents WHERE neutral_citation = %s", (citation,)).fetchone()
-        if not r:
-            return []
-        para = m.group(4)
-        return [{"type": "case", "slug": r["slug"], "title": r["title"],
-                 "display": citation + (f" at para {para}" if para else ""), "heading": None,
-                 "url": f"/cases/{r['slug']}" + (f"#para-{para}" if para else "")}]
+    if m := CASE_CITATION.search(q):  # a case citation jumps to the decision (or paragraph)
+        if case := _case(cur, m):
+            return [case]
+        q = f"{q[:m.start()]} {q[m.end():]}".strip(" ,") or q  # unknown: the style of cause may still match a title
     if (citation := parse_citation(q)) is not None:
         hint, pinpoint = citation
         slugs = _law_slugs(conn, hint)

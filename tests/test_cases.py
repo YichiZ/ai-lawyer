@@ -1,6 +1,8 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app, get_conn
+from app.search import suggest
 from ingest.caselaw import parse_decision
 from ingest.citations import build_citations
 from ingest.statutes import load_document, parse_law
@@ -51,6 +53,39 @@ def test_suggest_jumps_to_case_and_paragraph(conn):
                      "heading": None, "url": "/cases/2023-onca-9"}]
     assert para[0]["url"] == "/cases/2023-onca-9#para-2" and para[0]["display"] == "2023 ONCA 9 at para 2"
     assert missing == []
+
+
+@pytest.mark.parametrize("q, url", [
+    ("2023 ONCA 9 at para 2", "/cases/2023-onca-9#para-2"),
+    ("Smith v. Jones, 2023 ONCA 9 at para 2", "/cases/2023-onca-9#para-2"),
+    ("2023 ONCA 9, at para 2", "/cases/2023-onca-9#para-2"),
+    ("2023 ONCA 9, para 2", "/cases/2023-onca-9#para-2"),
+    ("2023 ONCA 9 para. 2", "/cases/2023-onca-9#para-2"),
+    ("2023 ONCA 9 at paras 2-5", "/cases/2023-onca-9#para-2"),
+    ("2023 ONCA 9, paras. 2–5", "/cases/2023-onca-9#para-2"),
+    ("Smith v. Jones, 2023 ONCA 9", "/cases/2023-onca-9"),
+    ("[1982] 1 SCR 175", "/cases/1982-1-scr-175"),
+    ("[1982] 1 S.C.R. 175", "/cases/1982-1-scr-175"),
+    ("[1982] 1 S.C.R.175", "/cases/1982-1-scr-175"),
+    ("Old v. Report, [1982] 1 SCR 175 at para 2", "/cases/1982-1-scr-175#para-2"),
+])
+def test_suggest_understands_case_citation_forms(conn, q, url):
+    load_document(conn, decision("2023 ONCA 9", "Smith v. Jones"))
+    load_document(conn, decision("[1982] 1 SCR 175", "Old v. Report"))
+    assert [s["url"] for s in suggest(conn, q)] == [url]
+
+
+@pytest.mark.parametrize("q", ["2023 ONCA 99 at para 2", "12023 ONCA 9", "2023 ONCA 91", "[1982] 2 SCR 175",
+                               "1982 1 SCR 175"])
+def test_suggest_unknown_case_citation_is_not_a_jump(conn, q):
+    load_document(conn, decision("2023 ONCA 9", "Smith v. Jones"))
+    load_document(conn, decision("[1982] 1 SCR 175", "Old v. Report"))
+    assert suggest(conn, q) == []
+
+
+def test_suggest_unresolved_case_citation_falls_back_to_titles(conn):
+    load_document(conn, decision("2023 ONCA 9", "Smith v. Jones"))
+    assert [s["url"] for s in suggest(conn, "Smith v. Jones, 2023 ONCA 99")] == ["/cases/2023-onca-9"]
 
 
 def test_claims_in_decisions_are_pinned_to_the_quoted_paragraph(conn):

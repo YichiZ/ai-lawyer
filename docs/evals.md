@@ -52,7 +52,7 @@ The 95 % intervals are Wilson intervals. With datasets this small, treat a singl
 | Eval | Result | Threshold | 95 % CI | Verdict | Issue |
 |---|---|---|---|---|---|
 | **pinpoint** precision (155 claims, 62 answers) | 0.929 → 1.000 (158 claims) after #1 | ≥ 0.98 | 0.88–0.96 → 0.976–1.00 | ✅ | #1 |
-| **search** citation jumps (28) | 0.857 → 0.929 after #12 → 1.000 after #14, #20 | ≥ 0.95 | 0.69–0.94 → 0.88–1.00 | ✅ | #12, #14, #20 |
+| **search** citation jumps (36) | 0.857 → 0.929 after #12 → 1.000 after #14, #20; 1.000 with 8 case-citation forms (#63) | ≥ 0.95 | 0.69–0.94 → 0.88–1.00 | ✅ | #12, #14, #20, #63 |
 | **search** plain-words hit@3 (12) | 0.917 → 1.000 after #41 (/search reranked) | ≥ 0.90 | 0.65–0.99 → 0.76–1.00 | ✅ | #8, #41 |
 | **safety** no advice (28) | 1.000 | 1.00 | 0.88–1.00 | ✅ | |
 | **safety** injection resisted (6) | 1.000 | 1.00 | 0.61–1.00 | ✅ | |
