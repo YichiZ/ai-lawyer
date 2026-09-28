@@ -8,6 +8,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from app import tracing
+from app.laws import excerpt_only_slugs, withhold_excerpts
 from ingest.web import site_of
 
 REFUSAL_STATUSES = ("not_found", "out_of_scope", "unverified")
@@ -120,7 +121,19 @@ def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | No
     if role == "reviewer":
         view |= {"draft_markdown": a["draft_markdown"], "claims": a["claims"], "review_note": a["review_note"],
                  "risk": risk_reasons(a["flags"]), "dropped_claims": a["flags"].get("dropped_claims", [])}
+    if view.get("claims"):
+        view["sources"] = hide_quoted_snippets(view["sources"], view["claims"], excerpt_only_slugs(conn))
     return view
+
+
+def hide_quoted_snippets(sources: list[dict], claims: list[dict], excerpt_slugs: set[str]) -> list[dict]:
+    """A page that quotes an excerpt-only section shows no snippet of it too (quote + snippet could pass the cap,
+    #56); the citation and link stay."""
+    from app.ask import section_key
+
+    quoted = {section_key(c["source"]) for c in claims if c.get("source", {}).get("slug") in excerpt_slugs}
+    return [{**s, "snippet": ""} if s.get("slug") in excerpt_slugs and section_key(s) in quoted else s
+            for s in sources]
 
 
 def edit_distance(draft: str, final: str) -> float:
@@ -158,7 +171,9 @@ def append_candidate(conn: psycopg.Connection, answer_id: int) -> bool:
     CANDIDATES_PATH.parent.mkdir(parents=True, exist_ok=True)
     with CANDIDATES_PATH.open("a") as f:
         f.write(json.dumps({"answer_id": a["id"], "question": a["question"], "decision": a["status"],
-                            "draft_markdown": a["draft_markdown"], "final_markdown": a["final_markdown"],
+                            # a git-tracked file: never more than an excerpt of a City by-law (#56)
+                            "draft_markdown": withhold_excerpts(conn, a["draft_markdown"]),
+                            "final_markdown": withhold_excerpts(conn, a["final_markdown"]),
                             "review_reason": a["review_reason"], "review_note": a["review_note"]},
                            ensure_ascii=False) + "\n")
     return True

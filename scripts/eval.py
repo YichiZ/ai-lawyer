@@ -41,8 +41,8 @@ from evals.answers import (
     refusal_correct,
     verified_rate,
 )
-from evals.baseline import (BASELINE_PATH, RECORD_RUNS, average, compare, corpus_hash, flatten, gold_hash,
-                            merge_record)
+from evals.baseline import (BASELINE_PATH, RECORD_RUNS, average, compare, corpus_hash, excerpt_report, flatten,
+                            gold_hash, merge_record)
 from evals.gold import GOLD_PATH, load_gold
 from evals.langfuse_io import CASELAW_DATASET, DATASET, upsert_dataset
 from evals.metrics import chunk_covers, mean_of, mrr, recall_at_k, summarize
@@ -193,7 +193,8 @@ def run_answers(lf: Langfuse) -> dict:
     ins, oos = [r for r in rows if not r["must_refuse"]], [r for r in rows if r["must_refuse"]]
     metrics = ["has_verified_claim", "verified_claim_rate", "facts_covered", "citation_supported", "faithful",
                "no_advice", "refusal_correct"]
-    summary = {"in_scope": {"n": len(ins), **{m: mean_of(ins, m) for m in metrics}},
+    summary = {"in_scope": {"n": len(ins), **{m: mean_of(ins, m) for m in metrics},
+                            "excerpt_dropped": mean_of(ins, "excerpt_dropped")},  # quotes cut by the #56 cap, per item
                "out_of_scope": {"n": len(oos), "refusal_correct": mean_of(oos, "refusal_correct")},
                "judge_errors": sum(1 for r in ins if r.get("judge_error")),
                "latency_ms": {k: {"p50": quantiles([r[k] for r in rows], n=100)[49],
@@ -288,7 +289,8 @@ def collect(lf: Langfuse | None, n: int, from_latest: bool) -> list[tuple[dict, 
 
 
 def gate_or_record(lf: Langfuse | None, mode: str, from_latest: bool, n: int, accept_drop: bool = False) -> int:
-    current = combined(collect(lf, n, from_latest))
+    collected = collect(lf, n, from_latest)
+    current = combined(collected)
     old = json.loads(BASELINE_PATH.read_text()) if BASELINE_PATH.exists() else None
     if mode == "record":
         ok, record, lines = merge_record(current, old, accept_drop)
@@ -302,7 +304,7 @@ def gate_or_record(lf: Langfuse | None, mode: str, from_latest: bool, n: int, ac
             print(f"  {k:<42} {v:.3f}   this record {current['metrics'][k]:.3f}")
         return 0
     ok, lines = compare(current, old)
-    print("\n".join(lines))
+    print("\n".join(lines + [excerpt_report(collected)]))
     return 0 if ok else 1
 
 

@@ -554,3 +554,39 @@ def test_stored_sources_keep_one_snippet_per_excerpt_section(conn):
     complete_draft(conn, aid, AskResult("drafted", "d"), 1, hits)
     flags = conn.execute("SELECT flags FROM answers WHERE id = %s", (aid,)).fetchone()[0]
     assert [s["snippet"] for s in flags["sources"]] == ["No person shall…", ""]
+
+
+def test_traces_get_only_an_excerpt_of_excerpt_only_passages(monkeypatch):
+    """Langfuse Cloud is external: the traced prompt and claims hold no more than an excerpt of a by-law (#56)."""
+    from contextlib import contextmanager
+
+    from app import tracing
+
+    sent = []
+
+    class Obs:
+        def update(self, **kw):
+            sent.append(kw)
+
+    @contextmanager
+    def observe(name, as_type="span", **kw):
+        sent.append(kw)
+        yield Obs()
+
+    monkeypatch.setattr(tracing, "observe", observe)
+    long = {"in_scope": True, "answer": "Owners keep walkways clear.", "claims": [claim(_sentences(0, 10), "b1")]}
+    short = {"in_scope": True, "answer": "Owners keep walkways clear.", "claims": [claim(_sentences(20, 21), "b1")]}
+    llm = FakeLLM([long, short])
+    run_ask("q?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC), hit("c1", 0.2)], llm)
+    assert BYLAW in llm.prompts[0]  # the model reads the whole passage
+    traced = " ".join(str(v) for kw in sent for v in kw.values())
+    assert _sentences(8, 12) not in traced and _sentences(0, 10) not in traced  # cut to an excerpt, long quote withheld
+    assert _sentences(0, 2) in traced and CHUNKS["c1"] in traced  # the excerpt and statute text stay
+
+
+def test_words_ignore_markdown_emphasis_and_dashes():
+    from app.laws import reproduced_chars
+
+    phrase = _sentences(0, 3)
+    styled = phrase.replace("shall", "**shall**", 1).replace("walkway 1.", "walkway 1. —", 1)
+    assert reproduced_chars(f"- *{styled}*", BYLAW) >= len(phrase) - 10

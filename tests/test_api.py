@@ -431,17 +431,20 @@ def test_answers_never_show_more_than_an_excerpt_of_a_bylaw_section(bylaw_ask, c
 
     client = bylaw_ask
     aid = client.post("/ask", json={"question": "Who must keep walkways free from obstruction?"}).json()["data"]["answer_id"]
+    pending = client.get(f"/answers/{aid}").json()["data"]  # researcher, before review: sources only
+    assert [s["snippet"] for s in pending["sources"] if s["pinpoint"] == "743-10"][0]
     body = client.get(f"/answers/{aid}", headers=REVIEWER).json()["data"]
     assert body["claims"], body  # the short quote survives
     snippets = [s["snippet"] for s in body["sources"] if s["pinpoint"] == "743-10"]
-    assert snippets and snippets[0]
-    shown = [body["draft_markdown"], *(c["quote"] for c in body["claims"] + body["dropped_claims"]), " ".join(snippets)]
-    assert all(reproduced_chars(text, BYLAW_LONG) <= EXCERPT_CHARS for text in shown)
+    assert snippets and not any(snippets)  # the page quotes 743-10, so it shows no snippet of it as well
+    shown = "\n".join([body["draft_markdown"], *(c["quote"] for c in body["claims"] + body["dropped_claims"]), *snippets])
+    assert reproduced_chars(shown, BYLAW_LONG) <= EXCERPT_CHARS  # the whole page, not each part
     assert {d["reason"] for d in body["dropped_claims"]} == {"excerpt-only source: quote exceeds 300 characters"}
 
     assert client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "approve"}).status_code == 200
-    final = client.get(f"/answers/{aid}").json()["data"]["final_markdown"]
-    assert 0 < reproduced_chars(final, BYLAW_LONG) <= EXCERPT_CHARS
+    final = client.get(f"/answers/{aid}").json()["data"]
+    page = "\n".join([final["final_markdown"], *(s["snippet"] for s in final["sources"])])
+    assert 0 < reproduced_chars(page, BYLAW_LONG) <= EXCERPT_CHARS
 
 
 def test_review_refuses_a_text_reproducing_a_bylaw_section(client, conn):
@@ -456,3 +459,17 @@ def test_review_refuses_a_text_reproducing_a_bylaw_section(client, conn):
     assert client.post(f"/answers/{aid}/review", headers=REVIEWER, json=pasted).status_code == 422
     trimmed = {**pasted, "final_markdown": f"Owners must act.\n\n> {BYLAW_LONG[:200]}"}
     assert client.post(f"/answers/{aid}/review", headers=REVIEWER, json=trimmed).json()["data"]["status"] == "edited"
+
+
+def test_gold_candidates_never_hold_bylaw_text(client, conn):
+    """#56 review: a rejected (or edited) answer is written to the git-tracked gold candidates file."""
+    from app.ask import AskResult, store_answer
+    from app.review import CANDIDATES_PATH
+
+    conn.execute("UPDATE sections SET text = %s WHERE pinpoint = '743-10'", (BYLAW_LONG,))
+    long_draft = AskResult("drafted", f"Owners must act.\n\n> {BYLAW_LONG[:600]}\n> — City of Toronto Municipal Code")
+    aid = store_answer(conn, "Who clears walkways?", None, long_draft, [], {})
+    r = client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "reject", "reason": "wrong_law"})
+    assert r.status_code == 200
+    written = CANDIDATES_PATH.read_text()
+    assert BYLAW_LONG[:60] not in written and "withheld" in written and "Who clears walkways?" in written

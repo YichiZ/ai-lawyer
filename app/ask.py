@@ -164,6 +164,15 @@ def withheld(claim: dict, reason: str) -> dict:
             "reason": reason}
 
 
+def traceable(claims: list[dict], sources: dict[str, dict]) -> list[dict]:
+    """Claims as sent to Langfuse: a quote from an excerpt-only chunk (or a long one from an unknown chunk) shows only
+    its length."""
+    def withhold(c: dict) -> bool:
+        src = sources.get(c.get("chunk_id"))
+        return (src or {}).get("reproduction") == "excerpt" or (src is None and len(c.get("quote", "")) > EXCERPT_CHARS)
+    return [{**c, "quote": withheld(c, "")["quote"]} if withhold(c) else c for c in claims]
+
+
 def section_key(source: dict) -> tuple:
     """(slug, section pinpoint): the unit the excerpt cap applies to. `section` is set by _source (a split section's
     chunks and a claim pinned to a subsection share it); older stored sources fall back to their pinpoint."""
@@ -272,16 +281,21 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
     chunks = {h.chunk_id: h.text for h in hits}
     sources = {h.chunk_id: h.source for h in hits}
     passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_referred(h)}\n{h.text}" for h in hits)
+    # Langfuse Cloud is external: traces get excerpt-only passages cut to an excerpt (the model reads them whole)
+    traced = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_referred(h)}\n"
+                           f"{excerpt(h.text) if h.source.get('reproduction') == 'excerpt' else h.text}" for h in hits)
     all_dropped, feedback, advice, first = [], "", False, None
     for attempt in range(2):
         prompt = PROMPT.format(question=question, passages=passages, feedback=feedback)
-        with tracing.observe("generate", as_type="generation", input=prompt, metadata={"attempt": attempt + 1}) as gen:
+        trace_prompt = PROMPT.format(question=question, passages=traced, feedback=feedback)
+        with tracing.observe("generate", as_type="generation", input=trace_prompt,
+                             metadata={"attempt": attempt + 1}) as gen:
             out = generate(prompt, CLAIMS_SCHEMA)
-            gen.update(output=out)
+            gen.update(output={**out, "claims": traceable(out.get("claims", []), sources)})
         advice = bool(out.get("advice_seeking"))
         if not out.get("in_scope", True):
             return AskResult(status="out_of_scope", draft_markdown=out_of_scope_message(out.get("scope_note")))
-        with tracing.observe("verify", input={"claims": out.get("claims", [])}) as ver:
+        with tracing.observe("verify", input={"claims": traceable(out.get("claims", []), sources)}) as ver:
             ok, dropped = verify_claims(out.get("claims", []), chunks, sources)
             ver.update(output={"kept": len(ok), "dropped": [{"chunk_id": d.get("chunk_id"), "reason": d["reason"]} for d in dropped]})
         if ok:

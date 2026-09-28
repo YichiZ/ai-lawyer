@@ -112,3 +112,10 @@ def test_flatten_adds_summary_metrics_when_given():
     summaries = {"summary": {"faithful": 0.96, "no_advice": 1.0, "grade_le_10": 0.8}}
     flat = flatten(retrieval, answers, summaries)
     assert set(SUMMARY_METRICS) <= set(flat) and flat["summaries.faithful"] == 0.96
+
+
+def test_excerpt_report_is_per_run_and_tolerates_old_runs():
+    from evals.baseline import excerpt_report
+
+    run = lambda v: ({}, {"summary": {"in_scope": {} if v is None else {"excerpt_dropped": v}}}, None)
+    assert excerpt_report([run(0.139), run(None)]) == "report excerpt_dropped per answer (not gated): 0.139 / n/a"

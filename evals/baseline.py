@@ -57,6 +57,13 @@ def flatten(retrieval: dict, answers: dict, summaries: dict | None = None) -> di
     return flat
 
 
+def excerpt_report(runs: list[tuple[dict, dict, dict | None]]) -> str:
+    """Report only, not gated: quotes the excerpt cap (#56) cut per in-scope answer, per run."""
+    per_run = [a["summary"]["in_scope"].get("excerpt_dropped") for _, a, _ in runs]
+    return "report excerpt_dropped per answer (not gated): " + " / ".join(
+        "n/a" if v is None else f"{v:.3f}" for v in per_run)
+
+
 def compare(current: dict, baseline: dict) -> tuple[bool, list[str]]:
     """(ok, report lines). Fails on a drop > TOLERANCE, a missing metric, or a corpus/gold hash change."""
     lines, ok = [], True
