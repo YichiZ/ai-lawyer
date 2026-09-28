@@ -25,6 +25,8 @@ def risk_reasons(flags: dict) -> list[str]:
         reasons.append("excerpt_overflow")
     if flags.get("secondary_statute"):  # first: the draft states a law we don't hold, from a decision quoting it
         reasons.append("secondary_statute")
+    if flags.get("source_removed"):  # a cited web page was removed from the library, so its link 404s (#64)
+        reasons.append("source_removed")
     if flags.get("advice_seeking"):  # next: read the whole draft for advice before checking its details (#7)
         reasons.append("advice_seeking")
     if flags.get("status") in REFUSAL_STATUSES:
