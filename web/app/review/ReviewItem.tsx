@@ -3,6 +3,7 @@
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { reviewAction, type FormState } from "@/app/actions";
 import Markdown from "@/components/Markdown";
+import WebSources from "@/components/WebSources";
 import AddToLibrary from "./AddToLibrary";
 import { REJECT_REASONS, type QueueItem } from "@/lib/api";
 
@@ -63,19 +64,8 @@ export default function ReviewItem({ item }: { item: QueueItem }) {
         <Markdown text={item.draft_markdown} />
       </div>
 
-      {item.web_sources.length > 0 && (
-        <section className="mt-4 text-sm" aria-label="Web sources">
-          <p className="font-semibold">Web sources</p>
-          <ul className="mt-1 space-y-2">
-            {item.web_sources.map((w) => (
-              <li key={w.url}>
-                <a href={w.url} target="_blank" rel="noreferrer">{w.title || w.domain}</a> ({w.domain}){" "}
-                {w.addable ? <AddToLibrary url={w.url} /> : <span className="text-muted">— not an official source; cannot be added</span>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <WebSources sources={item.web_sources} extra={(w) =>
+        w.addable ? <AddToLibrary url={w.url} /> : <span className="text-muted">— not an official source; cannot be added</span>} />
 
       {item.claims.length > 0 && (
         <table className="mt-4 w-full text-left text-sm">

@@ -10,6 +10,7 @@ from psycopg.rows import dict_row
 
 from app import tracing
 from app.laws import excerpt_only_slugs, withhold_excerpts
+from app.web_fallback import strip_source_list, web_links
 from ingest.web import site_of
 
 REFUSAL_STATUSES = ("not_found", "out_of_scope", "unverified")
@@ -52,9 +53,11 @@ def queue(conn: psycopg.Connection) -> list[dict]:
     for r in rows:
         flags, trace_id = r.pop("flags"), r.pop("trace_id")
         risk = risk_reasons(flags)
+        if flags.get("web_fallback"):  # the edit form starts from this text, so an edit never re-saves the old list
+            r["draft_markdown"] = strip_source_list(r["draft_markdown"])
         items.append({**r, "risk": risk, "draft_status": flags.get("status"),
                       "dropped_claims": flags.get("dropped_claims", []), "sources": flags.get("sources", []),
-                      "web_sources": [{**w, "addable": site_of(w["url"]) is not None} for w in flags.get("web_sources", [])],
+                      "web_sources": [{**w, "addable": site_of(w["url"]) is not None} for w in web_links(flags.get("web_sources", []))],
                       "timings_ms": flags.get("timings_ms"), "trace_url": tracing.trace_url(trace_id)})
     # stable: risky first (likeliest to be wrong), then guide sections (the home page's entry point, #3), then oldest
     return sorted(items, key=lambda i: (not i["risk"], i["guide"] is None))
@@ -106,19 +109,24 @@ def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | No
     ).fetchone()
     if not a:
         return None
+    if a["flags"].get("web_fallback"):  # drafts from before #62 embed the source list; it is shown as links instead
+        a |= {k: strip_source_list(a[k]) for k in ("draft_markdown", "final_markdown")}
     law = [x["distance"] for x in a["flags"].get("sources", []) if x.get("kind") != "decision" and x.get("distance") is not None]
     from app.ask import GATE_MAX_DISTANCE
 
     view = {"id": a["id"], "question": a["question"], "status": a["status"], "created_at": a["created_at"],
             "sources": a["flags"].get("sources", []), "web_fallback": bool(a["flags"].get("web_fallback")),
             "library_match": bool(law) and min(law) <= GATE_MAX_DISTANCE}
+    released = a["status"] in ("approved", "edited")
     if a["status"] == "pending_review":
         view["message"] = "Awaiting review"
-    elif a["status"] in ("approved", "edited"):
+    elif released:
         view |= {"final_markdown": a["final_markdown"], "claims": released_claims(a), "edited": a["status"] == "edited",
                  "reviewed_by": a["reviewer_name"], "reviewed_at": a["reviewed_at"]}
     else:
         view |= {"review_reason": a["review_reason"], "reviewed_by": a["reviewer_name"], "reviewed_at": a["reviewed_at"]}
+    if a["flags"].get("web_fallback") and (released or role == "reviewer"):
+        view["web_sources"] = web_links(a["flags"].get("web_sources", []))
     if role == "reviewer":
         # "claims" stay the ones shown under the text (kept claims once released, #57); the draft's are draft_claims
         view |= {"draft_markdown": a["draft_markdown"], "claims": view.get("claims", a["claims"]),

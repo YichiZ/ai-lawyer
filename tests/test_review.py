@@ -264,6 +264,40 @@ def test_queue_marks_web_sources_addable_only_on_allowed_domains(client, conn):
     assert [s["addable"] for s in item["web_sources"]] == [True, False]
 
 
+def make_web_answer(conn, draft, sources):
+    answer_id = make_answer(conn, status="web")
+    conn.execute("UPDATE answers SET draft_markdown = %s, claims = '[]', flags = flags || %s::jsonb WHERE id = %s",
+                 (draft, json.dumps({"web_fallback": True, "status": "web", "web_sources": sources}), answer_id))
+    return answer_id
+
+
+def test_released_web_answer_lists_http_sources_not_raw_markdown_links(client, conn):
+    """#62: drafts stored before the fix end in a markdown link list; the view drops it and returns web_sources."""
+    sources = [{"url": "https://www.ontario.ca/page/test", "title": "Test page", "domain": "ontario.ca"},
+               {"url": "javascript:alert(1)", "title": "Evil", "domain": ""}]
+    draft = ("**From the web, not our law library.** Check each source before relying on it.\n\nTwo years.\n\n"
+             "**Web sources**\n\n- [Test page](https://www.ontario.ca/page/test) (ontario.ca)")
+    answer_id = make_web_answer(conn, draft, sources)
+    pending = client.get(f"/answers/{answer_id}", headers=RESEARCHER).json()["data"]
+    assert "web_sources" not in pending  # unreviewed web links are not shown to researchers
+    [item] = [i for i in client.get("/review/queue", headers=REVIEWER).json()["data"] if i["id"] == answer_id]
+    assert "Web sources" not in item["draft_markdown"] and len(item["web_sources"]) == 1  # the edit form's start text
+    assert client.post(f"/answers/{answer_id}/review", json={"decision": "approve"}, headers=REVIEWER).status_code == 200
+    view = client.get(f"/answers/{answer_id}", headers=RESEARCHER).json()["data"]
+    assert view["web_sources"] == [sources[0]]
+    assert view["final_markdown"].endswith("Two years.") and "](" not in view["final_markdown"]
+
+
+def test_edited_web_answer_keeps_its_sources(client, conn):
+    answer_id = make_web_answer(conn, "**From the web, not our law library.**\n\nTwo years.",
+                                [{"url": "https://www.ontario.ca/a", "title": "A", "domain": "ontario.ca"}])
+    r = client.post(f"/answers/{answer_id}/review", headers=REVIEWER,
+                    json={"decision": "edit", "final_markdown": "Two years, in most cases.", "note": "hedge"})
+    assert r.status_code == 200
+    view = client.get(f"/answers/{answer_id}", headers=RESEARCHER).json()["data"]
+    assert view["edited"] and view["web_sources"][0]["url"] == "https://www.ontario.ca/a"
+
+
 def test_recent_lists_only_released_answers_newest_reviewed_first(client, conn):
     """#10: the home page's recently reviewed answers — approved/edited only, never guide sections or draft text."""
     ids = {name: make_answer(conn, question=name) for name in ("old", "new", "edited", "rejected", "pending", "guide")}

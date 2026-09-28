@@ -1,8 +1,10 @@
 """Web fallback (Phase 6.1): opt-in Google Search grounding when our law library has no answer.
 
-The draft is labelled as coming from the web, lists its (resolved) sources, and — like every answer — is released
-only after a reviewer approves it. Quote verification does not apply to web text; the reviewer sees the flag instead.
+The draft is labelled as coming from the web; its (resolved) sources are stored in `flags.web_sources` and shown as
+links beside the text, never inside it (#62). Like every answer, it is released only after a reviewer approves it.
+Quote verification does not apply to web text; the reviewer sees the flag instead.
 """
+import re
 import urllib.error
 import urllib.request
 from typing import Callable
@@ -51,12 +53,33 @@ def resolve_url(url: str, head: Callable[[str], str] = _head) -> str | None:
     return None if "vertexaisearch" in resolved else resolved
 
 
+def is_web_url(url: str) -> bool:
+    """Only http(s) pages with a host are ever rendered as links (never javascript:, data: …)."""
+    try:
+        u = urlparse(url)
+    except ValueError:
+        return False
+    return u.scheme in ("http", "https") and bool(u.netloc)
+
+
+def web_links(sources: list[dict]) -> list[dict]:
+    return [{"url": s["url"], "title": s.get("title") or "", "domain": s.get("domain") or domain_of(s["url"])}
+            for s in sources if isinstance(s.get("url"), str) and is_web_url(s["url"])]
+
+
+# Drafts written before #62 ended with the source list as markdown links, which the site renders as raw text.
+_SOURCE_BLOCK = re.compile(r"\n*\*\*Web sources\*\*\n(?:[ \t]*\n|- .*(?:\n|$))*\Z")
+
+
+def strip_source_list(markdown: str | None) -> str | None:
+    """Drop a stored draft's trailing "**Web sources**" link list (read time; idempotent)."""
+    return _SOURCE_BLOCK.sub("", markdown) if markdown else markdown
+
+
 def compose_web_draft(answer: str, sources: list[dict]) -> str:
     if not sources:
         return f"{WEB_LABEL}\n\nThe web search returned no web sources, so there is no answer to review."
-    lines = [WEB_LABEL, "", answer.strip(), "", "**Web sources**", ""]
-    lines += [f"- [{s['title'] or s['domain']}]({s['url']}) ({s['domain']})" for s in sources]
-    return "\n".join(lines)
+    return f"{WEB_LABEL}\n\n{answer.strip()}"
 
 
 def search_web(question: str, client, model: str) -> tuple[str, list[dict]]:
@@ -73,7 +96,7 @@ def search_web(question: str, client, model: str) -> tuple[str, list[dict]]:
     for ch in (gm.grounding_chunks or []) if gm else []:
         if ch.web and ch.web.uri:
             url = resolve_url(ch.web.uri, _head)
-            if url and url not in seen:
+            if url and is_web_url(url) and url not in seen:
                 seen.add(url)
                 sources.append({"url": url, "title": ch.web.title, "domain": domain_of(url)})
     return (r.text or "").strip(), sources
