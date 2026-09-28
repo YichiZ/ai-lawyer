@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import CitationChips from "@/components/CitationChips";
 import Markdown from "@/components/Markdown";
 import SourceList from "@/components/SourceList";
+import WebSources from "@/components/WebSources";
 import WebFallback from "./WebFallback";
 import { REJECT_REASONS, formatTimestamp, getAnswer } from "@/lib/api";
 import { currentRole } from "@/lib/role";
@@ -39,6 +40,7 @@ export default async function AnswerPage({ params }: Props) {
             <div className="mt-3">
               <Markdown text={a.final_markdown ?? ""} />
             </div>
+            <WebSources sources={a.web_sources ?? []} />
             {a.claims && a.claims.length > 0 && <CitationChips claims={a.claims} />}
             <p className="mt-4 text-sm text-muted">
               Reviewed by {a.reviewed_by} on {formatTimestamp(a.reviewed_at)}

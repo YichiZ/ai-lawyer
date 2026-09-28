@@ -127,6 +127,12 @@ export interface Claim {
   reason?: string;
 }
 
+export interface WebSource {
+  url: string;
+  title: string;
+  domain: string;
+}
+
 export interface Answer {
   id: number;
   question: string;
@@ -134,6 +140,7 @@ export interface Answer {
   created_at: string;
   sources: Source[];
   web_fallback: boolean;
+  web_sources?: WebSource[];
   library_match: boolean;
   message?: string;
   final_markdown?: string;
@@ -160,7 +167,7 @@ export interface QueueItem {
   draft_status: string;
   dropped_claims: Claim[];
   sources: Source[];
-  web_sources: { url: string; title: string; domain: string; addable: boolean }[];
+  web_sources: (WebSource & { addable: boolean })[];
   trace_url: string | null;
   guide: { slug: string; title: string; heading: string } | null;
 }

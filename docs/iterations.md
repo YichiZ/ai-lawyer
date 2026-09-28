@@ -3,6 +3,14 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · Released web answers list their sources as real links (#62)
+
+- **Problem:** `compose_web_draft` appended the sources to `draft_markdown` as `[title](url)` lines; the site's `Markdown` renderer has no links, so an approved web answer showed the raw text and researchers could not open a source (reviewers saw real links from `flags.web_sources`).
+- **What:** `app/web_fallback.py`: the draft is the label + answer only; `is_web_url`/`web_links` keep only `http(s)` URLs with a host (applied when searching and again at read time, so `javascript:`/`data:` never reach an `href`). `app/review.py` `get_answer` returns `web_sources` for released web answers (and to reviewers); pending ones still show none to researchers. New `web/components/WebSources.tsx` (links open in a new tab, `rel="noopener noreferrer"`, "(opens in a new tab)" for screen readers) is used by `/answers/[id]` and the review queue.
+- **Stored data (read time, no migration):** for `web_fallback` answers, `strip_source_list` drops a trailing `**Web sources**` link list from `draft_markdown` and `final_markdown` when read (queue and answer view); idempotent, only a trailing list, so reviewer text after it is kept. Chosen over a one-off script because approving an old draft copies it into `final_markdown`, so a migration would have to run again after every such approval; approved rows are never rewritten. The queue's edit form starts from the stripped draft, so an edit never re-saves the list. Dev DB: 2 web answers (both pending) carry the block; stripped they end at the answer text (1408 → 652, 1383 → 725 chars); no approved web answers.
+- **Tests:** unit (draft has no link list; strip idempotent / keeps non-trailing text; non-http URLs dropped); API (an old-format web draft: researcher gets no `web_sources` while pending, queue draft stripped, after approval `web_sources` = the http source only and `final_markdown` has no `](`; an edited web answer keeps its sources). Both API tests failed before the fix. Playwright `web-fallback.spec.ts` now approves the web answer and checks the researcher page has a `Test page` link (href, `_blank`, rel), no `](` in `main`, and no axe violations. pytest 591 passed (ADC hidden); e2e 43 passed on a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+
+
 ## 2026-09-28 · Fix · The review form keeps the chosen decision after a failed submit (#70)
 
 - **Problem:** in the review queue, an Edit submitted without a note (or a Reject without a reason) returned an error, and the resubmit approved the unedited draft: the radios showed nothing checked (the fields for Edit stayed, driven by state) and the form posted `decision=approve`, the radio that was checked at mount. Guardrail: an unedited draft reached researchers under an "edit answer" button.

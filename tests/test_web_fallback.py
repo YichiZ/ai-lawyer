@@ -1,7 +1,8 @@
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from app.web_fallback import WEB_LABEL, _head, compose_web_draft, domain_of, resolve_url
+from app.web_fallback import (WEB_LABEL, _head, compose_web_draft, domain_of, is_web_url, resolve_url,
+                              strip_source_list, web_links)
 
 
 def test_head_reads_location_without_visiting_the_target():
@@ -71,10 +72,31 @@ def test_domain_of():
     assert domain_of("https://news.example.co.uk/a") == "news.example.co.uk"
 
 
-def test_compose_web_draft_is_labelled_and_lists_sources():
+def test_compose_web_draft_is_labelled_without_a_link_list():
+    """#62: sources live in flags.web_sources and render as links; markdown links would show as raw text."""
     md = compose_web_draft("Ontario has a two-year limit.", [{"url": "https://www.ontario.ca/a", "title": "Limits", "domain": "ontario.ca"}])
-    assert md.startswith(WEB_LABEL) and "Ontario has a two-year limit." in md
-    assert "[Limits](https://www.ontario.ca/a) (ontario.ca)" in md
+    assert md == f"{WEB_LABEL}\n\nOntario has a two-year limit."
+
+
+OLD_DRAFT = (f"{WEB_LABEL}\n\nOntario has a two-year limit.\n\n**Web sources**\n\n"
+             "- [Limits](https://www.ontario.ca/a) (ontario.ca)\n- [B](https://b.ca/x) (b.ca)")
+
+
+def test_strip_source_list_removes_the_stored_block_idempotently():
+    stripped = strip_source_list(OLD_DRAFT)
+    assert stripped == f"{WEB_LABEL}\n\nOntario has a two-year limit."
+    assert strip_source_list(stripped) == stripped and strip_source_list(OLD_DRAFT + "\n") == stripped
+    assert strip_source_list(None) is None
+    mid = "Text.\n\n**Web sources**\n\n- [a](https://a.ca)\n\nA reviewer's closing paragraph."
+    assert strip_source_list(mid) == mid  # only a trailing list is dropped, never reviewer text
+
+
+def test_web_links_keep_only_http_urls():
+    assert is_web_url("https://www.ontario.ca/a") and is_web_url("http://x.ca")
+    assert not any(map(is_web_url, ["javascript:alert(1)", "data:text/html,x", "//x.ca", "https://", "ftp://x.ca"]))
+    got = web_links([{"url": "javascript:alert(1)", "title": "x", "domain": ""},
+                     {"url": "https://www.ontario.ca/a", "title": None, "domain": "ontario.ca"}, {"title": "no url"}])
+    assert got == [{"url": "https://www.ontario.ca/a", "title": "", "domain": "ontario.ca"}]
 
 
 def test_no_sources_means_refusal():
