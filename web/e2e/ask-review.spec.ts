@@ -62,24 +62,25 @@ test("reviewer queue is hidden from researchers; edit needs a note; an edited-ou
   await switchRole(page, "reviewer");
   await page.goto("/review");
   const item = page.getByRole("article").filter({ hasText: question });
+  // #57: the reviewer removes the draft's quote, so the released answer shows no citation chip for it.
+  const revised = "[e2e edit] The draft quoted the wrong rule; removed.";
   await item.getByLabel("edit").check();
+  await item.getByLabel("Revised answer").fill(revised);
   await item.getByLabel("Note (required)").fill("   ");
   await item.getByRole("button", { name: "edit answer" }).click();
   await expect(item.getByRole("alert")).toContainText("needs the revised answer and a note");
   await expect(item.getByRole("table", { name: /Claims and their verified quotes/ })).toBeVisible(); // the draft has a claim
 
-  // #57: the reviewer removes the draft's quote, so the released answer shows no citation chip for it.
-  // A fresh form: resubmitting after the error above sends the form as reset (decision back to approve).
-  await page.reload();
-  await item.getByLabel("edit").check();
-  await item.getByLabel("Revised answer").fill("[e2e edit] The draft quoted the wrong rule; removed.");
+  // #70: a failed submit keeps the decision and the entered text, so the resubmit sends the edit, never an approval.
+  await expect(item.getByLabel("edit")).toBeChecked();
+  await expect(item.getByLabel("Revised answer")).toHaveValue(revised);
   await item.getByLabel("Note (required)").fill("removed the wrong citation");
   await item.getByRole("button", { name: "edit answer" }).click();
   await expect(page.getByRole("article").filter({ hasText: question })).toHaveCount(0);
 
   await switchRole(page, "researcher");
   await page.goto(answerUrl);
-  await expect(page.getByText("[e2e edit] The draft quoted the wrong rule; removed.")).toBeVisible();
+  await expect(page.getByText(revised)).toBeVisible();
   await expect(page.getByText(/\(edited by reviewer\)/)).toBeVisible();
   await expect(page.getByRole("list", { name: "Citations" })).toHaveCount(0);
 });
@@ -93,6 +94,30 @@ test("reviewer rejects for legal advice → researcher sees the reason, not the 
   await page.goto("/review");
   const item = page.getByRole("article").filter({ hasText: question });
   await item.getByLabel("reject").check();
+  await item.getByLabel("Reason").selectOption({ label: "Gives legal advice" });
+  await item.getByRole("button", { name: "reject answer" }).click();
+  await expect(page.getByRole("article").filter({ hasText: question })).toHaveCount(0);
+
+  await switchRole(page, "researcher");
+  await page.goto(answerUrl);
+  await expect(page.getByText("A reviewer did not release this answer (Gives legal advice)")).toBeVisible();
+  await expect(page.getByText("[Test answer]")).toHaveCount(0);
+});
+
+test("reject without a reason shows an error; picking one then rejects (#70)", async ({ page }) => {
+  const question = `[e2e ${Date.now()}] Can I sue my landlord for a slip on an icy walkway?`;
+  await askAsResearcher(page, question);
+  const answerUrl = page.url();
+
+  await switchRole(page, "reviewer");
+  await page.goto("/review");
+  const item = page.getByRole("article").filter({ hasText: question });
+  await item.getByLabel("reject").check();
+  await item.getByLabel("Reason").evaluate((el) => el.removeAttribute("required")); // reach the server-side check
+  await item.getByRole("button", { name: "reject answer" }).click();
+  await expect(item.getByRole("alert")).toContainText("Choose a reason");
+  await expect(item.getByLabel("reject")).toBeChecked();
+
   await item.getByLabel("Reason").selectOption({ label: "Gives legal advice" });
   await item.getByRole("button", { name: "reject answer" }).click();
   await expect(page.getByRole("article").filter({ hasText: question })).toHaveCount(0);
