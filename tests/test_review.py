@@ -105,6 +105,21 @@ def test_edit_requires_text_and_note_and_keeps_draft(client, conn):
     assert client.get(f"/answers/{aid}", headers=RESEARCHER).json()["data"]["edited"] is True
 
 
+@pytest.mark.parametrize("final, kept", [
+    ("The draft quoted the wrong rule; removed.", False),  # #57: the edit removed the quote
+    ("Two years.\n\n> a proceeding shall not\n> be commenced", True),  # kept, reflowed across quoted lines
+    ("Two years: “a  proceeding shall not be commenced”.", True),  # kept inline, curly quotes and extra space
+])
+def test_edited_answer_shows_only_kept_claims(client, conn, final, kept):
+    aid = make_answer(conn)
+    client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "edit", "final_markdown": final, "note": "n"})
+    data = client.get(f"/answers/{aid}", headers=RESEARCHER).json()["data"]
+    assert bool(data["claims"]) is kept
+    reviewer = client.get(f"/answers/{aid}", headers=REVIEWER).json()["data"]
+    assert reviewer["claims"] == data["claims"] and reviewer["draft_claims"][0]["quote"] == CLAIM["quote"]
+    assert conn.execute("SELECT claims FROM answers WHERE id = %s", (aid,)).fetchone()[0][0]["quote"] == CLAIM["quote"]
+
+
 @pytest.mark.parametrize("body", [{"decision": "reject"}, {"decision": "reject", "reason": "bad vibes"}])
 def test_reject_requires_known_reason(client, conn, body):
     aid = make_answer(conn)

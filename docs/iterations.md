@@ -3,6 +3,15 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · Edited answers show only the citations the reviewer kept (#57)
+
+- **Problem:** `get_answer` returned the draft's `claims` for `edited` answers too, and `decide` replaces only `final_markdown`, so a quote the reviewer edited out still showed as a citation chip (with its highlighted passage) under the edited text; guide sections did the same.
+- **What:** `app/review.py` `released_claims()`: an approved answer keeps all its claims; an edited one keeps a claim only if its quote (normalized as in `verify_claims`, after stripping `>` blockquote markers so a reflowed quote still matches) appears in `final_markdown`. Used by `GET /answers/{id}` and `app/guides.py`. The reviewer view's `claims` are the same kept claims once released; the draft's are `draft_claims`. The #56 snippet rule (`hide_quoted_snippets`) runs on the kept claims, so an edited-out by-law quote brings the section's snippet back and a kept one keeps it hidden.
+- **Why read time, not decision time:** the stored `claims` stay the draft's (reviewers, evals, gold candidates use them), no schema change, and already-edited answers are fixed without a backfill; the check is a substring test per claim.
+- **Tests:** edited answer (quote removed / kept reflowed across `>` lines / kept inline with curly quotes and extra spaces): researcher and reviewer `claims`, `draft_claims`, stored claims unchanged; edited guide section shows no claim; edited by-law answer: chips and snippet hiding follow the kept claims and the page stays ≤ 300 characters of the section. New tests failed before the fix (5 of 6; the kept-quote by-law case already passed). Playwright: the edit flow now edits out the quote and checks the researcher page has no Citations list. pytest 587 passed (also with ADC hidden); e2e 42 passed on a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+- **Found on the way (not fixed here):** in the review queue, resubmitting after a failed edit ("needs the revised answer and a note") approved the draft unchanged: the form is reset after the action, so the decision radio goes back to `approve` while the button still says "edit answer". The e2e test reloads before editing.
+
+
 ## 2026-09-28 · Fix · Answers never quote more than the excerpt cap from excerpt-only by-laws (#56)
 
 - **Problem:** `verify_claims` had no maximum and never looked at `reproduction`, so drafts quoted Toronto Municipal Code text (City copyright, excerpt-only) verbatim: dev answers 33 and 95 quoted 517 + 404 = 921 of § 743-41's 1,092 characters, answer 41 quoted 401 characters of § 629-19. Approving them would have shown this to researchers.

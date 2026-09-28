@@ -447,6 +447,25 @@ def test_answers_never_show_more_than_an_excerpt_of_a_bylaw_section(bylaw_ask, c
     assert 0 < reproduced_chars(page, BYLAW_LONG) <= EXCERPT_CHARS
 
 
+@pytest.mark.parametrize("keep_quote", [True, False])
+def test_edited_bylaw_answer_caps_the_page_with_the_kept_claims(bylaw_ask, keep_quote):
+    """#57 + #56: an edited answer's chips are the claims it kept, and the snippet rule uses those same claims."""
+    from app.laws import EXCERPT_CHARS, reproduced_chars
+
+    client = bylaw_ask
+    aid = client.post("/ask", json={"question": "Who must keep walkways free from obstruction?"}).json()["data"]["answer_id"]
+    [claim] = client.get(f"/answers/{aid}", headers=REVIEWER).json()["data"]["claims"]
+    final = f"Owners must keep walkways clear.\n\n> {claim['quote']}" if keep_quote else "Owners must keep walkways clear."
+    r = client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "edit", "final_markdown": final, "note": "n"})
+    assert r.json()["data"]["status"] == "edited"
+    data = client.get(f"/answers/{aid}").json()["data"]
+    snippets = [s["snippet"] for s in data["sources"] if s["pinpoint"] == "743-10"]
+    assert [c["quote"] for c in data["claims"]] == ([claim["quote"]] if keep_quote else [])
+    assert any(snippets) is not keep_quote  # a quoted section shows no snippet; an unquoted one does
+    page = "\n".join([data["final_markdown"], *(c["quote"] for c in data["claims"]), *snippets])
+    assert 0 < reproduced_chars(page, BYLAW_LONG) <= EXCERPT_CHARS
+
+
 def test_review_refuses_a_text_reproducing_a_bylaw_section(client, conn):
     from app.ask import AskResult, store_answer
 

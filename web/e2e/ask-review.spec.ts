@@ -51,10 +51,11 @@ async function askAsResearcher(page: Page, question: string) {
   await expect(page).toHaveURL(/\/answers\/\d+$/, { timeout: 30_000 });
 }
 
-test("reviewer queue is hidden from researchers; edit needs a note", async ({ page }) => {
+test("reviewer queue is hidden from researchers; edit needs a note; an edited-out quote loses its chip", async ({ page }) => {
   // Self-contained: creates its own pending answer (CI starts from an empty answers table).
   const question = `[e2e ${Date.now()}] What is the basic limitation period under the Limitations Act, 2002?`;
   await askAsResearcher(page, question);
+  const answerUrl = page.url();
   await page.goto("/review");
   await expect(page.getByText("Only reviewers can see the queue")).toBeVisible();
 
@@ -65,6 +66,22 @@ test("reviewer queue is hidden from researchers; edit needs a note", async ({ pa
   await item.getByLabel("Note (required)").fill("   ");
   await item.getByRole("button", { name: "edit answer" }).click();
   await expect(item.getByRole("alert")).toContainText("needs the revised answer and a note");
+  await expect(item.getByRole("table", { name: /Claims and their verified quotes/ })).toBeVisible(); // the draft has a claim
+
+  // #57: the reviewer removes the draft's quote, so the released answer shows no citation chip for it.
+  // A fresh form: resubmitting after the error above sends the form as reset (decision back to approve).
+  await page.reload();
+  await item.getByLabel("edit").check();
+  await item.getByLabel("Revised answer").fill("[e2e edit] The draft quoted the wrong rule; removed.");
+  await item.getByLabel("Note (required)").fill("removed the wrong citation");
+  await item.getByRole("button", { name: "edit answer" }).click();
+  await expect(page.getByRole("article").filter({ hasText: question })).toHaveCount(0);
+
+  await switchRole(page, "researcher");
+  await page.goto(answerUrl);
+  await expect(page.getByText("[e2e edit] The draft quoted the wrong rule; removed.")).toBeVisible();
+  await expect(page.getByText(/\(edited by reviewer\)/)).toBeVisible();
+  await expect(page.getByRole("list", { name: "Citations" })).toHaveCount(0);
 });
 
 test("reviewer rejects for legal advice → researcher sees the reason, not the draft", async ({ page }) => {
