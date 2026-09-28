@@ -11,6 +11,7 @@ export default function SourceList({ sources }: { sources: Source[] }) {
             {s.citation.title ? ", " : ""}
             {s.citation.title ? s.display : s.citation.reference}
           </Link>
+          {s.referenced_by_display && <p className="text-xs text-muted">Referred to by {s.referenced_by_display}</p>}
           <p className="mt-1 text-sm text-muted">{s.snippet}</p>
         </li>
       ))}

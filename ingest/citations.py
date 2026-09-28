@@ -81,12 +81,18 @@ def build_citations(conn, citing_document_id: int, refs: list[tuple[str, str | N
 
 
 # Same-law references inside a statute or regulation (#61): "subsection 18 (3)", "clause 268 (1.4) (b)", "section 30",
-# "paragraph 3 of subsection 28 (1)". Possessive quantifiers so the "of another law" check can't be dodged by
-# backtracking. ponytail: relative references ("subsection (2)") are skipped; they are usually in the same chunk.
+# "paragraph 3 of subsection 28 (1)". A list or range ("sections 3, 4 and 5", "sections 25 to 49") is matched whole,
+# so "of the Negligence Act" after its last item rejects all of it. Possessive quantifiers so that check can't be
+# dodged by backtracking. ponytail: a list resolves its first item only; relative references ("subsection (2)") are
+# skipped (usually in the same chunk).
+_KIND = r"(?:sub)?(?:section|clause)s?\s+"
+_NUM = r"\d++(?:\.\d+)*+"
+_SUBS = r"(?:\s?\([\w.]+\))*+"
 INTERNAL = re.compile(
     r"\b(?P<terms>(?:in accordance with|subject to)\s+)?"  # the referenced provision sets this one's terms
     r"(?:(?:sub)?(?:paragraph|clause)\s+[\w.]+\s+of\s+)*"
-    r"(?:sub)?(?:section|clause)s?\s+(?P<num>\d++(?:\.\d+)*+)(?P<subs>(?:\s?\([\w.]+\))*+)"
+    rf"{_KIND}(?P<num>{_NUM})(?P<subs>{_SUBS})"
+    rf"(?:(?:,?\s+(?:and|or|to)\s+|,\s*)(?:{_KIND})?{_NUM}{_SUBS})*+"  # the rest of a list or range
     r"(?!,?\s+of\s+(?!this\b))",  # "section 280 of the Act", "of Ontario Regulation 34/10": another law
     re.IGNORECASE)
 

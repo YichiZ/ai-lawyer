@@ -39,6 +39,7 @@ NOT_FOUND_SOURCES = 3
 RETRIEVAL_KINDS = ["statute", "regulation", "bylaw"]
 WEB_K = 2  # web pages shown after the law hits, only when as close to the question as the grounding gate requires
 CROSS_REF_K = 2  # chunks added per answer for provisions a retrieved law chunk refers to (#61)
+REPEALED = re.compile(r"\s*(?:\([\w.]+\)\s*)?\[?(?:Repealed|Revoked)\b[^\n]*$", re.IGNORECASE)  # a stub, not a rule
 
 Generate = Callable[[str, dict], dict]  # (prompt, response JSON schema) -> parsed JSON
 
@@ -327,22 +328,27 @@ def with_cross_references(conn: psycopg.Connection, hits: list[Retrieved], cap: 
         if len(added) >= cap:
             break
         r = cur.execute(  # the subsection's chunk, else (subsection not stored) the section's first chunk
-            "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url"
-            " FROM sections s JOIN documents d ON d.id = s.document_id"
+            "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url,"
+            " s.text AS target_text FROM sections s JOIN documents d ON d.id = s.document_id"
             " JOIN chunks c ON c.document_id = d.id AND s.id = ANY(c.section_ids)"  # document_id: index, not seq scan
             " WHERE d.slug = %s AND s.pinpoint = ANY(%s) ORDER BY s.pinpoint = %s DESC, c.id LIMIT 1",
             (h.source["slug"], [pin, "-".join(pin.split("-")[:2])], pin)).fetchone()
         cid = f"c{r['id']}" if r else None
-        if cid is None or cid == h.chunk_id:
+        if cid is None or cid == h.chunk_id or REPEALED.match(r["target_text"]):
             continue
         if cid in seen:  # already a passage: label it so the model still links the two
-            labels.setdefault(cid, h.chunk_id)
+            labels.setdefault(cid, h)
             continue
         seen.add(cid)
-        added.append(Retrieved(cid, r["text"], None, {**_source(cid, r), "referenced_by": h.chunk_id}))
-    labelled = [replace(h, source={**h.source, "referenced_by": labels[h.chunk_id]})
+        added.append(Retrieved(cid, r["text"], None, {**_source(cid, r), **_referred_by(h)}))
+    labelled = [replace(h, source={**h.source, **_referred_by(labels[h.chunk_id])})
                 if h.chunk_id in labels and "referenced_by" not in h.source else h for h in hits]
     return labelled + added
+
+
+def _referred_by(h: Retrieved) -> dict:
+    """The referring passage: its chunk id for the prompt label, its pinpoint for the answer page."""
+    return {"referenced_by": h.chunk_id, "referenced_by_display": h.source.get("display")}
 
 
 def library_titles(conn: psycopg.Connection) -> list[str]:

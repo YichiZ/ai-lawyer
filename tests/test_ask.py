@@ -265,7 +265,7 @@ def _law_with_references(conn):
     from test_statutes import LAW, SECTIONS, row
 
     s4 = ("Unless this Act provides otherwise, a proceeding shall not be commenced after the second anniversary, "
-          "subject to subsection 15 (2), section 1 and section 3 of the Negligence Act.")
+          "subject to subsection 15 (2). See section 1; section 3 of the Negligence Act does not apply.")
     load_document(conn, parse_law(row(unofficial_sections_en=json.dumps({**SECTIONS, "4": s4})), LAW))
     chunks = _chunks(conn, "test-act")
     text = conn.execute("SELECT text FROM chunks WHERE id = %s", (int(chunks["s-4"][1:]),)).fetchone()[0]
@@ -273,7 +273,8 @@ def _law_with_references(conn):
 
 
 def _law_hit(cid, text, kind="statute"):
-    return Retrieved(cid, text, 0.1, {"slug": "test-act", "kind": kind, "citation": {"title": "T", "reference": "R"}})
+    return Retrieved(cid, text, 0.1, {"slug": "test-act", "kind": kind, "display": "s. 4",
+                                      "citation": {"title": "T", "reference": "R"}})
 
 
 def test_cross_references_add_the_referenced_chunks_once_in_order(conn):
@@ -285,8 +286,31 @@ def test_cross_references_add_the_referenced_chunks_once_in_order(conn):
     added = out[len(hits):]
     assert [h.chunk_id for h in added] == [chunks["s-15"], chunks["s-1"]]  # s. 3 of the Negligence Act ignored
     assert all(h.distance is None and h.source["referenced_by"] == chunks["s-4"] for h in added)
+    assert all(h.source["referenced_by_display"] == "s. 4" for h in added)  # shown on the answer page
     assert added[0].source["url"] == "/laws/test-act/s-15" and "15th anniversary" in added[0].text
     assert out[:2] == hits and len(hits) == 2  # appended after the ranked hits; input not mutated
+
+
+def test_cross_references_in_a_list_of_another_laws_sections_are_ignored(conn):
+    from app.ask import with_cross_references
+
+    _law_with_references(conn)
+    hits = [_law_hit("c999999", "sections 1, 4 and 15 of the Negligence Act, or section 1 and section 15 of the Act")]
+    assert with_cross_references(conn, hits) == hits
+
+
+def test_cross_reference_to_a_repealed_provision_uses_no_slot(conn):
+    import json
+
+    from app.ask import with_cross_references
+    from ingest.statutes import load_document, parse_law
+    from test_load_statutes import _chunks
+    from test_statutes import LAW, SECTIONS, row
+
+    load_document(conn, parse_law(row(unofficial_sections_en=json.dumps({**SECTIONS, "1": "Repealed: 2020, c. 1, s. 1."})), LAW))
+    chunks = _chunks(conn, "test-act")
+    out = with_cross_references(conn, [_law_hit("c999999", "under section 1 and subsection 15 (2)... see section 4")], cap=1)
+    assert [h.chunk_id for h in out[1:]] == [chunks["s-4"]]  # s. 1 is a repeal stub; s. 15 is the list's second item
 
 
 def test_cross_references_respect_the_cap_and_skip_retrieved_chunks(conn):
