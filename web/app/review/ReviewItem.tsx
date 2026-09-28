@@ -7,6 +7,7 @@ import AddToLibrary from "./AddToLibrary";
 import { REJECT_REASONS, type QueueItem } from "@/lib/api";
 
 const RISK_LABELS: Record<string, string> = {
+  excerpt_overflow: "Copies too much by-law text: edit before approving",
   secondary_statute: "Statute only quoted in a decision",
   advice_seeking: "Asks for advice on their own facts",
   dropped_claims: "Claims dropped by quote check",

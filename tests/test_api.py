@@ -398,3 +398,78 @@ def test_delete_web_page_reviewer_only(client, web_page, conn):
     assert conn.execute("SELECT count(*) FROM chunks c JOIN documents d ON d.id = c.document_id"
                         " WHERE d.kind = 'web'").fetchone() == (0,)
     assert client.get("/laws/test-act").status_code == 200
+
+
+# --- excerpt-only by-laws in answers (#56) ---
+
+BYLAW_LONG = " ".join(f"Rule {i}: every owner shall keep walkway {i} free from obstruction." for i in range(20))
+
+
+@pytest.fixture
+def bylaw_ask(ask_client, conn):
+    """743-10 made long (~1,300 chars) and chunked; the fake model quotes all of it, in two halves."""
+    client, fake = ask_client
+    doc_id = conn.execute("SELECT id FROM documents WHERE slug = 'toronto-municipal-code-743'").fetchone()[0]
+    conn.execute("UPDATE sections SET text = %s WHERE document_id = %s AND pinpoint = '743-10'", (BYLAW_LONG, doc_id))
+    sync_chunks(conn, doc_id, plan_chunks("Toronto Municipal Code", load_sections(conn, doc_id)))
+    embed_pending(conn, lambda t: [0.01] * 1536, model="fake", workers=1)
+    half = BYLAW_LONG.index("Rule 10:")
+
+    def generate(prompt, schema):
+        fake.prompts.append(prompt)
+        cid = _re.search(r"\[(c\d+)\][^\n]*\n(Rule 0:)", prompt).group(1)
+        quotes = [BYLAW_LONG[:half].strip(), BYLAW_LONG[half:], "Rule 3: every owner shall keep walkway 3 free from obstruction."]
+        return {"in_scope": True, "answer": "Owners must keep walkways clear.",
+                "claims": [{"text": "Owners keep walkways clear.", "chunk_id": cid, "quote": q} for q in quotes]}
+
+    fake.generate = generate
+    return client
+
+
+def test_answers_never_show_more_than_an_excerpt_of_a_bylaw_section(bylaw_ask, conn):
+    from app.laws import EXCERPT_CHARS, reproduced_chars
+
+    client = bylaw_ask
+    aid = client.post("/ask", json={"question": "Who must keep walkways free from obstruction?"}).json()["data"]["answer_id"]
+    pending = client.get(f"/answers/{aid}").json()["data"]  # researcher, before review: sources only
+    assert [s["snippet"] for s in pending["sources"] if s["pinpoint"] == "743-10"][0]
+    body = client.get(f"/answers/{aid}", headers=REVIEWER).json()["data"]
+    assert body["claims"], body  # the short quote survives
+    snippets = [s["snippet"] for s in body["sources"] if s["pinpoint"] == "743-10"]
+    assert snippets and not any(snippets)  # the page quotes 743-10, so it shows no snippet of it as well
+    shown = "\n".join([body["draft_markdown"], *(c["quote"] for c in body["claims"] + body["dropped_claims"]), *snippets])
+    assert reproduced_chars(shown, BYLAW_LONG) <= EXCERPT_CHARS  # the whole page, not each part
+    assert {d["reason"] for d in body["dropped_claims"]} == {"excerpt-only source: quote exceeds 300 characters"}
+
+    assert client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "approve"}).status_code == 200
+    final = client.get(f"/answers/{aid}").json()["data"]
+    page = "\n".join([final["final_markdown"], *(s["snippet"] for s in final["sources"])])
+    assert 0 < reproduced_chars(page, BYLAW_LONG) <= EXCERPT_CHARS
+
+
+def test_review_refuses_a_text_reproducing_a_bylaw_section(client, conn):
+    from app.ask import AskResult, store_answer
+
+    long_draft = AskResult("drafted", f"Owners must act.\n\n> {BYLAW_LONG[:400]}\n> — City of Toronto Municipal Code")
+    conn.execute("UPDATE sections SET text = %s WHERE pinpoint = '743-10'", (BYLAW_LONG,))
+    aid = store_answer(conn, "Who clears walkways?", None, long_draft, [], {})
+    r = client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "approve"})
+    assert r.status_code == 422 and "§ 743-10" in r.json()["error"]["message"]
+    pasted = {"decision": "edit", "note": "added the text", "final_markdown": f"Owners must act.\n\n{BYLAW_LONG}"}
+    assert client.post(f"/answers/{aid}/review", headers=REVIEWER, json=pasted).status_code == 422
+    trimmed = {**pasted, "final_markdown": f"Owners must act.\n\n> {BYLAW_LONG[:200]}"}
+    assert client.post(f"/answers/{aid}/review", headers=REVIEWER, json=trimmed).json()["data"]["status"] == "edited"
+
+
+def test_gold_candidates_never_hold_bylaw_text(client, conn):
+    """#56 review: a rejected (or edited) answer is written to the git-tracked gold candidates file."""
+    from app.ask import AskResult, store_answer
+    from app.review import CANDIDATES_PATH
+
+    conn.execute("UPDATE sections SET text = %s WHERE pinpoint = '743-10'", (BYLAW_LONG,))
+    long_draft = AskResult("drafted", f"Owners must act.\n\n> {BYLAW_LONG[:600]}\n> — City of Toronto Municipal Code")
+    aid = store_answer(conn, "Who clears walkways?", None, long_draft, [], {})
+    r = client.post(f"/answers/{aid}/review", headers=REVIEWER, json={"decision": "reject", "reason": "wrong_law"})
+    assert r.status_code == 200
+    written = CANDIDATES_PATH.read_text()
+    assert BYLAW_LONG[:60] not in written and "withheld" in written and "Who clears walkways?" in written

@@ -369,3 +369,224 @@ def test_referenced_passage_is_labelled_for_the_model():
     run_ask("How long to sue?", [hit("c1", 0.2), ref], llm)
     assert "[c2] *T*, R (referred to by [c1])" in llm.prompts[0]
     assert 'A passage marked "referred to by [cN]"' in llm.prompts[0]
+
+
+# --- excerpt-only sources (#56) ---
+
+def _sentences(first, last):
+    """Distinct sentences: every 8-word run holds a sentence's number, so no run repeats."""
+    return " ".join(f"Rule {i}: no person shall obstruct walkway {i}." for i in range(first, last))
+
+
+BYLAW = _sentences(0, 30)  # ~1,300 chars
+BYLAW_SRC = {"slug": "toronto-municipal-code-743", "pinpoint": "743-41", "reproduction": "excerpt",
+             "citation": {"title": "", "reference": "City of Toronto Municipal Code, c 743, § 743-41"}}
+
+
+def test_excerpt_only_quote_over_the_cap_is_dropped_with_a_reason():
+    from app.ask import EXCERPT_TOO_LONG
+    from app.laws import EXCERPT_CHARS
+
+    long_quote = _sentences(0, 10)
+    assert len(long_quote) > EXCERPT_CHARS
+    ok, dropped = verify_claims([claim(long_quote, "b1")], {"b1": BYLAW}, {"b1": BYLAW_SRC})
+    assert ok == [] and dropped[0]["reason"] == EXCERPT_TOO_LONG == "excerpt-only source: quote exceeds 300 characters"
+    assert dropped[0]["quote"] == f"({len(long_quote)} characters not shown: excerpt-only source)"
+
+
+def test_excerpt_only_quotes_from_one_section_are_capped_in_total():
+    from app.ask import EXCERPT_SECTION_FULL
+
+    a, b, c = _sentences(0, 4), _sentences(5, 9), _sentences(10, 11)  # ~170 + ~170 + ~45 chars
+    other_section = {**BYLAW_SRC, "pinpoint": "743-42"}
+    ok, dropped = verify_claims([claim(a, "b1"), claim(b, "b2"), claim(c, "b1"), claim(b, "b3")],
+                                {"b1": BYLAW, "b2": BYLAW, "b3": BYLAW},
+                                {"b1": BYLAW_SRC, "b2": BYLAW_SRC, "b3": other_section})  # b2: same split section
+    assert [x["quote"] for x in ok] == [a, c, b]  # a later quote that still fits, and another section, are kept
+    assert [d["reason"] for d in dropped] == [EXCERPT_SECTION_FULL]
+
+
+def test_statute_quotes_are_not_capped():
+    statute = {"b1": {**BYLAW_SRC, "reproduction": "full"}}
+    ok, dropped = verify_claims([claim(BYLAW, "b1"), claim(BYLAW, "b1")], {"b1": BYLAW}, statute)
+    assert len(ok) == 2 and dropped == []
+
+
+def test_prompt_asks_for_short_excerpt_only_quotes_and_retries_after_a_long_one():
+    long = {"in_scope": True, "answer": "x", "claims": [claim(_sentences(0, 10), "b1")]}
+    short = {"in_scope": True, "answer": "Owners must keep it clear.", "claims": [claim(_sentences(0, 1), "b1")]}
+    llm = FakeLLM([long, short])
+    result = run_ask("Who keeps sidewalks clear?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC)], llm)
+    first = " ".join(llm.prompts[0].split())
+    assert "Toronto Municipal Code passages are excerpt-only" in first and "at most 300 characters" in first
+    assert "too much Toronto Municipal Code text" in llm.prompts[1] and result.status == "drafted" and result.retried
+    assert _sentences(0, 10) not in result.draft_markdown
+
+
+def test_only_the_first_hit_of_an_excerpt_only_section_keeps_its_snippet():
+    from app.ask import one_snippet_per_excerpt_section
+
+    src = {**BYLAW_SRC, "snippet": "No person shall…"}
+    full = {**src, "reproduction": "full"}
+    assert [s["snippet"] for s in one_snippet_per_excerpt_section([src, src, full, full])] == [
+        "No person shall…", "", "No person shall…", "No person shall…"]
+
+
+def test_reproduced_chars_counts_what_the_markdown_shows():
+    from app.laws import reproduced_chars
+
+    md = f"Owners must act.\n\n> {_sentences(0, 3)}\n> — City\n\n> {_sentences(2, 5)}\n\nAlso: {_sentences(9, 10)}"
+    shown = [_sentences(0, 3), _sentences(2, 5), _sentences(9, 10)]  # the overlap is shown twice, so counted twice
+    assert reproduced_chars(md, BYLAW) == sum(map(len, shown)) + len(shown) - 1
+    assert reproduced_chars("Owners must keep the sidewalk clear.", BYLAW) == 0
+    phrase = "clear away and completely remove snow and ice from any sidewalk"
+    assert reproduced_chars(f"You must {phrase}.", f"{phrase}. Also, {phrase} in front.") == len(phrase) + 1
+
+
+def test_answer_prose_counts_toward_the_section_cap():
+    """The answer's own sentences copying a by-law count too: the section's last quote is dropped to fit."""
+    from app.ask import EXCERPT_SECTION_FULL, result_flags
+    from app.review import risk_reasons
+
+    prose = f"The by-law says: {_sentences(0, 4)}"  # ~175 chars copied in the answer itself
+    quotes = [_sentences(10, 12), _sentences(20, 23)]  # ~90 + ~135: each fits, and both fit verify_claims' budget
+    out = {"in_scope": True, "answer": prose, "claims": [claim(q, "b1") for q in quotes]}
+    bad = {"in_scope": True, "answer": "x", "claims": [claim("made up words that are not there", "b1")]}
+    llm = FakeLLM([out, bad])  # a quote was dropped: one retry for shorter quotes; it fails, so the first draft stays
+    result = run_ask("Who keeps walkways clear?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC)], llm)
+    assert result.status == "drafted" and result.retried and [c["quote"] for c in result.claims] == quotes[:1]
+    assert [d["reason"] for d in result.dropped] == [EXCERPT_SECTION_FULL, "quote_not_in_chunk"]
+    assert "source" not in result.dropped[0] and "your own words" in llm.prompts[1]
+    assert result.excerpt_overflow == [] and "excerpt_overflow" not in risk_reasons(result_flags(result))
+
+    short = {"in_scope": True, "answer": "Owners keep walkways clear.", "claims": [claim(_sentences(20, 21), "b1")]}
+    result = run_ask("Who keeps walkways clear?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC)], FakeLLM([out, short]))
+    assert result.claims[0]["quote"] == _sentences(20, 21)  # the retry's shorter quotes win
+
+    copied = {"in_scope": True, "answer": _sentences(0, 8), "claims": [claim(_sentences(20, 21), "b1")]}
+    llm = FakeLLM([copied, copied])  # prose alone over the cap: every by-law quote is dropped, then a retry
+    result = run_ask("Who keeps walkways clear?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC), hit("c1", 0.2)], llm)
+    assert result.status == "unverified" and "your own words" in llm.prompts[1]
+
+
+def test_prose_over_the_cap_beside_a_statute_claim_is_flagged_for_the_reviewer():
+    from app.ask import result_flags
+    from app.review import risk_reasons
+
+    src = {**BYLAW_SRC, "display": "§ 743-41"}
+    out = {"in_scope": True, "answer": _sentences(0, 8), "claims": [claim("a proceeding shall not be commenced")]}
+    result = run_ask("q?", [Retrieved("b1", BYLAW, 0.1, src), hit("c1", 0.2)], FakeLLM([out]))
+    assert result.status == "drafted" and result.excerpt_overflow == ["§ 743-41"]
+    assert risk_reasons(result_flags(result))[0] == "excerpt_overflow"
+
+
+# --- the excerpt cap is per section, whatever the chunk or claim pinpoint (#56 review) ---
+
+def _split(pin):  # a chunk of section 743-41 pinpointed at its first subsection, or a claim pinned to a subsection
+    return {**BYLAW_SRC, "pinpoint": pin, "section": "743-41"}
+
+
+def test_quotes_from_chunks_of_one_split_section_share_the_budget():
+    from app.ask import EXCERPT_SECTION_FULL
+
+    a, b = _sentences(0, 4), _sentences(5, 9)  # ~170 + ~170
+    ok, dropped = verify_claims([claim(a, "b1"), claim(b, "b2")], {"b1": BYLAW, "b2": BYLAW},
+                                {"b1": _split("743-41-a"), "b2": _split("743-41-c")})
+    assert [x["quote"] for x in ok] == [a] and [d["reason"] for d in dropped] == [EXCERPT_SECTION_FULL]
+
+
+def test_fit_excerpts_matches_refined_claims_to_their_section():
+    """pinpoint_claims narrows a claim to its subsection; fit_excerpts must still see it as the section's claim."""
+    from app.ask import fit_excerpts
+
+    hits = [Retrieved("b1", BYLAW[:600], None, _split("743-41-a")), Retrieved("b2", BYLAW[600:], None, _split("743-41-c"))]
+    claims = [{**claim(_sentences(0, 4), "b1"), "source": _split("743-41-a")},
+              {**claim(_sentences(20, 24), "b2"), "source": _split("743-41-c")}]
+    kept, dropped, over = fit_excerpts(f"In short: {_sentences(10, 12)}", claims, hits)
+    assert kept == claims[:1] and len(dropped) == 1 and over == []
+
+
+def test_one_snippet_per_split_section():
+    from app.ask import one_snippet_per_excerpt_section
+
+    snippets = [s["snippet"] for s in one_snippet_per_excerpt_section(
+        [{**_split("743-41-a"), "snippet": "x"}, {**_split("743-41-c"), "snippet": "y"}])]
+    assert snippets == ["x", ""]
+
+
+def test_a_retry_that_verifies_less_keeps_the_first_draft():
+    two = {"in_scope": True, "answer": "Owners keep walkways clear.",
+           "claims": [claim(_sentences(0, 10), "b1"), claim(_sentences(20, 21), "b1"), claim(_sentences(22, 23), "b1")]}
+    worse = {"in_scope": True, "answer": "x", "claims": [claim(_sentences(24, 25), "b1")]}
+    result = run_ask("q?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC)], FakeLLM([two, worse]))
+    assert [c["quote"] for c in result.claims] == [_sentences(20, 21), _sentences(22, 23)] and result.retried
+
+
+def test_source_section_is_the_chunks_section_not_its_subsection(conn):
+    from app.ask import SECTION_OF_CHUNK
+    from ingest.chunks import load_sections, plan_chunks, sync_chunks
+    from ingest.statutes import load_document, parse_law
+    from test_statutes import LAW, row
+
+    load_document(conn, parse_law(row(), LAW))
+    doc_id = conn.execute("SELECT id FROM documents WHERE slug = 'test-act'").fetchone()[0]
+    sync_chunks(conn, doc_id, plan_chunks("Test Act", load_sections(conn, doc_id)))
+    rows = conn.execute(f"SELECT c.pinpoint, {SECTION_OF_CHUNK} FROM chunks c WHERE c.document_id = %s", (doc_id,)).fetchall()
+    kinds = dict(conn.execute("SELECT pinpoint, kind FROM sections WHERE document_id = %s", (doc_id,)).fetchall())
+    assert rows and all(kinds[section] != "subsection" for _, section in rows)
+
+
+def test_failed_quotes_from_excerpt_only_chunks_are_withheld():
+    long = _sentences(0, 10)
+    ok, dropped = verify_claims([claim(long + " (paraphrased)", "b1"), claim(long, "zz"), claim("paraphrase of the act here", "c1")],
+                                {"b1": BYLAW, "c1": CHUNKS["c1"]}, {"b1": BYLAW_SRC, "c1": {"reproduction": "full"}})
+    assert [d["reason"] for d in dropped] == ["quote_not_in_chunk", "chunk_not_retrieved", "quote_not_in_chunk"]
+    assert all(long not in d["quote"] for d in dropped[:2]) and dropped[2]["quote"] == "paraphrase of the act here"
+
+
+def test_stored_sources_keep_one_snippet_per_excerpt_section(conn):
+    """Cross-referenced chunks are appended after retrieve's dedupe: complete_draft dedupes what it stores."""
+    from app.ask import complete_draft, create_pending
+
+    src = {**BYLAW_SRC, "snippet": "No person shall…"}
+    hits = [Retrieved("b1", "x", 0.1, src), Retrieved("b2", "y", None, {**src, "pinpoint": "743-41-c", "section": "743-41"})]
+    aid = create_pending(conn, "q?", None, [], {}, None)
+    complete_draft(conn, aid, AskResult("drafted", "d"), 1, hits)
+    flags = conn.execute("SELECT flags FROM answers WHERE id = %s", (aid,)).fetchone()[0]
+    assert [s["snippet"] for s in flags["sources"]] == ["No person shall…", ""]
+
+
+def test_traces_get_only_an_excerpt_of_excerpt_only_passages(monkeypatch):
+    """Langfuse Cloud is external: the traced prompt and claims hold no more than an excerpt of a by-law (#56)."""
+    from contextlib import contextmanager
+
+    from app import tracing
+
+    sent = []
+
+    class Obs:
+        def update(self, **kw):
+            sent.append(kw)
+
+    @contextmanager
+    def observe(name, as_type="span", **kw):
+        sent.append(kw)
+        yield Obs()
+
+    monkeypatch.setattr(tracing, "observe", observe)
+    long = {"in_scope": True, "answer": "Owners keep walkways clear.", "claims": [claim(_sentences(0, 10), "b1")]}
+    short = {"in_scope": True, "answer": "Owners keep walkways clear.", "claims": [claim(_sentences(20, 21), "b1")]}
+    llm = FakeLLM([long, short])
+    run_ask("q?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC), hit("c1", 0.2)], llm)
+    assert BYLAW in llm.prompts[0]  # the model reads the whole passage
+    traced = " ".join(str(v) for kw in sent for v in kw.values())
+    assert _sentences(8, 12) not in traced and _sentences(0, 10) not in traced  # cut to an excerpt, long quote withheld
+    assert _sentences(0, 2) in traced and CHUNKS["c1"] in traced  # the excerpt and statute text stay
+
+
+def test_words_ignore_markdown_emphasis_and_dashes():
+    from app.laws import reproduced_chars
+
+    phrase = _sentences(0, 3)
+    styled = phrase.replace("shall", "**shall**", 1).replace("walkway 1.", "walkway 1. —", 1)
+    assert reproduced_chars(f"- *{styled}*", BYLAW) >= len(phrase) - 10

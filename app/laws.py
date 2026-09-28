@@ -1,4 +1,6 @@
 """Read queries for the law library. Every query is parameterized."""
+import re
+
 import psycopg
 from psycopg.rows import dict_row
 
@@ -12,8 +14,50 @@ DOC_FIELDS = ("slug, title, short_name, citation, kind, jurisdiction, in_force_f
               "upstream_license, reproduction")
 
 
+# A run of this many words copied verbatim counts as reproduced text.
+# ponytail: verbatim runs only, so a close paraphrase (a word changed every 7) passes; fuzzy matching if that matters.
+SHINGLE_WORDS = 8
+WITHHELD_TEXT = f"(withheld: reproduces more than {EXCERPT_CHARS} characters of an excerpt-only by-law)"
+
+
 def excerpt(text: str) -> str:
     return text if len(text) <= EXCERPT_CHARS else text[:EXCERPT_CHARS].rstrip() + "…"
+
+
+def _words(text: str) -> list[str]:
+    """Lower-cased words; markdown blockquote, emphasis and list/dash markers and quote-mark variants ignored, so
+    formatting never splits a copied run."""
+    text = re.sub(r"(?m)^\s*>\s?", "", text).replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+    return [w for w in re.sub(r"[*_]", "", text).lower().split() if w.strip("-–—")]
+
+
+def reproduced_chars(markdown: str, text: str, n: int = SHINGLE_WORDS) -> int:
+    """How many characters of `markdown` copy `text`: words inside verbatim runs of at least `n` words of it. Counted
+    on the markdown side, so a phrase the section repeats counts once per time it is shown. Catches quotes split
+    across blockquotes or pasted into prose."""
+    words, shown, copied = _words(text), _words(markdown), set()
+    grams = {tuple(words[i:i + n]) for i in range(len(words) - n + 1)}
+    for i in range(len(shown) - n + 1):
+        if tuple(shown[i:i + n]) in grams:
+            copied.update(range(i, i + n))
+    return sum(len(shown[i]) for i in copied) + max(len(copied) - 1, 0)  # words plus the spaces between them
+
+
+def withhold_excerpts(conn: psycopg.Connection, text: str | None) -> str | None:
+    """`text`, or a placeholder when it reproduces more than EXCERPT_CHARS of an excerpt-only section."""
+    return WITHHELD_TEXT if text and excerpt_overflow(conn, text) else text
+
+
+def excerpt_only_slugs(conn: psycopg.Connection) -> set[str]:
+    return {r[0] for r in conn.execute("SELECT slug FROM documents WHERE reproduction = 'excerpt'")}
+
+
+def excerpt_overflow(conn: psycopg.Connection, markdown: str) -> list[str]:
+    """Excerpt-only sections (e.g. "§ 743-41") of which `markdown` reproduces more than EXCERPT_CHARS characters."""
+    rows = conn.execute(
+        "SELECT s.pinpoint, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
+        " WHERE d.reproduction = 'excerpt' AND length(s.text) > %s", (EXCERPT_CHARS,)).fetchall()
+    return [display_pinpoint(pin) for pin, text in rows if reproduced_chars(markdown, text) > EXCERPT_CHARS]
 
 
 def list_laws(conn: psycopg.Connection) -> list[dict]:

@@ -1,7 +1,7 @@
 """Langfuse Cloud tracing. Off (every call a no-op) unless LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set.
 
-Sent: questions, public law text, model prompts/outputs, timings, token usage. Not sent: user identifiers beyond the
-demo role name.
+Sent: questions, law text (excerpt-only by-laws cut to an excerpt, #56), model prompts/outputs, timings, token usage.
+Not sent: full excerpt-only by-law text, user identifiers beyond the demo role name.
 """
 import logging
 import os

@@ -49,7 +49,7 @@ Models: answers/summaries `gemini-3.7-flash` · rerank/context/decomposition `ge
 ## Rules
 
 - Data: A2AJ datasets first. Never bulk or programmatically download from CanLII. Show an approval table (file, URL, size) before any web/Chrome download batch. Respect `upstream_license`.
-- `documents.reproduction = 'excerpt'` (Toronto Municipal Code, City copyright): never render or return full text — short excerpts with the official link only.
+- `documents.reproduction = 'excerpt'` (Toronto Municipal Code, City copyright): never render or return full text — short excerpts with the official link only. This covers answers too: at most `EXCERPT_CHARS` (300) characters of one section per answer, quotes and prose together (checked in `verify_claims`/`fit_excerpts` and again on approve/edit).
 - Every stored document has a `sha256` and a manifest line in `input/manifest.jsonl`.
 - Citations are checked in code: a quote must be an exact (whitespace-normalized) substring of its chunk, or the claim is dropped.
 - No answer reaches a researcher without reviewer approval.
@@ -114,4 +114,5 @@ Self-improving: when something fails, surprises you, or the user corrects you, a
 - 2026-09-27 — By-law headings joined lines until one ended with ".", so a footnote number after the period ("streets. 29"), a quoted period or a period-less heading swallowed the body (6 of 142 headings) → end headings on `.`/`."` plus an optional footnote number, or at the next paragraph start; after a parser change, diff every parsed heading and text against the old parser.
 - 2026-09-27 — An API test passed locally but failed in CI (`DefaultCredentialsError`): FastAPI resolves `get_ai` (a real Vertex client) even when the request then fails validation, and only this machine has ADC → API tests that hit AI routes override `get_ai` with a fake; run new tests with ADC hidden (`GOOGLE_APPLICATION_CREDENTIALS=/nonexistent CLOUDSDK_CONFIG=<empty dir>`).
 - 2026-09-28 — A lookup joining chunks on `s.id = ANY(c.section_ids)` alone seq-scanned all 43k chunks (≈ 40 ms each; there is no index on `section_ids`) → also join on `c.document_id` (indexed: 1.3 ms); `EXPLAIN ANALYZE` new per-request queries on the dev DB.
+- 2026-09-28 — Counting a by-law's reproduced text on the section side counted a phrase the section repeats once per repeat, so a 244-char quote read as > 300 and a trim run failed 4 good drafts (#56) → count on the displayed side; read a dry run's numbers against one real item before `--apply`.
 - 2026-09-25 — CanLII terms ban bulk download and it is suing an AI company over it; A2AJ has no Ontario Superior Court decisions → link out via CanLII API metadata; say the gap in the UI.

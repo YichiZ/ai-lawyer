@@ -19,6 +19,11 @@ All evals run locally with Vertex AI through ADC. Results are saved to `evals/ru
 | section summaries: faithful · grade ≤ 10 | 0.973 · 0.46 |
 | decision summaries (30-item judge) | faithful 0.967, grade 13.4 |
 | case-law retrieval (unverified gold, not gated) | recall@8 0.857, MRR 0.587 |
+| excerpt cap cuts per in-scope answer (#56, reported, not gated) | 0.139 / 0.097 (10 / 7 quotes, all city-07, city-08, city-10) |
+
+Quotes cut by the excerpt cap for City by-laws (#56) verified and were then withheld for copyright, so they are not
+counted as failed quotes in `verified_claim_rate`. The answers summary reports them as `in_scope.excerpt_dropped` (mean
+per in-scope answer) and `make eval` / `gate` print one line per run; a rise means drafts over-quote by-laws.
 
 ### How the gate handles judge noise (#31)
 
