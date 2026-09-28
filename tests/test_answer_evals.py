@@ -1,6 +1,7 @@
 import pytest
 
-from evals.answers import JUDGE_MODEL, facts_covered, gate_tradeoff, judge_answer, refusal_correct, verified_rate
+from evals.answers import (JUDGE_MODEL, facts_covered, gate_tradeoff, judge_answer, quote_failures, refusal_correct,
+                           verified_rate)
 from ingest.vertex import ANSWER_MODEL
 
 
@@ -57,3 +58,8 @@ def test_judge_malformed_output_is_recorded_not_dropped():
 def test_judge_skips_answers_without_claims():
     verdict = judge_answer("Refused.", [], lambda p, s: pytest.fail("should not call the judge"))
     assert verdict["citation_supported"] is None and verdict["error"] is None
+
+
+def test_excerpt_cap_drops_are_not_quote_failures():
+    dropped = [{"reason": "quote_not_in_chunk"}, {"reason": "excerpt-only source: quote exceeds 300 characters"}]
+    assert quote_failures(dropped) == 1

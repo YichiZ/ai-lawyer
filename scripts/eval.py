@@ -37,6 +37,7 @@ from evals.answers import (
     facts_covered,
     gate_tradeoff,
     judge_answer,
+    quote_failures,
     refusal_correct,
     verified_rate,
 )
@@ -143,7 +144,8 @@ def answer_task(embed, rerank, generate):
             "draft": result.draft_markdown,
             "claims": [{"text": c["text"], "quote": c["quote"], "citation": c["source"]["citation"]["text"]}
                        for c in result.claims],
-            "kept": len(result.claims), "dropped": len(result.dropped), "retried": result.retried,
+            "kept": len(result.claims), "dropped": quote_failures(result.dropped), "retried": result.retried,
+            "excerpt_dropped": len(result.dropped) - quote_failures(result.dropped),  # cut by the #56 cap
             "advice_seeking": result.advice_seeking,  # false-positive check for the reviewer flag (#7)
             "best_distance": min((h.distance for h in hits if h.distance is not None), default=None),
             "sources_ms": round((t_sources - t0) * 1000), "total_ms": round((time.perf_counter() - t0) * 1000),

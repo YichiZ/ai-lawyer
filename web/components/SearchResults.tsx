@@ -42,7 +42,7 @@ export default function SearchResults({ q, initial }: { q: string; initial: Sear
               {g.hits.map((h) => (
                 <li key={h.url} className="border-l-2 border-rule pl-3">
                   <Link href={h.url} className="pinpoint">{h.display}</Link>
-                  <p className="mt-1 text-sm text-muted">{h.snippet}</p>
+                  {h.snippet && <p className="mt-1 text-sm text-muted">{h.snippet}</p>}
                 </li>
               ))}
             </ol>

@@ -16,7 +16,7 @@ from psycopg.rows import dict_row
 from app import tracing
 from app.authorities import SECONDARY_LABEL, secondary_statutes
 from app.format import mcgill_citation, subtitle
-from app.laws import excerpt
+from app.laws import EXCERPT_CHARS, excerpt, reproduced_chars
 from ingest.citations import internal_refs
 from ingest.statutes import display_pinpoint
 
@@ -86,6 +86,10 @@ Rules:
 - "claims": each claim is one statement from your answer, the id of the passage that supports it (e.g. "c12"), and a
   quote copied EXACTLY, word for word, from that passage (one sentence or clause, at least a few words).
   Never paraphrase inside a quote. Use only passage ids listed below.
+- Toronto Municipal Code passages are excerpt-only (City copyright): all quotes from one Municipal Code section
+  together may be at most {excerpt_chars} characters, so quote only the clause that states each rule (the duty, the
+  deadline, the exception), not whole sentences; longer quotes are dropped. In "answer", state their rules in your
+  own words; do not copy their wording.
 - Each claim restates only what its own quote says, read on its own. Every detail in the answer and in each claim
   (a number, period, deadline, party, category, condition or exception) must appear in the quote of the claim that
   states it. A detail that is only in another provision or passage needs its own claim quoting it; if you cannot
@@ -108,7 +112,7 @@ Question: {question}
 
 Passages:
 {passages}
-"""
+""".replace("{excerpt_chars}", str(EXCERPT_CHARS))
 
 
 @dataclass
@@ -129,6 +133,7 @@ class AskResult:
     retried: bool = False
     secondary_statute: list[str] = field(default_factory=list)  # laws named but only quoted by cited decisions (#18)
     advice_seeking: bool = False  # the question asks for advice on the asker's own facts (#7)
+    excerpt_overflow: list[str] = field(default_factory=list)  # by-law sections the answer prose copies too much of
 
 
 def normalize(s: str) -> str:
@@ -145,19 +150,76 @@ def rrf(rankings: list[list[str]], k: int = RRF_K, weights: list[float] | None =
     return sorted(scores.items(), key=lambda kv: -kv[1])
 
 
-def verify_claims(claims: list[dict], chunks: dict[str, str]) -> tuple[list[dict], list[dict]]:
-    ok, dropped = [], []
+EXCERPT_TOO_LONG = f"excerpt-only source: quote exceeds {EXCERPT_CHARS} characters"
+EXCERPT_SECTION_FULL = f"excerpt-only source: quotes from this section would exceed {EXCERPT_CHARS} characters"
+
+
+WITHHELD = "characters not shown: excerpt-only source)"
+
+
+def withheld(claim: dict, reason: str) -> dict:
+    """A dropped claim from an excerpt-only source: the reviewer sees why, not the by-law text it quoted."""
+    kept = {k: v for k, v in claim.items() if k != "source"}
+    return {**kept, "quote": f"({len(normalize(claim.get('quote', '')))} {WITHHELD}",
+            "reason": reason}
+
+
+def section_key(source: dict) -> tuple:
+    """(slug, section pinpoint): the unit the excerpt cap applies to. `section` is set by _source (a split section's
+    chunks and a claim pinned to a subsection share it); older stored sources fall back to their pinpoint."""
+    return source.get("slug"), source.get("section") or source.get("pinpoint")
+
+
+def verify_claims(claims: list[dict], chunks: dict[str, str],
+                  sources: dict[str, dict] | None = None) -> tuple[list[dict], list[dict]]:
+    """Keep claims whose quote is an exact (normalized) substring of a retrieved chunk. From an excerpt-only document
+    (`sources[chunk_id]["reproduction"] == "excerpt"`, City copyright) a quote may not exceed EXCERPT_CHARS, nor may
+    the quotes from one section together: later ones are dropped (#56)."""
+    ok, dropped, quoted = [], [], {}
     for c in claims:
         quote = normalize(c.get("quote", ""))
+        src = (sources or {}).get(c.get("chunk_id"), {})
+        section, excerpt_only = section_key(src), src.get("reproduction") == "excerpt"
+        # a failed quote from an excerpt-only chunk (or an unknown one, if long) may still be by-law text
+        drop = withheld if excerpt_only or (not src and len(quote) > EXCERPT_CHARS) else (
+            lambda claim, reason: {**claim, "reason": reason})
         if c.get("chunk_id") not in chunks:
-            dropped.append({**c, "reason": "chunk_not_retrieved"})
+            dropped.append(drop(c, "chunk_not_retrieved"))
         elif len(quote) < MIN_QUOTE_CHARS:
-            dropped.append({**c, "reason": "quote_too_short"})
+            dropped.append(drop(c, "quote_too_short"))
         elif quote not in normalize(chunks[c["chunk_id"]]):
-            dropped.append({**c, "reason": "quote_not_in_chunk"})
+            dropped.append(drop(c, "quote_not_in_chunk"))
+        elif excerpt_only and len(quote) > EXCERPT_CHARS:
+            dropped.append(withheld(c, EXCERPT_TOO_LONG))
+        elif excerpt_only and quoted.get(section, 0) + len(quote) > EXCERPT_CHARS:
+            dropped.append(withheld(c, EXCERPT_SECTION_FULL))
         else:
+            if excerpt_only:
+                quoted[section] = quoted.get(section, 0) + len(quote)
             ok.append(c)
     return ok, dropped
+
+
+def fit_excerpts(answer: str, claims: list[dict], hits: list[Retrieved]) -> tuple[list[dict], list[dict], list[str]]:
+    """The answer's own sentences can repeat a by-law's wording too: while the draft reproduces more than
+    EXCERPT_CHARS of an excerpt-only section (prose and quotes together), drop that section's last claim. Returns
+    (kept, dropped, sections still over from the prose alone), which the reviewer must shorten (#56)."""
+    texts, names = {}, {}
+    for h in hits:
+        if h.source.get("reproduction") == "excerpt":
+            key = section_key(h.source)
+            texts[key] = f"{texts.get(key, '')} {h.text}"
+            names[key] = h.source.get("display") or h.source.get("pinpoint")
+    kept, dropped, over = list(claims), [], []
+    for key, text in texts.items():
+        while reproduced_chars(compose_draft(answer, kept), text) > EXCERPT_CHARS:
+            mine = [c for c in kept if section_key(c["source"]) == key]
+            if not mine:
+                over.append(names[key])
+                break
+            kept.remove(mine[-1])
+            dropped.append(withheld(mine[-1], EXCERPT_SECTION_FULL))
+    return kept, dropped, over
 
 
 def _cite(source: dict) -> str:
@@ -210,7 +272,7 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
     chunks = {h.chunk_id: h.text for h in hits}
     sources = {h.chunk_id: h.source for h in hits}
     passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_referred(h)}\n{h.text}" for h in hits)
-    all_dropped, feedback, advice = [], "", False
+    all_dropped, feedback, advice, first = [], "", False, None
     for attempt in range(2):
         prompt = PROMPT.format(question=question, passages=passages, feedback=feedback)
         with tracing.observe("generate", as_type="generation", input=prompt, metadata={"attempt": attempt + 1}) as gen:
@@ -220,17 +282,34 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
         if not out.get("in_scope", True):
             return AskResult(status="out_of_scope", draft_markdown=out_of_scope_message(out.get("scope_note")))
         with tracing.observe("verify", input={"claims": out.get("claims", [])}) as ver:
-            ok, dropped = verify_claims(out.get("claims", []), chunks)
+            ok, dropped = verify_claims(out.get("claims", []), chunks, sources)
             ver.update(output={"kept": len(ok), "dropped": [{"chunk_id": d.get("chunk_id"), "reason": d["reason"]} for d in dropped]})
-        all_dropped += dropped
         if ok:
             ok = refine([{**c, "source": sources[c["chunk_id"]]} for c in ok])
+            ok, cut, over = fit_excerpts(out["answer"], ok, hits)
+            dropped += cut
+        all_dropped += dropped
+        too_long = any(d["reason"].startswith("excerpt-only") for d in dropped)
+        if ok:
             secondary = secondary_statutes(out["answer"], [c["source"] for c in ok], library_titles)
             draft = compose_draft(out["answer"], ok)
-            return AskResult("drafted", f"{SECONDARY_LABEL}\n\n{draft}" if secondary else draft, ok, all_dropped,
-                             retried=attempt > 0, secondary_statute=secondary, advice_seeking=advice)
-        feedback = ("\nYour previous quotes were not exact copies of the passages. Copy each quote character for "
-                    "character from the passage you cite.\n")
+            result = AskResult("drafted", f"{SECONDARY_LABEL}\n\n{draft}" if secondary else draft, ok, all_dropped,
+                               retried=attempt > 0, secondary_statute=secondary, advice_seeking=advice,
+                               excerpt_overflow=over)
+            if first and len(ok) < len(first.claims):  # the retry verified less: keep the first draft
+                break
+            if not (too_long and attempt == 0):
+                return result
+            first = result  # the answer may state what a dropped by-law quote said: ask once for shorter quotes
+        if too_long:
+            feedback = (f"\nYour previous answer used too much Toronto Municipal Code text. Quote at most "
+                        f"{EXCERPT_CHARS} characters in all from each Municipal Code section: quote only the few words "
+                        "that state each rule, and state its rules in your own words.\n")
+        else:
+            feedback = ("\nYour previous quotes were not exact copies of the passages. Copy each quote character for "
+                        "character from the passage you cite.\n")
+    if first:
+        return replace(first, dropped=all_dropped, retried=True)
     return AskResult(status="unverified", draft_markdown="No statement could be verified against the passages.",
                      dropped=all_dropped, retried=True, advice_seeking=advice)
 
@@ -281,6 +360,12 @@ ALL_KINDS = RETRIEVAL_KINDS + ["decision"]
 CASE_K = 4  # decisions searched separately: mixing them into law retrieval dropped statute recall@8 1.000 -> 0.935
 
 
+# The section a chunk belongs to (its first section, or that section's parent when it is a subsection): the unit of
+# the excerpt cap, shared by a split section's chunks (see section_key).
+SECTION_OF_CHUNK = (" (SELECT coalesce(p.pinpoint, s1.pinpoint) FROM sections s1 LEFT JOIN sections p"
+                    " ON p.id = s1.parent_id AND s1.kind = 'subsection' WHERE s1.id = c.section_ids[1]) AS section")
+
+
 def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float], top_k: int = TOP_K,
              rerank: Callable[[str, list, int], list] | None = None, kinds: list[str] = RETRIEVAL_KINDS) -> list[Retrieved]:
     """Top CANDIDATES keyword (terms OR'ed) + top CANDIDATES vector, fused with weighted RRF; the top_k best.
@@ -295,12 +380,25 @@ def retrieve(conn: psycopg.Connection, question: str, query_vector: list[float],
     fused = rrf([[f"c{cid}" for cid in keyword], [f"c{cid}" for cid, _ in vector]], weights=[KEYWORD_WEIGHT, 1.0])[:RERANK_CANDIDATES if rerank else top_k]
     ids = [int(cid[1:]) for cid, _ in fused]
     rows = {r["id"]: r for r in cur.execute(
-        "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url"
+        "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url,"
+        + SECTION_OF_CHUNK +
         " FROM chunks c JOIN documents d ON d.id = c.document_id WHERE c.id = ANY(%s)", (ids,),
     ).fetchall()}
     hits = [Retrieved(cid, rows[int(cid[1:])]["text"], distance.get(cid), _source(cid, rows[int(cid[1:])]), score)
             for cid, score in fused]
-    return rerank(question, hits, top_k) if rerank else hits
+    hits = rerank(question, hits, top_k) if rerank else hits
+    return [replace(h, source=s) for h, s in zip(hits, one_snippet_per_excerpt_section([h.source for h in hits]))]
+
+
+def one_snippet_per_excerpt_section(sources: list[dict]) -> list[dict]:
+    """A long excerpt-only section is split into several chunks, each with its own EXCERPT_CHARS snippet: only the
+    first source of such a section keeps one, so a result list never shows more than an excerpt of it (#56)."""
+    seen, out = set(), []
+    for s in sources:
+        key = section_key(s)
+        out.append({**s, "snippet": ""} if s.get("reproduction") == "excerpt" and key in seen else s)
+        seen.add(key)
+    return out
 
 
 def _source(cid: str, r: dict) -> dict:
@@ -310,6 +408,7 @@ def _source(cid: str, r: dict) -> dict:
         "chunk_id": cid, "slug": r["slug"], "title": r["title"], "pinpoint": pin,
         "display": display_pinpoint(pin), "citation": mcgill_citation(r, pin),
         "snippet": excerpt(r["text"]), "url": url, "kind": r["kind"], "subtitle": subtitle(r),
+        "reproduction": r["reproduction"], "section": r.get("section") or pin,
     }
 
 
@@ -329,6 +428,7 @@ def with_cross_references(conn: psycopg.Connection, hits: list[Retrieved], cap: 
             break
         r = cur.execute(  # the subsection's chunk, else (subsection not stored) the section's first chunk
             "SELECT c.id, c.text, c.pinpoint, d.slug, d.title, d.short_name, d.kind, d.citation, d.reproduction, d.url,"
+            + SECTION_OF_CHUNK + ","
             " s.text AS target_text FROM sections s JOIN documents d ON d.id = s.document_id"
             " JOIN chunks c ON c.document_id = d.id AND s.id = ANY(c.section_ids)"  # document_id: index, not seq scan
             " WHERE d.slug = %s AND s.pinpoint = ANY(%s) ORDER BY s.pinpoint = %s DESC, c.id LIMIT 1",
@@ -379,7 +479,8 @@ def create_pending(conn: psycopg.Connection, question: str, asked_by: int | None
 def result_flags(result: AskResult) -> dict:
     """The answer flags a draft result sets; risk_reasons() reads them (production and evals alike)."""
     return {"status": result.status, "retried": result.retried, "dropped_claims": result.dropped,
-            "secondary_statute": result.secondary_statute, "advice_seeking": result.advice_seeking}
+            "secondary_statute": result.secondary_statute, "advice_seeking": result.advice_seeking,
+            "excerpt_overflow": result.excerpt_overflow}
 
 
 def complete_draft(conn: psycopg.Connection, answer_id: int, result: AskResult, draft_ms: int,
@@ -387,7 +488,8 @@ def complete_draft(conn: psycopg.Connection, answer_id: int, result: AskResult, 
     """Store the draft; `hits` (the reranked passages the draft used) replace the sources shown at ask time."""
     patch = result_flags(result)
     if hits is not None:
-        patch["sources"] = [{**h.source, "score": h.score, "distance": h.distance} for h in hits]
+        patch["sources"] = [{**s, "score": h.score, "distance": h.distance}  # cross-references come after retrieve
+                             for h, s in zip(hits, one_snippet_per_excerpt_section([h.source for h in hits]))]
     with conn.transaction():
         conn.execute(
             "UPDATE answers SET draft_markdown = %s, claims = %s,"

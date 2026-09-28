@@ -1,4 +1,6 @@
 """Read queries for the law library. Every query is parameterized."""
+import re
+
 import psycopg
 from psycopg.rows import dict_row
 
@@ -12,8 +14,37 @@ DOC_FIELDS = ("slug, title, short_name, citation, kind, jurisdiction, in_force_f
               "upstream_license, reproduction")
 
 
+SHINGLE_WORDS = 8  # a run of this many words copied verbatim counts as reproduced text
+
+
 def excerpt(text: str) -> str:
     return text if len(text) <= EXCERPT_CHARS else text[:EXCERPT_CHARS].rstrip() + "…"
+
+
+def _words(text: str) -> list[str]:
+    """Lower-cased words, markdown blockquote markers and quote-mark variants ignored."""
+    text = re.sub(r"(?m)^\s*>\s?", "", text).replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+    return text.lower().split()
+
+
+def reproduced_chars(markdown: str, text: str, n: int = SHINGLE_WORDS) -> int:
+    """How many characters of `markdown` copy `text`: words inside verbatim runs of at least `n` words of it. Counted
+    on the markdown side, so a phrase the section repeats counts once per time it is shown. Catches quotes split
+    across blockquotes or pasted into prose."""
+    words, shown, copied = _words(text), _words(markdown), set()
+    grams = {tuple(words[i:i + n]) for i in range(len(words) - n + 1)}
+    for i in range(len(shown) - n + 1):
+        if tuple(shown[i:i + n]) in grams:
+            copied.update(range(i, i + n))
+    return sum(len(shown[i]) for i in copied) + max(len(copied) - 1, 0)  # words plus the spaces between them
+
+
+def excerpt_overflow(conn: psycopg.Connection, markdown: str) -> list[str]:
+    """Excerpt-only sections (e.g. "§ 743-41") of which `markdown` reproduces more than EXCERPT_CHARS characters."""
+    rows = conn.execute(
+        "SELECT s.pinpoint, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
+        " WHERE d.reproduction = 'excerpt' AND length(s.text) > %s", (EXCERPT_CHARS,)).fetchall()
+    return [display_pinpoint(pin) for pin, text in rows if reproduced_chars(markdown, text) > EXCERPT_CHARS]
 
 
 def list_laws(conn: psycopg.Connection) -> list[dict]:

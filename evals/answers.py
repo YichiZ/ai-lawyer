@@ -50,6 +50,12 @@ def refusal_correct(status: str, must_refuse: bool) -> bool:
     return status in REFUSALS if must_refuse else status == "drafted"
 
 
+def quote_failures(dropped: list[dict]) -> int:
+    """Dropped claims whose quote failed verification. Claims cut by the excerpt cap (#56) verified and were then
+    withheld for copyright: they are counted separately, not as failures."""
+    return sum(not d["reason"].startswith("excerpt-only") for d in dropped)
+
+
 def verified_rate(kept: int, dropped: int) -> float | None:
     return kept / (kept + dropped) if kept + dropped else None
 

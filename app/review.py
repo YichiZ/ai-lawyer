@@ -18,6 +18,8 @@ CANDIDATES_PATH = Path(os.environ.get("GOLD_CANDIDATES_PATH",
 
 def risk_reasons(flags: dict) -> list[str]:
     reasons = []
+    if flags.get("excerpt_overflow"):  # first: cannot be approved until the copied by-law text is shortened (#56)
+        reasons.append("excerpt_overflow")
     if flags.get("secondary_statute"):  # first: the draft states a law we don't hold, from a decision quoting it
         reasons.append("secondary_statute")
     if flags.get("advice_seeking"):  # next: read the whole draft for advice before checking its details (#7)
@@ -68,6 +70,11 @@ def decide(conn: psycopg.Connection, answer_id: int, reviewer_id: int, decision:
             " WHERE id = %s AND status = 'pending_review' AND draft_markdown IS NOT NULL RETURNING status",
             (status, reviewer_id, note, reason, decision, final_markdown, answer_id),
         ).fetchone()
+    return row[0] if row else None
+
+
+def draft_of(conn: psycopg.Connection, answer_id: int) -> str | None:
+    row = conn.execute("SELECT draft_markdown FROM answers WHERE id = %s", (answer_id,)).fetchone()
     return row[0] if row else None
 
 

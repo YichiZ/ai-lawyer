@@ -308,6 +308,12 @@ def review_queue(conn: Conn, _: Reviewer):
 
 @app.post("/answers/{answer_id}/review")
 def review_answer(answer_id: int, body: ReviewRequest, conn: Conn, reviewer: Reviewer):
+    if body.decision != "reject":  # the text researchers would see: never more than an excerpt of a City by-law (#56)
+        shown = body.final_markdown if body.decision == "edit" else review.draft_of(conn, answer_id)
+        if over := laws.excerpt_overflow(conn, shown or ""):
+            raise HTTPException(status_code=422, detail=(
+                f"This answer reproduces more than {laws.EXCERPT_CHARS} characters of Toronto Municipal Code "
+                f"{', '.join(over)} (excerpt-only, City copyright). Shorten the quotes, then approve as an edit."))
     status = review.decide(conn, answer_id, reviewer["id"], body.decision, body.final_markdown, body.note, body.reason)
     if status is None:
         drafting = review.drafting(conn, answer_id)
