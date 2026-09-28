@@ -3,6 +3,14 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · A web page that released answers cite can't be removed (#64)
+
+- **Problem:** `DELETE /laws/{slug}` deleted a web page without checking references. Answers keep sources/claims as JSON (`flags.sources[].slug`, `claims[].source.slug`), not foreign keys, so approved answer 390 kept a link to `/laws/web-…/sec-8` that 404'd.
+- **What:** `app/laws.py` `delete_web_page` (row locked `FOR UPDATE`) raises `PageInUse` while an approved/edited answer cites the slug (`jsonb @>` on `flags` sources or `claims` source) or a glossary term has it as `source_slug`; the API returns 409 `conflict` naming the answer ids and terms. Pending answers citing it don't block: they get `flags.source_removed`, shown in the review queue as "Cites a web page removed from the library". Rejected answers are ignored. `flags.web_sources` are external URLs, not library links, so they don't count.
+- **Decisions:** refuse rather than rewrite released answers (a reviewer approved those links; silently changing them breaks the review guarantee). Glossary terms refuse too (a null source would hide where a definition came from). Known gap: a draft still being written when the page goes can cite it unflagged (`ponytail:` note).
+- **Tests:** API: refused (409 + both ids) for an approved source and an edited claim, another law's answer not listed, page kept; refused for a glossary term; allowed with a pending citing answer, which the queue flags (another pending answer not); reviewer-only / web-only / 404 unchanged. pytest 612 passed; new tests pass with ADC hidden. Dev DB (read-only SELECT with the same containment): `web-ontario.ca-page-suing-someone-small-claims-court` → answer 390, the other web page → none.
+
+
 ## 2026-09-28 · Fix · Typeahead understands McGill and SCR case citations (#63)
 
 - **Problem:** `NEUTRAL` was anchored at `^` and only took `YYYY ONCA|SCC N [at para N]`, so the McGill form (style of cause first), `, at para`, `, para`, `para.` and SCR report citations (`[1982] 1 SCR 175`, how 224 older SCC decisions are stored in `neutral_citation`) returned `[]`; a string that started like a citation but didn't resolve also returned `[]`.

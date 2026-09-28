@@ -400,6 +400,42 @@ def test_delete_web_page_reviewer_only(client, web_page, conn):
     assert client.get("/laws/test-act").status_code == 200
 
 
+def _answer(conn, status: str, flags: dict | None = None, claims: list | None = None) -> int:
+    from psycopg.types.json import Jsonb
+
+    return conn.execute("INSERT INTO answers (question, status, draft_markdown, flags, claims)"
+                        " VALUES ('q?', %s, 'draft', %s, %s) RETURNING id",
+                        (status, Jsonb(flags or {}), Jsonb(claims or []))).fetchone()[0]
+
+
+def test_delete_web_page_refused_while_released_answers_cite_it(client, web_page, conn):
+    """#64: approved answers keep sources/claims as JSON, so removing the page 404'd their links."""
+    by_source = _answer(conn, "approved", flags={"sources": [{"slug": web_page, "url": f"/laws/{web_page}/sec-1"}]})
+    by_claim = _answer(conn, "edited", claims=[{"quote": "x", "source": {"slug": web_page}}])
+    _answer(conn, "approved", flags={"sources": [{"slug": "test-act"}]})  # cites another law: not listed
+    r = client.delete(f"/laws/{web_page}", headers=REVIEWER)
+    assert r.status_code == 409
+    error = r.json()["error"]
+    assert error["code"] == "conflict" and f"released answers {by_source}, {by_claim};" in error["message"]
+    assert conn.execute("SELECT count(*) FROM documents WHERE slug = %s", (web_page,)).fetchone() == (1,)
+
+
+def test_delete_web_page_refused_while_glossary_cites_it(client, web_page, conn):
+    conn.execute("INSERT INTO glossary_terms (term, plain_definition, source_slug, source_pinpoint)"
+                 " VALUES ('drone', 'A flying machine.', %s, 'sec-1')", (web_page,))
+    r = client.delete(f"/laws/{web_page}", headers=REVIEWER)
+    assert r.status_code == 409 and "glossary terms drone" in r.json()["error"]["message"]
+
+
+def test_delete_web_page_flags_pending_answers_citing_it(client, web_page, conn):
+    pending = _answer(conn, "pending_review", flags={"sources": [{"slug": web_page}]})
+    other = _answer(conn, "pending_review", flags={"sources": [{"slug": "test-act"}]})
+    _answer(conn, "rejected", flags={"sources": [{"slug": web_page}]})  # never released: doesn't block
+    assert client.delete(f"/laws/{web_page}", headers=REVIEWER).status_code == 200
+    risks = {i["id"]: i["risk"] for i in client.get("/review/queue", headers=REVIEWER).json()["data"]}
+    assert "source_removed" in risks[pending] and "source_removed" not in risks[other]
+
+
 # --- excerpt-only by-laws in answers (#56) ---
 
 BYLAW_LONG = " ".join(f"Rule {i}: every owner shall keep walkway {i} free from obstruction." for i in range(20))

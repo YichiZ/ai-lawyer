@@ -176,7 +176,10 @@ def get_law(slug: Slug, conn: Conn):
 @app.delete("/laws/{slug}")
 def delete_law(slug: Slug, conn: Conn, reviewer: Reviewer):
     """Remove a web page from the library (its sections and chunks go with it). Other laws are never removed here."""
-    kind = laws.delete_web_page(conn, slug)
+    try:
+        kind = laws.delete_web_page(conn, slug)
+    except laws.PageInUse as e:
+        raise HTTPException(status_code=409, detail=str(e))
     if kind is None:
         raise NotFound(f"No law '{slug}'")
     if kind != "web":

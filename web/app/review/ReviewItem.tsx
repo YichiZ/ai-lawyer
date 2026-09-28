@@ -10,6 +10,7 @@ import { REJECT_REASONS, type QueueItem } from "@/lib/api";
 const RISK_LABELS: Record<string, string> = {
   excerpt_overflow: "Copies too much by-law text: edit before approving",
   secondary_statute: "Statute only quoted in a decision",
+  source_removed: "Cites a web page removed from the library",
   advice_seeking: "Asks for advice on their own facts",
   dropped_claims: "Claims dropped by quote check",
   retried: "Needed a retry",

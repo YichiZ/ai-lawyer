@@ -80,15 +80,44 @@ def get_document(conn: psycopg.Connection, slug: str) -> dict | None:
     return {**doc, "subtitle": subtitle(doc)} if doc else None
 
 
+class PageInUse(Exception):
+    """A web page that released answers or glossary terms still cite (#64): removing it would break their links."""
+
+    def __init__(self, answer_ids: list[int], terms: list[str]):
+        self.answer_ids, self.terms = answer_ids, terms
+        cited = [f"released answers {', '.join(map(str, answer_ids))}" if answer_ids else "",
+                 f"glossary terms {', '.join(terms)}" if terms else ""]
+        super().__init__(f"This page is cited by {' and '.join(c for c in cited if c)}; it can't be removed")
+
+
+def _citing(slug: str) -> str:
+    """WHERE clause for answers citing `slug` in their sources or claims (answers keep them as JSON, not keys)."""
+    return "(flags @> jsonb_build_object('sources', jsonb_build_array(jsonb_build_object('slug', %(slug)s::text)))" \
+           " OR claims @> jsonb_build_array(jsonb_build_object('source', jsonb_build_object('slug', %(slug)s::text))))"
+
+
 def delete_web_page(conn: psycopg.Connection, slug: str) -> str | None:
     """Delete the web page `slug` (sections and chunks cascade) and its ingest job, so it can be added again later.
-    Returns the document's kind (only 'web' is deleted), or None if there is no such document."""
+    Returns the document's kind (only 'web' is deleted), or None if there is no such document. Raises PageInUse
+    while approved/edited answers or glossary terms cite it; pending answers citing it are flagged `source_removed`
+    for the reviewer (#64)."""
     with conn.transaction():
-        row = conn.execute("SELECT kind FROM documents WHERE slug = %s", (slug,)).fetchone()
-        if row and row[0] == "web":
-            conn.execute("DELETE FROM documents WHERE slug = %s AND kind = 'web'", (slug,))
-            conn.execute("DELETE FROM ingest_jobs WHERE document_slug = %s", (slug,))
-    return row[0] if row else None
+        row = conn.execute("SELECT kind FROM documents WHERE slug = %s FOR UPDATE", (slug,)).fetchone()
+        if not row or row[0] != "web":
+            return row[0] if row else None
+        args = {"slug": slug}
+        answer_ids = [r[0] for r in conn.execute(
+            f"SELECT id FROM answers WHERE status IN ('approved', 'edited') AND {_citing(slug)} ORDER BY id", args)]
+        terms = [r[0] for r in conn.execute(
+            "SELECT term FROM glossary_terms WHERE source_slug = %(slug)s ORDER BY lower(term)", args)]
+        if answer_ids or terms:
+            raise PageInUse(answer_ids, terms)
+        # ponytail: a draft still being written when the page goes can cite it unflagged; check slugs at read time if seen
+        conn.execute("UPDATE answers SET flags = flags || jsonb_build_object('source_removed', true)"
+                     f" WHERE status = 'pending_review' AND {_citing(slug)}", args)
+        conn.execute("DELETE FROM documents WHERE slug = %s AND kind = 'web'", (slug,))
+        conn.execute("DELETE FROM ingest_jobs WHERE document_slug = %s", (slug,))
+    return "web"
 
 
 def law_tree(conn: psycopg.Connection, document_id: int) -> list[dict]:
