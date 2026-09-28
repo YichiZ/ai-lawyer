@@ -116,6 +116,15 @@ def test_prompt_says_indexed_amounts_are_not_current():
     assert "Never calculate a current amount" in prompt
 
 
+def test_prompt_keeps_indexation_to_the_provisions_scope():
+    """#32: an indexing provision limited to an optional benefit or to 1994-1996 accidents must keep that condition."""
+    llm = FakeLLM([{"in_scope": True, "answer": "x", "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
+    run_ask("Are accident benefits indexed?", [hit("c1", 0.2)], llm)
+    prompt = " ".join(llm.prompts[0].split())
+    assert "with every condition it sets" in prompt
+    assert "Never extend an indexing provision to amounts or accidents it does not cover" in prompt
+
+
 def test_prompt_keeps_each_claim_within_its_quote():
     """#43: a claim that adds a detail from another provision (the 7-day insurer notice) is unfaithful to its quote."""
     llm = FakeLLM([{"in_scope": True, "answer": "x", "claims": [claim("a proceeding shall not be commenced in respect of a claim")]}])
