@@ -41,7 +41,7 @@ export default function AddToLibrary({ url }: { url: string }) {
         {job?.status === "done" && job.document_slug && (
           <>
             {" — "}
-            <Link href={`/laws/${job.document_slug}`}>open</Link>
+            <Link href={`/laws/${job.document_slug}`} className="underline">open</Link>
           </>
         )}
         {job?.status === "dead" && job.error && ` — ${job.error}`}

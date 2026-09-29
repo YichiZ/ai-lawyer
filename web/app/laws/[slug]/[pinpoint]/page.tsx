@@ -111,7 +111,7 @@ export default async function SectionPage({ params }: Props) {
           <ul className="mt-2 space-y-1 text-sm">
             {s.cited_by.decisions.map((d) => (
               <li key={d.citation}>
-                <Link href={d.url}><cite className="italic">{d.title}</cite>, {d.citation}</Link>
+                <Link href={d.url} className="underline"><cite className="italic">{d.title}</cite>, {d.citation}</Link>
                 <span className="text-muted"> — {d.pinpoints.join(", ")}</span>
               </li>
             ))}

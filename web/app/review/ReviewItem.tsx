@@ -30,7 +30,7 @@ export default function ReviewItem({ item }: { item: QueueItem }) {
           {item.trace_url && (
             <>
               {" · "}
-              <a href={item.trace_url} target="_blank" rel="noreferrer">View trace</a>
+              <a href={item.trace_url} target="_blank" rel="noreferrer" className="underline">View trace</a>
             </>
           )}
         </span>

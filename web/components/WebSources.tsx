@@ -10,7 +10,7 @@ export default function WebSources<T extends WebSource>({ sources, extra }: { so
       <ul className="mt-1 space-y-2">
         {sources.map((w) => (
           <li key={w.url}>
-            <a href={w.url} target="_blank" rel="noopener noreferrer">
+            <a href={w.url} target="_blank" rel="noopener noreferrer" className="underline">
               {w.title || w.domain}
               <span className="sr-only"> (opens in a new tab)</span>
             </a>{" "}

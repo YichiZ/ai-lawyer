@@ -3,6 +3,11 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · Web-source links are underlined and covered by the axe scan (#80)
+
+- **Problem:** the web-source link in `WebSources` (review queue, released web answers) was told apart from the text around it only by colour (axe `link-in-text-block`, WCAG 1.4.1). `a11y.spec.ts` missed it because the CI fixture queue has no web answer.
+- **What:** `WebSources` links get `underline` (the treatment `globals.css` gives `p a`, `dd a`, …). Same fix for the other links that sit beside text outside those selectors: the trace link in `ReviewItem`, the "open" link in `AddToLibrary`'s status, and the cited-by decisions on a section page. `SourceList`, `CitationChips`, `Markdown`, guides and cases were fine (links alone in their block, inside `<p>`, or none).
+- **Tests:** Playwright `web-fallback.spec.ts` runs axe (a11y.spec tags) on the whole `/review` page with the web item queued and on the released `/answers/[id]`, in light and dark; it failed before the fix (`link-in-text-block` on `a[target="_blank"]`). The dark pass first failed `color-contrast` on header links: `emulateMedia` flips the scheme on a loaded page and axe sampled the 150 ms colour transition, so the helper waits for `document.getAnimations()` to finish. e2e 45 passed on a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
 ## 2026-09-28 · Fix · The ask form keeps the question after an error (#72)
 
 - **Problem:** React 19 resets a `<form action={fn}>` after the action runs, even when it returns an error, so the Ask form's textarea emptied after "question too short" / API unavailable and the researcher lost what they typed. `AddToLibrary`'s scope checkbox unchecked the same way.
