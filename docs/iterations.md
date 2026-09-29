@@ -3,6 +3,13 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · Length limits count the text without its padding (#59)
+
+- **Problem:** `/ask`, `/ask/web`, `/search` and `/suggest` checked min/max length on the raw value and stripped it afterwards, so `"     hi      "` stored a 2-character question and `q=%20%20` searched an empty string.
+- **What:** `app/main.py` `Stripped = StringConstraints(strip_whitespace=True)` on `AskRequest.question` and both `q` query params: pydantic strips before the length checks, so the #15 messages are unchanged ("Question must be at least 5 characters."). The handlers' own `.strip()` calls are gone. A padded query that is ≤ 500 characters once stripped is allowed.
+- **Tests:** API, one per endpoint (padded input → 422 with the readable message, no answer stored, no model call) + a padded 500-character search passes; all failed before the fix. pytest 617 passed (ADC hidden). Validate: the issue's curls against a fake-AI API → 422 on all four.
+
+
 ## 2026-09-28 · Fix · A web page that released answers cite can't be removed (#64)
 
 - **Problem:** `DELETE /laws/{slug}` deleted a web page without checking references. Answers keep sources/claims as JSON (`flags.sources[].slug`, `claims[].source.slug`), not foreign keys, so approved answer 390 kept a link to `/laws/web-…/sec-8` that 404'd.
