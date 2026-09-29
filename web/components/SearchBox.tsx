@@ -87,6 +87,7 @@ export default function SearchBox() {
         aria-autocomplete="list"
         aria-activedescendant={expanded && active >= 0 ? `${listId}-${active}` : undefined}
         autoComplete="off"
+        maxLength={500}
         placeholder="Search, or type s. 4 or 2024 ONCA 123  ( / )"
         value={q}
         onChange={(e) => setQ(e.target.value)}

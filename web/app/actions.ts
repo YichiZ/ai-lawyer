@@ -78,7 +78,8 @@ export async function rerankedSearchAction(q: string): Promise<SearchGroup[] | n
   const query = q.trim();
   if (query.length < 2 || query.length > 500) return null;
   try {
-    return (await search(query, true)).groups;
+    const res = await search(query, true);
+    return res.error ? null : res.groups;
   } catch {
     return null; // the fused results are already on screen; keep them
   }
