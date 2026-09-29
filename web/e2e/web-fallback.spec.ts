@@ -1,6 +1,19 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+// Same tags as a11y.spec.ts, in both colour schemes: the CI fixture has no web answer, so this spec covers it (#80).
+async function expectNoAxeViolations(page: Page) {
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    // Links fade colour over 150 ms (globals.css): scan once the switch has settled, not mid-transition.
+    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+    const summary = results.violations.map((v) => `${colorScheme} ${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`);
+    expect(summary, summary.join("\n")).toEqual([]);
+  }
+  await page.emulateMedia({ colorScheme: null });
+}
+
 async function switchRole(page: Page, role: "researcher" | "reviewer") {
   const button = page.getByRole("group", { name: /Demo role/ }).getByRole("button", { name: role });
   await button.click();
@@ -26,9 +39,7 @@ test("no library match → opt-in web search → labelled answer flagged for rev
   const flags = item.getByRole("list", { name: "Risk flags" });
   await expect(flags.getByRole("listitem").filter({ hasText: "From a web search, not our library" })).toBeVisible();
   await expect(flags).not.toContainText("web_fallback"); // #65: labels, never raw keys
-  const axe = await new AxeBuilder({ page }).include('[aria-label="Risk flags"]')
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  await expectNoAxeViolations(page); // the whole queue, with this web item and its sources in it
 
   // Official sources can be added to the library (queued for the ingest worker).
   const source = item.getByRole("region", { name: "Web sources" }).getByRole("listitem").filter({ hasText: "ontario.ca" });
@@ -50,6 +61,5 @@ test("no library match → opt-in web search → labelled answer flagged for rev
   await expect(link).toHaveAttribute("target", "_blank");
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   await expect(page.getByRole("main")).not.toContainText("](");
-  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-  expect(results.violations.map((v) => v.id)).toEqual([]);
+  await expectNoAxeViolations(page);
 });
