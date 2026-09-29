@@ -13,7 +13,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Header, Path, Query, Requ
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 from starlette.exceptions import HTTPException
 
 from app import ask, cases, guides, jobs, laws, review, search, tracing, web_fallback
@@ -96,6 +96,7 @@ def require_reviewer(user: User) -> dict:
 Reviewer = Annotated[dict, Depends(require_reviewer)]
 Slug = Annotated[str, Path(pattern=SLUG, max_length=120)]  # web page slugs are capped at 120 (ingest/web.py)
 Pinpoint = Annotated[str, Path(pattern=SLUG, max_length=100)]
+Stripped = StringConstraints(strip_whitespace=True)  # length limits count the text without padding (#59)
 
 
 def envelope(data=None, error=None, meta=None, status=200) -> JSONResponse:
@@ -200,13 +201,13 @@ def get_section(slug: Slug, pinpoint: Pinpoint, conn: Conn):
 
 
 class AskRequest(BaseModel):
-    question: str = Field(min_length=5, max_length=1000)
+    question: Annotated[str, Stripped] = Field(min_length=5, max_length=1000)
 
 
 @app.post("/ask")
 def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: BackgroundTasks, connect: Connect):
     """Sources right away; the draft is written in the background, stored pending_review, never returned here."""
-    question = body.question.strip()
+    question = body.question
     with tracing.observe("ask", input={"question": question}, metadata={"role": user["role"]}) as root:
         t0 = time.perf_counter()
         with tracing.observe("embed_query"):
@@ -236,7 +237,7 @@ def post_ask(body: AskRequest, conn: Conn, ai: AI, user: User, background: Backg
 @app.post("/ask/web")
 def post_ask_web(body: AskRequest, conn: Conn, ai: AI, user: User, background: BackgroundTasks, connect: Connect):
     """Opt-in web fallback: a labelled draft from Google Search grounding, reviewed like any answer."""
-    question = body.question.strip()
+    question = body.question
     with tracing.observe("ask_web", input={"question": question}) as root:
         answer_id = ask.create_pending(conn, question, user["id"], [], {"sources": 0}, tracing.current_trace_id())
         conn.execute("UPDATE answers SET flags = flags || '{\"web_fallback\": true}'::jsonb WHERE id = %s", (answer_id,))
@@ -348,9 +349,9 @@ def get_answer(answer_id: int, conn: Conn, user: User):
 
 
 @app.get("/suggest")
-def get_suggest(q: Annotated[str, Query(min_length=2, max_length=200)], conn: Conn):
+def get_suggest(q: Annotated[str, Stripped, Query(min_length=2, max_length=200)], conn: Conn):
     """Typeahead: citations jump to a section; otherwise law titles and section headings (pg_trgm)."""
-    return envelope(search.suggest(conn, q.strip()))
+    return envelope(search.suggest(conn, q))
 
 
 # ponytail: per-process LRU, so the page's fast /search and its follow-up ?rerank=true embed the query once; a shared
@@ -361,11 +362,10 @@ def search_vector(ai, q: str) -> tuple[float, ...]:
 
 
 @app.get("/search")
-def get_search(q: Annotated[str, Query(min_length=2, max_length=500)], conn: Conn, ai: AI, rerank: bool = False):
+def get_search(q: Annotated[str, Stripped, Query(min_length=2, max_length=500)], conn: Conn, ai: AI, rerank: bool = False):
     """Hybrid retrieval grouped by law, in fused order (fast). `rerank=true` returns the same hits in the Flash-Lite
     reranked order (fused order if the rerank fails or passes its deadline); the page fetches it after showing the
     fast results (#41). Question-shaped queries get meta.ask_this so the UI can offer 'Ask this'."""
-    q = q.strip()
     reranker = getattr(ai, "rerank", None) if rerank else None
     hits = search.search_hits(conn, q, list(search_vector(ai, q)), rerank=reranker)
     groups = search.group_by_law(hits)

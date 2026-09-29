@@ -17,7 +17,15 @@ export default async function SearchPage({ searchParams }: Props) {
       </div>
     );
   }
-  const { groups, askThis } = await search(q);
+  const { groups, askThis, error } = await search(q);
+  if (error) {
+    return (
+      <div>
+        <h1 className="font-serif text-3xl font-semibold">Search</h1>
+        <p role="alert" className="mt-3 text-accent">{error}</p>
+      </div>
+    );
+  }
   return (
     <div className="max-w-3xl">
       <h1 className="font-serif text-3xl font-semibold">Results for “{q}”</h1>
