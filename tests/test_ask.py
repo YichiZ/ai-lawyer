@@ -423,6 +423,19 @@ def test_prompt_asks_for_short_excerpt_only_quotes_and_retries_after_a_long_one(
     assert _sentences(0, 10) not in result.draft_markdown
 
 
+def test_excerpt_only_passages_are_marked_and_long_rules_are_quoted_element_by_element():
+    """#68: a rule longer than the cap is split into elements (one short quote each); only by-law passages say so."""
+    llm = FakeLLM([{"in_scope": True, "answer": "x", "claims": [claim(_sentences(0, 1), "b1")]}])
+    run_ask("Who keeps sidewalks clear?", [Retrieved("b1", BYLAW, 0.1, BYLAW_SRC), hit("c1", 0.2)], llm)
+    prompt = llm.prompts[0]
+    marker = "(excerpt-only: quote ≤ 300 characters in total per section)"
+    assert f"[b1] {BYLAW_SRC['citation']['reference']} {marker}\n" in prompt
+    assert "[c1] *T*, R\n" in prompt and prompt.count(marker) == 2  # the statute passage is unmarked; + the rule
+    flat = " ".join(prompt.split())
+    assert "break it into its elements" in flat and "one claim per element" in flat
+    assert "the full text is on the City's website" in flat
+
+
 def test_only_the_first_hit_of_an_excerpt_only_section_keeps_its_snippet():
     from app.ask import one_snippet_per_excerpt_section
 

@@ -59,6 +59,8 @@ CLAIMS_SCHEMA = {
     "required": ["in_scope", "advice_seeking", "answer", "claims"],
 }
 
+EXCERPT_MARKER = f"(excerpt-only: quote ≤ {EXCERPT_CHARS} characters in total per section)"
+
 PROMPT = """You are a research assistant for paralegals and law students studying Ontario personal-injury law.
 Answer the research question using ONLY the numbered passages below. They are from Ontario statutes, regulations and
 Toronto by-laws.
@@ -86,10 +88,21 @@ Rules:
 - "claims": each claim is one statement from your answer, the id of the passage that supports it (e.g. "c12"), and a
   quote copied EXACTLY, word for word, from that passage (one sentence or clause, at least a few words).
   Never paraphrase inside a quote. Use only passage ids listed below.
-- Toronto Municipal Code passages are excerpt-only (City copyright): all quotes from one Municipal Code section
-  together may be at most {excerpt_chars} characters, so quote only the clause that states each rule (the duty, the
-  deadline, the exception), not whole sentences; longer quotes are dropped. In "answer", state their rules in your
-  own words; do not copy their wording.
+- Toronto Municipal Code passages are excerpt-only (City copyright) and marked {excerpt_marker}: all quotes from one
+  Municipal Code section together may be at most {excerpt_chars} characters, so quote only the clause that states
+  each rule (the duty, the deadline, the exception), not whole sentences; longer quotes are dropped. When a rule
+  takes more than that to quote, break it into its elements and make one claim per element, listed in this order:
+  first what must or must not be done (quote from the verb, e.g. "shall ..."), then who it applies to, then where or
+  when and any exception. Quotes past the {excerpt_chars} characters are dropped in list order, so the duty comes
+  first. Use at most three such claims per section, each quoting only the shortest complete phrase (about 100
+  characters; never stop a quote in the middle of a list) that states its element. Choose the quote first, then
+  write the claim from that quote alone, as if you had not read the rest of the section: no party, place, list item,
+  example or purpose from outside its quote. E.g. for "Every owner of a building ... shall remove graffiti from the
+  building within 7 days ...": "The section requires removing graffiti from the building within 7 days" quoting
+  "shall remove graffiti from the building within 7 days", and "It applies to every owner of a building" quoting
+  "Every owner of a building". Leave out elements that do not fit in the {excerpt_chars} characters. The answer,
+  too, states only what these quotes say, nothing from the unquoted rest of the section, and says the full text is
+  on the City's website. In "answer", state their rules in your own words; do not copy their wording.
 - Each claim restates only what its own quote says, read on its own. Every detail in the answer and in each claim
   (a number, period, deadline, party, category, condition or exception) must appear in the quote of the claim that
   states it. A detail that is only in another provision or passage needs its own claim quoting it; if you cannot
@@ -112,7 +125,7 @@ Question: {question}
 
 Passages:
 {passages}
-""".replace("{excerpt_chars}", str(EXCERPT_CHARS))
+""".replace("{excerpt_marker}", EXCERPT_MARKER).replace("{excerpt_chars}", str(EXCERPT_CHARS))
 
 
 @dataclass
@@ -236,9 +249,11 @@ def _cite(source: dict) -> str:
     return f"*{c['title']}*, {c['reference']}" if c["title"] else c["reference"]
 
 
-def _referred(h: "Retrieved") -> str:
+def _label(h: "Retrieved") -> str:
+    """What the model must know about a passage beyond its citation: the passage that refers to it, the excerpt cap."""
     by = h.source.get("referenced_by")
-    return f" (referred to by [{by}])" if by else ""
+    return (f" (referred to by [{by}])" if by else "") + (
+        f" {EXCERPT_MARKER}" if h.source.get("reproduction") == "excerpt" else "")
 
 
 def compose_draft(answer: str, claims: list[dict]) -> str:
@@ -280,9 +295,9 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
 
     chunks = {h.chunk_id: h.text for h in hits}
     sources = {h.chunk_id: h.source for h in hits}
-    passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_referred(h)}\n{h.text}" for h in hits)
+    passages = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_label(h)}\n{h.text}" for h in hits)
     # Langfuse Cloud is external: traces get excerpt-only passages cut to an excerpt (the model reads them whole)
-    traced = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_referred(h)}\n"
+    traced = "\n\n".join(f"[{h.chunk_id}] {_cite(h.source)}{_label(h)}\n"
                            f"{excerpt(h.text) if h.source.get('reproduction') == 'excerpt' else h.text}" for h in hits)
     all_dropped, feedback, advice, first = [], "", False, None
     for attempt in range(2):
@@ -318,7 +333,8 @@ def run_ask(question: str, hits: list[Retrieved], generate: Generate, refine: Re
         if too_long:
             feedback = (f"\nYour previous answer used too much Toronto Municipal Code text. Quote at most "
                         f"{EXCERPT_CHARS} characters in all from each Municipal Code section: quote only the few words "
-                        "that state each rule, and state its rules in your own words.\n")
+                        "that state each rule; split a long rule into its elements, one short quote each, and leave out what "
+                        "does not fit. State its rules in your own words.\n")
         else:
             feedback = ("\nYour previous quotes were not exact copies of the passages. Copy each quote character for "
                         "character from the passage you cite.\n")
