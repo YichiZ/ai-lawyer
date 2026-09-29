@@ -1,11 +1,13 @@
+import inspect
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.ask import AskResult, Retrieved, store_answer
 from app.main import app, get_conn
-from app.review import risk_reasons
+from app.review import REFUSAL_STATUSES, RISK_LABELS, risk_reasons
 
 RESEARCHER = {"X-Demo-User": "researcher"}
 REVIEWER = {"X-Demo-User": "reviewer"}
@@ -57,7 +59,7 @@ def test_queue_puts_risky_drafts_first(client, conn):
     assert item["draft_markdown"].startswith("Two years.")
     assert item["claims"][0]["source"]["display"] == "s. 4"
     assert item["dropped_claims"][0]["reason"] == "quote_not_in_chunk"
-    assert "dropped_claims" in item["risk"]
+    assert {"key": "dropped_claims", "label": "Claims dropped by quote check"} in item["risk"]
 
 
 def test_queue_puts_guide_sections_after_risky_before_other_calm_drafts(client, conn):
@@ -234,7 +236,7 @@ def test_secondary_statute_is_stored_and_flagged_first(client, conn):
     assert flags["secondary_statute"] == ["Municipal Act, 2001"]
     assert risk_reasons(flags)[0] == "secondary_statute"
     [item] = [i for i in client.get("/review/queue", headers=REVIEWER).json()["data"] if i["id"] == answer_id]
-    assert "secondary_statute" in item["risk"]
+    assert "secondary_statute" in [r["key"] for r in item["risk"]]
     assert "secondary_statute" not in risk_reasons({"status": "drafted", "secondary_statute": []})
 
 
@@ -250,7 +252,8 @@ def test_advice_seeking_is_stored_and_flagged_after_secondary_statute(client, co
     items = client.get("/review/queue", headers=REVIEWER).json()["data"]
     order = [i["id"] for i in items]
     assert order.index(answer_id) < order.index(calm)
-    assert next(i for i in items if i["id"] == answer_id)["risk"] == ["advice_seeking"]
+    assert next(i for i in items if i["id"] == answer_id)["risk"] == [
+        {"key": "advice_seeking", "label": "Asks for advice on their own facts"}]
     assert risk_reasons({"status": "drafted", "advice_seeking": False}) == []
 
 
@@ -322,3 +325,12 @@ def test_recent_lists_only_released_answers_newest_reviewed_first(client, conn):
 @pytest.mark.parametrize("limit", ["0", "11", "x"])
 def test_recent_limit_is_bounded(client, limit):
     assert client.get(f"/answers?limit={limit}").status_code == 422
+
+
+def test_every_risk_key_has_a_label():
+    """#65: the queue showed raw keys for flags without a label. Every key risk_reasons can emit needs one."""
+    src = inspect.getsource(risk_reasons)
+    literal = re.findall(r'reasons\.append\("(\w+)"\)', src)
+    assert src.count("reasons.append(") == len(literal) + 1  # the one non-literal append is a refusal status
+    assert set(literal) | set(REFUSAL_STATUSES) == set(RISK_LABELS)
+    assert all(label.strip() for label in RISK_LABELS.values())

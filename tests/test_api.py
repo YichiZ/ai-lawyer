@@ -167,6 +167,27 @@ def test_ask_validates_question(ask_client, body, message):
 
 
 @pytest.mark.parametrize("method, path, kwargs, message", [
+    ("post", "/ask", {"json": {"question": "     hi      "}}, "Question must be at least 5 characters."),
+    ("post", "/ask/web", {"json": {"question": "     hi      "}}, "Question must be at least 5 characters."),
+    ("get", "/search", {"params": {"q": "  "}}, "Search text must be at least 2 characters."),
+    ("get", "/suggest", {"params": {"q": "a  "}}, "Search text must be at least 2 characters."),
+])
+def test_length_limits_apply_after_stripping(ask_client, conn, method, path, kwargs, message):
+    """#59: whitespace padding must not satisfy a min length."""
+    client, fake = ask_client
+    before = conn.execute("SELECT count(*) FROM answers").fetchone()[0]
+    r = getattr(client, method)(path, **kwargs)
+    assert r.status_code == 422 and r.json()["error"] == {"code": "invalid_request", "message": message}
+    assert conn.execute("SELECT count(*) FROM answers").fetchone()[0] == before and fake.prompts == []
+
+
+def test_padded_search_counts_stripped_length(ask_client):
+    client, _ = ask_client
+    r = client.get("/search", params={"q": "  " + "a" * 500 + "  "})  # 500 after stripping: allowed
+    assert r.status_code == 200, r.text
+
+
+@pytest.mark.parametrize("method, path, kwargs, message", [
     ("get", "/search", {"params": {"q": "a"}}, "Search text must be at least 2 characters."),
     ("get", "/laws/Test_Act", {}, "Slug contains characters that are not allowed."),
     ("get", "/answers/abc", {}, "Answer ID must be a whole number."),
@@ -227,7 +248,7 @@ def test_failed_draft_is_flagged_for_the_reviewer(ask_client, conn):
     status, draft, flags = conn.execute("SELECT status, draft_markdown, flags FROM answers WHERE id = %s", (aid,)).fetchone()
     assert status == "pending_review" and flags["status"] == "failed" and "could not be drafted" in draft
     queue = client.get("/review/queue", headers={"X-Demo-User": "reviewer"}).json()["data"]
-    assert "failed" in next(i for i in queue if i["id"] == aid)["risk"]
+    assert {"key": "failed", "label": "Draft failed. Reject or re-ask."} in next(i for i in queue if i["id"] == aid)["risk"]
 
 
 def test_answer_still_drafting_cannot_be_reviewed_and_is_not_queued(client, conn):
@@ -247,7 +268,7 @@ def test_draft_lost_to_a_restart_is_flagged_failed_and_queued(client, conn):
     conn.execute("UPDATE answers SET created_at = now() - interval '1 hour' WHERE id = %s", (lost,))
     queue = client.get("/review/queue", headers={"X-Demo-User": "reviewer"}).json()["data"]
     item = next(i for i in queue if i["id"] == lost)
-    assert item["draft_status"] == "failed" and "failed" in item["risk"] and "could not be drafted" in item["draft_markdown"]
+    assert item["draft_status"] == "failed" and "failed" in [r["key"] for r in item["risk"]] and "could not be drafted" in item["draft_markdown"]
     assert all(i["id"] != fresh for i in queue)
     r = client.post(f"/answers/{lost}/review", headers={"X-Demo-User": "reviewer"},
                     json={"decision": "reject", "reason": "out_of_scope"})
@@ -300,7 +321,8 @@ def test_web_fallback_creates_a_flagged_answer_for_review(ask_client, conn):
     assert draft.startswith("**From the web, not our law library.**") and flags["web_fallback"] is True
     assert flags["status"] == "web" and flags["web_sources"][0]["domain"] == "ontario.ca"
     queue = client.get("/review/queue", headers={"X-Demo-User": "reviewer"}).json()["data"]
-    assert "web_fallback" in next(i for i in queue if i["id"] == aid)["risk"]
+    assert {"key": "web_fallback", "label": "From a web search, not our library"} in next(
+        i for i in queue if i["id"] == aid)["risk"]
 
 
 def test_web_fallback_without_sources_is_not_found(ask_client, conn):
@@ -432,7 +454,7 @@ def test_delete_web_page_flags_pending_answers_citing_it(client, web_page, conn)
     other = _answer(conn, "pending_review", flags={"sources": [{"slug": "test-act"}]})
     _answer(conn, "rejected", flags={"sources": [{"slug": web_page}]})  # never released: doesn't block
     assert client.delete(f"/laws/{web_page}", headers=REVIEWER).status_code == 200
-    risks = {i["id"]: i["risk"] for i in client.get("/review/queue", headers=REVIEWER).json()["data"]}
+    risks = {i["id"]: [r["key"] for r in i["risk"]] for i in client.get("/review/queue", headers=REVIEWER).json()["data"]}
     assert "source_removed" in risks[pending] and "source_removed" not in risks[other]
 
 

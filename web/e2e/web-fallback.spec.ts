@@ -23,7 +23,12 @@ test("no library match → opt-in web search → labelled answer flagged for rev
   await page.goto("/review");
   const item = page.getByRole("article").filter({ hasText: question }).filter({ hasText: "From the web" });
   await expect(item).toBeVisible();
-  await expect(item.getByRole("list", { name: "Risk flags" })).toContainText("web_fallback");
+  const flags = item.getByRole("list", { name: "Risk flags" });
+  await expect(flags.getByRole("listitem").filter({ hasText: "From a web search, not our library" })).toBeVisible();
+  await expect(flags).not.toContainText("web_fallback"); // #65: labels, never raw keys
+  const axe = await new AxeBuilder({ page }).include('[aria-label="Risk flags"]')
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
 
   // Official sources can be added to the library (queued for the ingest worker).
   const source = item.getByRole("region", { name: "Web sources" }).getByRole("listitem").filter({ hasText: "ontario.ca" });

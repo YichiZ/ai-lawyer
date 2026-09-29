@@ -73,7 +73,9 @@ export class ApiError extends Error {
 
 export type Role = "researcher" | "reviewer";
 
-async function requestEnvelope<T>(path: string, init: RequestInit = {}, role?: Role): Promise<Envelope<T> | null> {
+// A GET 422 means a bad slug or id, i.e. not found (null); pass `missingOn422 = false` where it means bad input (#58).
+async function requestEnvelope<T>(path: string, init: RequestInit = {}, role?: Role,
+                                  missingOn422 = !init.method): Promise<Envelope<T> | null> {
   let res: Response;
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (role) headers["X-Demo-User"] = role;
@@ -83,7 +85,7 @@ async function requestEnvelope<T>(path: string, init: RequestInit = {}, role?: R
     console.error(`API unreachable at ${API_URL}${path}`, err);
     throw new ApiError(503, "The law library is unavailable right now.");
   }
-  if (res.status === 404 || (res.status === 422 && !init.method)) return null;
+  if (res.status === 404 || (res.status === 422 && missingOn422)) return null;
   const body = (await res.json()) as Envelope<T>;
   if (!res.ok || body.error) {
     console.error(`API error ${res.status} on ${path}`, body.error);
@@ -152,8 +154,13 @@ export interface Answer {
   draft_markdown?: string;
   draft_claims?: Claim[];
   review_note?: string;
-  risk?: string[];
+  risk?: RiskFlag[];
   dropped_claims?: Claim[];
+}
+
+export interface RiskFlag {
+  key: string;
+  label: string; // from the API (app/review.py RISK_LABELS), #65
 }
 
 export interface QueueItem {
@@ -163,7 +170,7 @@ export interface QueueItem {
   claims: Claim[];
   created_at: string;
   asked_by: string | null;
-  risk: string[];
+  risk: RiskFlag[];
   draft_status: string;
   dropped_claims: Claim[];
   sources: Source[];
@@ -256,10 +263,17 @@ export const listRecentAnswers = (limit = 5) =>
 export const suggest = (q: string) => get<Suggestion[]>(`/suggest?q=${encodeURIComponent(q)}`);
 
 // Fused order (fast); `rerank` asks for the same hits in the reranked order, which takes ~1.5 s (#41).
-export async function search(q: string, rerank = false): Promise<{ groups: SearchGroup[]; askThis: boolean }> {
+// A 422 (e.g. over 500 characters) comes back as `error`, the API's message, for the page to show (#58).
+export async function search(q: string, rerank = false):
+    Promise<{ groups: SearchGroup[]; askThis: boolean; error?: string }> {
   const path = `/search?q=${encodeURIComponent(q)}${rerank ? "&rerank=true" : ""}`;
-  const body = await requestEnvelope<SearchGroup[]>(path);  // 422 (bad query) -> null
-  return { groups: body?.data ?? [], askThis: Boolean(body?.meta?.ask_this) };
+  try {
+    const body = await requestEnvelope<SearchGroup[]>(path, {}, undefined, false);
+    return { groups: body?.data ?? [], askThis: Boolean(body?.meta?.ask_this) };
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 422) return { groups: [], askThis: false, error: err.message };
+    throw err;
+  }
 }
 
 export const REJECT_REASONS: Record<string, string> = {
