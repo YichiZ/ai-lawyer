@@ -154,8 +154,13 @@ export interface Answer {
   draft_markdown?: string;
   draft_claims?: Claim[];
   review_note?: string;
-  risk?: string[];
+  risk?: RiskFlag[];
   dropped_claims?: Claim[];
+}
+
+export interface RiskFlag {
+  key: string;
+  label: string; // from the API (app/review.py RISK_LABELS), #65
 }
 
 export interface QueueItem {
@@ -165,7 +170,7 @@ export interface QueueItem {
   claims: Claim[];
   created_at: string;
   asked_by: string | null;
-  risk: string[];
+  risk: RiskFlag[];
   draft_status: string;
   dropped_claims: Claim[];
   sources: Source[];

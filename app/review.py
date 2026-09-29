@@ -19,6 +19,26 @@ CANDIDATES_PATH = Path(os.environ.get("GOLD_CANDIDATES_PATH",
                                       Path(__file__).resolve().parent.parent / "evals" / "gold_candidates.jsonl"))
 
 
+# The reviewer-facing label of every key risk_reasons emits; the API sends both, so the UI can't drift (#65).
+RISK_LABELS = {
+    "excerpt_overflow": "Copies too much by-law text: edit before approving",
+    "secondary_statute": "Statute only quoted in a decision",
+    "source_removed": "Cites a web page removed from the library",
+    "advice_seeking": "Asks for advice on their own facts",
+    "not_found": "Not found in our laws",
+    "out_of_scope": "Out of scope",
+    "unverified": "No verified claims",
+    "dropped_claims": "Claims dropped by quote check",
+    "retried": "Needed a retry",
+    "failed": "Draft failed. Reject or re-ask.",
+    "web_fallback": "From a web search, not our library",
+}
+
+
+def labelled_risks(flags: dict) -> list[dict]:
+    return [{"key": k, "label": RISK_LABELS[k]} for k in risk_reasons(flags)]
+
+
 def risk_reasons(flags: dict) -> list[str]:
     reasons = []
     if flags.get("excerpt_overflow"):  # first: cannot be approved until the copied by-law text is shortened (#56)
@@ -54,7 +74,7 @@ def queue(conn: psycopg.Connection) -> list[dict]:
     items = []
     for r in rows:
         flags, trace_id = r.pop("flags"), r.pop("trace_id")
-        risk = risk_reasons(flags)
+        risk = labelled_risks(flags)
         if flags.get("web_fallback"):  # the edit form starts from this text, so an edit never re-saves the old list
             r["draft_markdown"] = strip_source_list(r["draft_markdown"])
         items.append({**r, "risk": risk, "draft_status": flags.get("status"),
@@ -133,7 +153,7 @@ def get_answer(conn: psycopg.Connection, answer_id: int, role: str) -> dict | No
         # "claims" stay the ones shown under the text (kept claims once released, #57); the draft's are draft_claims
         view |= {"draft_markdown": a["draft_markdown"], "claims": view.get("claims", a["claims"]),
                  "draft_claims": a["claims"], "review_note": a["review_note"],
-                 "risk": risk_reasons(a["flags"]), "dropped_claims": a["flags"].get("dropped_claims", [])}
+                 "risk": labelled_risks(a["flags"]), "dropped_claims": a["flags"].get("dropped_claims", [])}
     if view.get("claims"):
         view["sources"] = hide_quoted_snippets(view["sources"], view["claims"], excerpt_only_slugs(conn))
     return view

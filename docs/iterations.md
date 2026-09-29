@@ -3,6 +3,12 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-28 · Fix · Every review risk flag has a readable label (#65)
+
+- **Problem:** `risk_reasons` emits `failed` and `web_fallback`, but the labels lived in `ReviewItem.tsx` without them, so the queue showed the raw keys.
+- **What:** one source of truth: `app/review.py` `RISK_LABELS` (all 11 keys; new: "Draft failed. Reject or re-ask.", "From a web search, not our library"). The queue and the reviewer's answer view return `risk` as `[{key, label}]` (`labelled_risks`); `ReviewItem` renders `label` and its own map is gone. `risk_reasons` still returns keys (sorting, eval suite).
+- **Tests:** `test_every_risk_key_has_a_label` reads `risk_reasons`' source: every literal `reasons.append("…")` plus `REFUSAL_STATUSES` must equal `RISK_LABELS`' keys (and the only other append is the refusal status), so a new flag without a label fails. API asserts updated to `{key, label}` (failed, web_fallback, dropped_claims, advice_seeking). Playwright `web-fallback.spec.ts` now expects the label, not `web_fallback`, and runs axe on the risk flags (clean). pytest 613 passed (ADC hidden); e2e 43 passed on a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+- **Found:** axe on the whole `/review` page reports `link-in-text-block` on the web-source link in `WebSources` (pre-existing; not in `a11y.spec.ts` because the fixture queue has no web answer). Left for its own fix.
 ## 2026-09-28 · Fix · Over-long searches say they're too long (#58)
 
 - **Problem:** `web/lib/api.ts` turned every GET 422 into `null` (meant for bad slugs → 404), so a search over 500 characters rendered "No matching sections in the laws we cover.", telling a researcher the library had nothing.

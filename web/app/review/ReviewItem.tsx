@@ -7,18 +7,6 @@ import WebSources from "@/components/WebSources";
 import AddToLibrary from "./AddToLibrary";
 import { REJECT_REASONS, type QueueItem } from "@/lib/api";
 
-const RISK_LABELS: Record<string, string> = {
-  excerpt_overflow: "Copies too much by-law text: edit before approving",
-  secondary_statute: "Statute only quoted in a decision",
-  source_removed: "Cites a web page removed from the library",
-  advice_seeking: "Asks for advice on their own facts",
-  dropped_claims: "Claims dropped by quote check",
-  retried: "Needed a retry",
-  not_found: "Not found in our laws",
-  out_of_scope: "Out of scope",
-  unverified: "No verified claims",
-};
-
 export default function ReviewItem({ item }: { item: QueueItem }) {
   const [state, action, pending] = useActionState<FormState, FormData>(reviewAction.bind(null, item.id), {});
   const [decision, setDecision] = useState<"approve" | "edit" | "reject">("approve");
@@ -55,7 +43,7 @@ export default function ReviewItem({ item }: { item: QueueItem }) {
       {item.risk.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2" aria-label="Risk flags">
           {item.risk.map((r) => (
-            <li key={r} className="rounded-sm border border-accent px-2 py-0.5 text-sm text-accent">{RISK_LABELS[r] ?? r}</li>
+            <li key={r.key} className="rounded-sm border border-accent px-2 py-0.5 text-sm text-accent">{r.label}</li>
           ))}
         </ul>
       )}
