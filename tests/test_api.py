@@ -167,6 +167,27 @@ def test_ask_validates_question(ask_client, body, message):
 
 
 @pytest.mark.parametrize("method, path, kwargs, message", [
+    ("post", "/ask", {"json": {"question": "     hi      "}}, "Question must be at least 5 characters."),
+    ("post", "/ask/web", {"json": {"question": "     hi      "}}, "Question must be at least 5 characters."),
+    ("get", "/search", {"params": {"q": "  "}}, "Search text must be at least 2 characters."),
+    ("get", "/suggest", {"params": {"q": "a  "}}, "Search text must be at least 2 characters."),
+])
+def test_length_limits_apply_after_stripping(ask_client, conn, method, path, kwargs, message):
+    """#59: whitespace padding must not satisfy a min length."""
+    client, fake = ask_client
+    before = conn.execute("SELECT count(*) FROM answers").fetchone()[0]
+    r = getattr(client, method)(path, **kwargs)
+    assert r.status_code == 422 and r.json()["error"] == {"code": "invalid_request", "message": message}
+    assert conn.execute("SELECT count(*) FROM answers").fetchone()[0] == before and fake.prompts == []
+
+
+def test_padded_search_counts_stripped_length(ask_client):
+    client, _ = ask_client
+    r = client.get("/search", params={"q": "  " + "a" * 500 + "  "})  # 500 after stripping: allowed
+    assert r.status_code == 200, r.text
+
+
+@pytest.mark.parametrize("method, path, kwargs, message", [
     ("get", "/search", {"params": {"q": "a"}}, "Search text must be at least 2 characters."),
     ("get", "/laws/Test_Act", {}, "Slug contains characters that are not allowed."),
     ("get", "/answers/abc", {}, "Answer ID must be a whole number."),

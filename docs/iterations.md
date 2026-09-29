@@ -8,6 +8,11 @@ One entry per iteration, newest first. Format: date · milestone · what changed
 - **Problem:** `web/lib/api.ts` turned every GET 422 into `null` (meant for bad slugs → 404), so a search over 500 characters rendered "No matching sections in the laws we cover.", telling a researcher the library had nothing.
 - **What:** `requestEnvelope` takes `missingOn422` (default: GETs, as before); `search()` passes `false` and returns the API's 422 message as `error`, which `/search` shows as an alert ("Search text must be at most 500 characters.") instead of results. The header `SearchBox` has `maxLength={500}`; `rerankedSearchAction` returns `null` (keep what's shown) on an input error. The typeahead already skips queries over 200 characters (`suggestAction`), so it needs no change.
 - **Tests:** Playwright `search.spec.ts`: `/search?q=<501 × a>` shows the length alert, no "No matching sections", and the search box has `maxlength=500`. e2e 44 passed on a fresh `ai_lawyer_ci`; `tsc --noEmit` clean.
+## 2026-09-28 · Fix · Length limits count the text without its padding (#59)
+
+- **Problem:** `/ask`, `/ask/web`, `/search` and `/suggest` checked min/max length on the raw value and stripped it afterwards, so `"     hi      "` stored a 2-character question and `q=%20%20` searched an empty string.
+- **What:** `app/main.py` `Stripped = StringConstraints(strip_whitespace=True)` on `AskRequest.question` and both `q` query params: pydantic strips before the length checks, so the #15 messages are unchanged ("Question must be at least 5 characters."). The handlers' own `.strip()` calls are gone. A padded query that is ≤ 500 characters once stripped is allowed.
+- **Tests:** API, one per endpoint (padded input → 422 with the readable message, no answer stored, no model call) + a padded 500-character search passes; all failed before the fix. pytest 617 passed (ADC hidden). Validate: the issue's curls against a fake-AI API → 422 on all four.
 
 
 ## 2026-09-28 · Fix · A web page that released answers cite can't be removed (#64)
