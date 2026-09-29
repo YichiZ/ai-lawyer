@@ -1,12 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState, type FormEvent } from "react";
 import { askAction, type FormState } from "@/app/actions";
 
 export default function AskForm({ defaultQuestion = "" }: { defaultQuestion?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(askAction, {});
+
+  // #72: dispatch by hand, not via <form action>: React 19 resets the form after the action runs, which cleared the
+  // typed question when it came back with an error (same fix as ReviewItem, #70).
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    startTransition(() => action(form));
+  }
+
   return (
-    <form action={action} className="mt-6 max-w-2xl">
+    <form onSubmit={submit} className="mt-6 max-w-2xl">
       <label htmlFor="question" className="block font-semibold">
         Your research question
       </label>

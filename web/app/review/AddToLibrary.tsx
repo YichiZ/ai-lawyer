@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { startTransition, useActionState, type FormEvent } from "react";
 import { ingestAction, type IngestState } from "@/app/actions";
 
 const STATUS: Record<string, string> = {
@@ -15,8 +15,16 @@ export default function AddToLibrary({ url }: { url: string }) {
   const [state, action, pending] = useActionState<IngestState, FormData>(ingestAction.bind(null, url), {});
   const job = state.job;
   const finished = job?.status === "done" || job?.status === "dead";
+
+  // #72: onSubmit, not <form action>, so the scope checkbox stays checked when the action returns an error.
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    startTransition(() => action(form));
+  }
+
   return (
-    <form action={action} className="inline">
+    <form onSubmit={submit} className="inline">
       {!job && (
         <label className="mr-2 text-sm">
           <input type="checkbox" name="in_scope" required className="mr-1 align-middle" />
