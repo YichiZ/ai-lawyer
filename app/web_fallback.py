@@ -86,11 +86,12 @@ def search_web(question: str, client, model: str) -> tuple[str, list[dict]]:
     """(answer text, [{url, title, domain}]) from gemini + Google Search grounding (low thinking)."""
     from google.genai import types
 
-    r = client.models.generate_content(
-        model=model, contents=PROMPT.format(question=question),
-        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())],
-                                           thinking_config=types.ThinkingConfig(thinking_level="low")),
-    )
+    from ingest.vertex import call
+
+    config = types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())],
+                                         thinking_config=types.ThinkingConfig(thinking_level="low"))
+    r = call(client, lambda: client.models.generate_content(
+        model=model, contents=PROMPT.format(question=question), config=config))
     gm = r.candidates[0].grounding_metadata if r.candidates else None
     sources, seen = [], set()
     for ch in (gm.grounding_chunks or []) if gm else []:

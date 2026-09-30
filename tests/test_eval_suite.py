@@ -80,3 +80,43 @@ def test_secondary_counts_only_when_labelled_and_flagged():
     assert not abstention_acceptable("secondary", draft, {})
     assert abstention_acceptable("grounded", draft, {}) and abstention_acceptable("abstained", "", {})
     assert not abstention_acceptable("invented", labelled, flags)
+
+
+def test_pmap_records_failed_items_and_keeps_the_rest():
+    from scripts.eval_suite import pmap
+
+    def work(n):
+        if n == 2:
+            raise ConnectionResetError("reset")
+        return n * 10
+    failed = []
+    assert pmap(work, [1, 2, 3], failed) == [(1, 10), (3, 30)]
+    assert failed == [{"item": 2, "error": "ConnectionResetError('reset')"}]
+
+
+def test_suite_reports_failed_items_and_exits_nonzero(monkeypatch, tmp_path, capsys):
+    import json
+
+    import scripts.eval_suite as es
+    ok = {"metrics": {"jump_accuracy": 1.0, "hit@3": 1.0}, "items": [{"q": "a"}]}
+    partial = {**ok, "failed": [{"item": {"q": "b"}, "error": "ReadError('reset')"}]}
+
+    def broken(m):
+        raise RuntimeError("db down")
+    monkeypatch.setattr(es, "Models", lambda: None)
+    monkeypatch.setattr(es, "RUNS", tmp_path)
+    monkeypatch.setattr(es, "ROOT", tmp_path)
+    for result, code in ((dict(ok, failed=[]), 0), (partial, 1)):
+        monkeypatch.setattr(es, "EVALS", {"search": lambda m, r=result: r})
+        monkeypatch.setattr("sys.argv", ["eval_suite", "search"])
+        assert es.main() == code
+    out = capsys.readouterr().out
+    assert "[PASS] search" in out and "[FAIL] search" in out and "1 items failed (first: ReadError('reset'))" in out
+    saved = [json.loads(p.read_text()) for p in tmp_path.glob("*-suite-search.json")]
+    assert saved[-1]["failed"] == partial["failed"] and saved[-1]["items"] == [{"q": "a"}]  # partial results kept
+
+    monkeypatch.setattr(es, "EVALS", {"search": broken, "safety": lambda m: dict(ok, failed=[])})
+    monkeypatch.setattr("sys.argv", ["eval_suite", "search", "safety"])
+    assert es.main() == 1  # a broken eval is recorded; the next one still runs
+    out = capsys.readouterr().out
+    assert "RuntimeError('db down')" in out and "safety" in out
