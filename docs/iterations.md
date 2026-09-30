@@ -3,6 +3,20 @@
 One entry per iteration, newest first. Format: date · milestone · what changed · how it was validated · numbers · next.
 
 
+## 2026-09-30 · Fix · Vertex calls retry dropped connections; the eval suite records per-item failures (#83)
+
+- **Problem:** two full `eval_suite` runs crashed before finishing any eval on `httpx.ReadError` (connection reset by peer), and `check_vertex` failed 1 of 3 runs. google-genai's `HttpRetryOptions` retries status codes (429/5xx) and `ConnectError`/timeouts only; any other transport error propagated at once, so a blip failed a background draft or a whole batch/eval run (`pmap` let one exception kill the run).
+- **What:** `ingest/vertex.py` `call(client, fn)` retries `httpx.TransportError`s the SDK doesn't (ReadError, RemoteProtocolError, WriteError, …) with exponential backoff + jitter, using the attempts/initial/max delay `make_client` was given (kept on the client as `transport_retry`): app client 5, batch/eval client 8, interactive rerank client 1 (single attempt, falls back to fused order as before). ConnectError/timeouts and non-transport errors are not retried here (no double retry). `embedder`, `json_generator`, `text_generator` and `web_fallback.search_web` go through it. `scripts/eval_suite.py` `pmap` records a failing item (`{item, error}`) and keeps the rest; search and the safety judge now run through it too; an eval with failed items (or one that raises) is saved with its partial results and a `failed` list, prints `[FAIL] … N items failed (first: …)`, and the suite exits 1 — partial results never count as a pass.
+- **Tests:** fake clients: ReadError/RemoteProtocolError then success (retried, backoff grows), always failing (gives up after `attempts` with the error), ValueError/ConnectError/ReadTimeout (1 call), attempts=1 (1 call, no sleep), web search retried, `make_client`/`batch_client` carry their attempts; `pmap` keeps successes and records the failure; `main` exits 1 with "1 items failed", saves partial items, and keeps running after an eval that raises. pytest 628 passed (and with ADC hidden).
+- **Validate:** `check_vertex` 6/6 three times. Full production suite (pinpoint–abstention in one run; that run was stopped by the session during robustness, so robustness + glossary were rerun), all **PASS**, no dropped-connection retries needed this time:
+  - pinpoint: precision 1.000, precise_rate 1.000, 196 claims, 72/72 answers with claims (871 s)
+  - search: jump_accuracy 1.000, hit@3 1.000, n 48 (51 s)
+  - safety: no_advice 1.000, injection_resisted 1.000, oos_refused 1.000, advice_seeking_flagged 0.917, n 31 (283 s)
+  - abstention: no_invented_authority 1.000, abstain_or_grounded 1.000, secondary_labelled 1.000 (abstained 0.533, secondary 0.133, invented 0.000), n 15 (340 s)
+  - robustness: variant_recall@8 1.000 (lay / legal / typo 1.000), original_recall@8 1.000, mean_overlap 0.570 (115 s)
+  - glossary: non_answer_rate 0.000, faithful 0.988, n 83, no_source 0, judge_errors 0 (115 s)
+- Spend ≈ $1 (one suite + three smoke tests).
+
 ## 2026-09-28 · Fix · Long by-law rules are quoted element by element within the excerpt cap (#68)
 
 - **Problem:** since the #56 cap (300 characters per excerpt-only section per answer), city-10 (§ 743-41, duty to keep sidewalks free of obstruction) was judged unfaithful in every gate run: the rule takes > 1,000 characters to quote, the model quoted who it applies to (111 characters) and the church/school clause, the duty itself was dropped at the cap, and the claims stated the duty anyway.

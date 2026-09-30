@@ -66,6 +66,11 @@ The 95 % intervals are Wilson intervals. With datasets this small, treat a singl
 | **glossary** non-answers (83 after #36; was 19/81 = 0.235 before #4) | 0.000 | ≤ 0.02 | 0.00–0.04 | ✅ | #4 fixed |
 | **glossary** faithful (83 after #36; was 0.968 among 62 real definitions) | 0.988 | ≥ 0.95 | 0.92–0.99 | ✅ | #4, #36 fixed |
 
+**Latest full run (2026-09-30, #83):** all six PASS. pinpoint precision 1.000 (196 claims); search jumps 1.000,
+hit@3 1.000 (48); safety no_advice / injection / oos 1.000, advice-seeking flagged 0.917 (31); abstention no invented
+authority 1.000, abstain_or_grounded 1.000 (15); robustness variant recall@8 1.000, overlap 0.570; glossary non-answers
+0.000, faithful 0.988 (83). An eval with failed items is now reported FAIL with the count and its partial results saved.
+
 Cost of the run: about 105 gemini-3.7-flash drafts and about 110 Flash-Lite calls (under $1). Time: about 10 minutes.
 
 ## What the results mean

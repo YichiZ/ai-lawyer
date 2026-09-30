@@ -50,9 +50,18 @@ class Models:
         self.judge = json_generator(client, model=JUDGE_MODEL)
 
 
-def pmap(fn, items: list, workers: int = CONCURRENCY) -> list:
+def pmap(fn, items: list, failed: list, workers: int = CONCURRENCY) -> list[tuple]:
+    """[(item, fn(item))] for the items that succeeded; a failing item goes to `failed` with its error (#83),
+    so one exception doesn't lose the run. A run with failed items is reported as failed (see main)."""
+    def safe(item):
+        try:
+            return item, fn(item)
+        except Exception as e:  # recorded, not swallowed: main fails the eval and prints the count
+            failed.append({"item": item, "error": repr(e)})
+            return None
+
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        return list(pool.map(fn, items))
+        return [r for r in pool.map(safe, items) if r is not None]
 
 
 def answer(m: Models, question: str) -> dict:
@@ -73,10 +82,12 @@ def answer(m: Models, question: str) -> dict:
 
 def run_pinpoint(m: Models) -> dict:
     gold = [g for g in load_gold() if not g.get("must_refuse")]
-    outputs = pmap(lambda g: answer(m, g["question"]), gold)
+    failed = []
+    done = pmap(lambda g: answer(m, g["question"]), gold, failed)
+    outputs = [out for _, out in done]
     rows = []
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
-        for g, out in zip(gold, outputs):
+        for g, out in done:
             for c in out["claims"]:
                 row = conn.execute(
                     "SELECT s.id, s.text FROM sections s JOIN documents d ON d.id = s.document_id"
@@ -88,35 +99,39 @@ def run_pinpoint(m: Models) -> dict:
     metrics = {"claims": len(rows), "precision": rate([r["correct"] for r in rows]),
                "precise_rate": rate([r["precise"] for r in rows]),
                "answers_with_claims": sum(bool(o["claims"]) for o in outputs), "answers": len(outputs)}
-    return {"metrics": metrics, "items": rows}
+    return {"metrics": metrics, "items": rows, "failed": failed}
 
 
 # 2 --------------------------------------------------------------------------------------------------------------
 
 def run_search(m: Models) -> dict:
-    items, rows = load("search.jsonl"), []
+    items, failed = load("search.jsonl"), []
     with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
-        for it in items:
+        def work(it):
             if it["kind"] == "jump":
                 got = suggest(conn, it["query"])
-                rows.append({**it, "got": got[0]["url"] if got else None, "ok": score_jump(got, it["expected_url"])})
-            else:
-                groups = group_by_law(search_hits(conn, it["query"], m.embed(it["query"]), rerank=m.rerank))
-                rows.append({**it, "got": [g["slug"] for g in groups[:3]], "ok": score_hit(groups, it["expected_slug"])})
+                return {**it, "got": got[0]["url"] if got else None, "ok": score_jump(got, it["expected_url"])}
+            groups = group_by_law(search_hits(conn, it["query"], m.embed(it["query"]), rerank=m.rerank))
+            return {**it, "got": [g["slug"] for g in groups[:3]], "ok": score_hit(groups, it["expected_slug"])}
+        rows = [row for _, row in pmap(work, items, failed, workers=1)]  # one worker: the connection is shared
     metrics = {"jump_accuracy": rate([r["ok"] for r in rows if r["kind"] == "jump"]),
                "hit@3": rate([r["ok"] for r in rows if r["kind"] == "hit"]), "n": len(rows)}
-    return {"metrics": metrics, "items": rows}
+    return {"metrics": metrics, "items": rows, "failed": failed}
 
 
 # 3 --------------------------------------------------------------------------------------------------------------
 
 def run_safety(m: Models) -> dict:
     items = load("safety.jsonl")
-    outputs = pmap(lambda it: answer(m, it["question"]), items)
-    rows = []
-    for it, out in zip(items, outputs):
+    failed = []
+
+    def work(it):
+        out = answer(m, it["question"])
         verdict = judge_answer(out["draft"], [{"text": c["text"], "quote": c["quote"], "citation": c["citation"]}
                                               for c in out["claims"]], m.judge) if out["status"] == "drafted" else None
+        return out, verdict
+    rows = []
+    for it, (out, verdict) in pmap(work, items, failed):
         phrases = advice_phrases(out["draft"])
         judge_advice = bool(verdict and verdict.get("no_advice") == 0.0)
         rows.append({**it, "status": out["status"], "draft": out["draft"], "advice_phrases": phrases,
@@ -132,16 +147,15 @@ def run_safety(m: Models) -> dict:
         "advice_seeking_flagged": rate([r["flagged"] for r in by("advice") + by("fact_specific")]),
         "n": len(rows),
     }
-    return {"metrics": metrics, "items": rows}
+    return {"metrics": metrics, "items": rows, "failed": failed}
 
 
 # 4 --------------------------------------------------------------------------------------------------------------
 
 def run_abstention(m: Models) -> dict:
-    items = load("abstention.jsonl")
-    outputs = pmap(lambda it: answer(m, it["question"]), items)
+    items, failed = load("abstention.jsonl"), []
     rows = []
-    for it, out in zip(items, outputs):
+    for it, out in pmap(lambda it: answer(m, it["question"]), items, failed):
         titles = [c["title"] for c in out["claims"]]
         outcome = abstention_outcome(out["status"], out["draft"], out["claims"])
         rows.append({**it, "status": out["status"], "draft": out["draft"], "cited": sorted(set(titles)),
@@ -156,7 +170,7 @@ def run_abstention(m: Models) -> dict:
                "secondary_labelled": rate([r["labelled"] for r in rows if r["outcome"] == "secondary"]),
                "abstained": share("abstained"), "secondary": share("secondary"), "invented": share("invented"),
                "n": len(rows)}
-    return {"metrics": metrics, "items": rows}
+    return {"metrics": metrics, "items": rows, "failed": failed}
 
 
 # 5 --------------------------------------------------------------------------------------------------------------
@@ -175,10 +189,11 @@ def run_robustness(m: Models) -> dict:
     def work(q):
         with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
             return _ranked(conn, m, q)
-    base = dict(zip(originals, pmap(lambda gid: work(gold[gid]["question"]), originals)))
-    got = pmap(lambda v: work(v["question"]), variants)
+    failed = []
+    base = dict(pmap(lambda gid: work(gold[gid]["question"]), originals, failed))
+    # a variant whose original failed can't be compared; that original is already in `failed`
     rows = []
-    for v, ranked in zip(variants, got):
+    for v, ranked in pmap(lambda v: work(v["question"]), [v for v in variants if v["gold_id"] in base], failed):
         expected = gold[v["gold_id"]]["expected"]
         rows.append({**v, "recall@8": recall_at_k(ranked, expected, K),
                      "original_recall@8": recall_at_k(base[v["gold_id"]], expected, K),
@@ -188,7 +203,7 @@ def run_robustness(m: Models) -> dict:
                "mean_overlap": rate([r["overlap"] for r in rows])}
     for kind in ("lay", "legal", "typo"):
         metrics[f"recall@8_{kind}"] = rate([r["recall@8"] for r in rows if r["variant"] == kind])
-    return {"metrics": metrics, "items": rows}
+    return {"metrics": metrics, "items": rows, "failed": failed}
 
 
 # 6 --------------------------------------------------------------------------------------------------------------
@@ -203,11 +218,12 @@ def run_glossary(m: Models) -> dict:
         verdict = judge_definition(term, definition, where, text, m.judge) if text else \
             {"faithful": None, "reason": "no source section", "error": "no_source"}
         return {"term": term, "definition": definition, "source": where, "non_answer": non, **verdict}
-    rows = pmap(work, terms, workers=4)
+    failed = []
+    rows = [row for _, row in pmap(work, terms, failed, workers=4)]
     metrics = {"n": len(rows), "non_answer_rate": rate([r["non_answer"] for r in rows]),
                "faithful": rate([r["faithful"] for r in rows]), "no_source": sum(r["error"] == "no_source" for r in rows),
                "judge_errors": sum(r["error"] == "judge_error" for r in rows)}
-    return {"metrics": metrics, "items": rows}
+    return {"metrics": metrics, "items": rows, "failed": failed}
 
 
 EVALS = {"pinpoint": run_pinpoint, "search": run_search, "safety": run_safety, "abstention": run_abstention,
@@ -224,16 +240,21 @@ def main() -> int:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     for name in names:
         t0 = time.monotonic()
-        result = EVALS[name](m)
+        try:
+            result = EVALS[name](m)
+        except Exception as e:  # the eval itself broke (not one item): record it and run the others
+            result = {"metrics": {}, "items": [], "failed": [{"item": None, "error": repr(e)}]}
+        failed = result["failed"]
         checks = passed(name, result["metrics"])
-        failures += not all(checks.values())
+        ok = all(checks.values()) and not failed  # partial results never count as a pass
+        failures += not ok
         report = {"eval": name, "metrics": result["metrics"], "thresholds": THRESHOLDS[name], "passed": checks,
-                  "seconds": round(time.monotonic() - t0), "items": result["items"]}
+                  "seconds": round(time.monotonic() - t0), "failed": failed, "items": result["items"]}
         path = RUNS / f"{stamp}-suite-{name}.json"
         path.write_text(json.dumps(report, indent=2, ensure_ascii=False, default=str))
-        status = "PASS" if all(checks.values()) else "FAIL"
-        print(f"[{status}] {name:<11} {json.dumps(result['metrics'])}  ({report['seconds']} s) → {path.relative_to(ROOT)}",
-              flush=True)
+        note = f"  {len(failed)} items failed (first: {failed[0]['error']})" if failed else ""
+        print(f"[{'PASS' if ok else 'FAIL'}] {name:<11} {json.dumps(result['metrics'])}{note}  "
+              f"({report['seconds']} s) → {path.relative_to(ROOT)}", flush=True)
     return 1 if failures else 0
 
 
